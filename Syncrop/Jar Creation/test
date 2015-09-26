@@ -1,0 +1,14 @@
+Version: 0.9.1
+Package: syncrop
+Installed-Size: 2048
+Section: java
+Maintainer: Arthur Williams <arthur@taaparthur.no-ip.org>
+Homepage: http://taaparthur.no-ip.org
+Priority: standard
+Architecture: all
+Depends: openjdk-7-jre
+Description: Sync files with SyncROP
+ SyncROP syncs your files to a cloud and allows you to access them form anywhere
+
+
+

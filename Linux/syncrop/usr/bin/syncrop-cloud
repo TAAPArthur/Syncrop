@@ -1,0 +1,43 @@
+#!/bin/bash
+command=$1
+
+start()
+{
+	nohup java -Xms20M -Xmx20M -jar /usr/lib/syncrop/SyncropCloud.jar $2 >/syncrop/cloud.out&
+}
+
+stop()
+{
+	pid=`pgrep -f 'java.*SyncropCloud'`
+	kill $pid
+	while ps -p $pid; 
+	do 
+	sleep 1;
+	done;
+	
+}
+version()
+{
+	java -Xmx15M -jar /usr/lib/syncrop/SyncropCloud.jar "-v"
+}
+
+case $1 in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart|reload)
+		stop
+		start
+		;;
+	version|"-v"|"--version")
+		version
+		;;
+	*)
+		echo $"Usage: $0 {start|stop|restart|reload|status}"
+	        exit 1
+esac
+
+exit 0

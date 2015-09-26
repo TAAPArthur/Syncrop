@@ -1,0 +1,1 @@
+java -Xmx30M -jar /usr/lib/syncrop/SyncropGUI.jar

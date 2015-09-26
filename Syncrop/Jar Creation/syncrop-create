@@ -1,0 +1,37 @@
+#!/bin/bash
+
+home="/home/taaparthur/Documents/Xubuntu Apps/Jar Creation"
+
+path="/home/taaparthur/Documents/Syncrop/Jars" #/home/taaparthur/Documents/Syncrop
+
+linux_path="/home/taaparthur/Documents/Syncrop/Linux/syncrop/usr/lib/syncrop"
+windows_path="/home/taaparthur/Documents/Syncrop/Windows/Jars"
+
+
+cd /home/taaparthur/Documents/Xubuntu\ Apps/SyncropGUI/bin
+jar cfm "$path"/SyncropGUI.jar "$home"/SyncropGUI_MANIFEST.MF *
+cd /home/taaparthur/Documents/Xubuntu\ Apps/Syncrop/bin
+jar cfm "$path"/SyncropDaemon.jar "$home"/SyncropDaemon_MANIFEST.MF * ../Resources
+jar cfm "$path"/SyncropCloud.jar "$home"/Cloud_MANIFEST.MF * ../Resources
+cd ../../Server/bin
+jar cf "$path"/Client.jar client/* logger/* message/*
+jar cf "$path"/Server.jar server/* logger/* message/*
+
+#############Linux################
+version=`java -jar "$path"/SyncropDaemon.jar -v`
+file="/home/taaparthur/Documents/Syncrop/Linux/syncrop/DEBIAN/control"
+echo $version>"/home/taaparthur/Documents/TAAPArthur/html/syncrop_version.html"
+echo "Version: $version" >"$file"
+cat "$home"/control_minus_version >>"$file"
+
+sleep 2s
+dpkg-deb --build "/home/taaparthur/Documents/Syncrop/Linux/syncrop" "/home/taaparthur/Documents/TAAPArthur/html/debian/pool/main/syncrop_all.deb"
+
+cd $path
+zip /home/taaparthur/Documents/TAAPArthur/html/syncrop/SyncropDaemonFiles SyncropGUI.jar SyncropDaemon.jar Client.jar Server.jar json-simple-1.1.1.jar jna.jar
+zip /home/taaparthur/Documents/TAAPArthur/html/syncrop/SyncropCloudFiles *
+
+ln -f $path/* $linux_path/
+
+#############Windows#################
+ln -f $path/* $windows_path/
