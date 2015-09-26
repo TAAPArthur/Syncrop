@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Syncrop
+Exec=syncrop start
+Icon=/usr/share/pixmaps/ropicon.jpg
+Terminal=true
+X-MultipleArgs=false
+Type=Application
+StartupNotify=true
+Categories=System;
+Comment=Realm of Pi auto backup
+Name[en_US]=Syncrop
