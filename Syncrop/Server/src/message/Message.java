@@ -22,7 +22,16 @@ import java.util.HashSet;
  * to the Sever. The Message is read by the Server and is not delivered to the application
  * 
  * Each Message has a message Object containing the information to send and a header String to 
- * categorize the Message being sent. 
+ * categorize the Message being sent.
+ * 
+ *  Terminology
+ *  <ul>
+ *  <li> Server* - the #{@link server.Server} that runs on a remote computer
+ *  <li> Primary Client or Primary Connection - the host connection which other clients connect to; there can only be one
+ *  <li> Secondary Client or Secondary Connection - the clients that connect (which are on a client computer) to the server. There can be more than one.
+ *  
+ *  </ul>
+ *  The Server can Primary Client can be built into one entity by using #{@link server.InternalServer}.
  * 
  */
 public class Message implements Serializable
@@ -62,16 +71,34 @@ public class Message implements Serializable
 	 */
 	public static final byte TYPE_MESSAGE_TO_SERVER=4;
 	
-		
-	public static final String MESSAGE_PING="ping";
+
+	/**
+	 * Used to tell recipient that the connection is still active<br/>
+	 * Use with header {@link #TYPE_MESSAGE_TO_CLIENT} or {@link #TYPE_MESSAGE_TO_SERVER}
+	 */
+	public static final String MESSAGE_PING="PING";
+	/**
+	 * A message from the Server to Primary Client 
+	 * indicating that their are no Secondary Clients<br/>
+	 * Use with header {@link #TYPE_MESSAGE_TO_CLIENT} 
+	 */
 	public static final String MESSAGE_NO_CLIENTS="no clients";
-	public static final String MESSAGE_START="start";
-	public static final String MESSAGE_CONNECTION_ACCEPTED="connection accepted";
-	public static final String MESSAGE_CONNECTION_REJECTED="connection rejected";
-	public static final String MESSAGE_GET_CONNECTIONS="get connections";
-	public static final String MESSAGE_CONNECTION_MADE="connection made";
+	
+	/**
+	 * Should be sent with header #C
+	 */
+	public static final String MESSAGE_CONNECTION_ACCEPTED="CONNECTION ACCEPTED";
+	public static final String MESSAGE_CONNECTION_REJECTED="CONNECTION REJECTED";
+	public static final String MESSAGE_GET_CONNECTIONS="GET CONNECTIONS";
+	public static final String MESSAGE_CONNECTION_MADE="CONNECTION MADE";
 	
 	public static final String HEADER_CHANGE_GROUP="change group";
+	/**
+	 * This header should be sent with type {@link #TYPE_MESSAGE_TO_CLIENT}. <br/>
+	 * The message accompanying this header should return a String array of all the names of connections
+	 * that the Secondary Client can connect to (ie application name matches and the connection is not full). 
+	 */
+	public static final String HEADER_AVAILABLE_CONNECTIONS="AVAILABLE CONNECTIONS";
 	public static final String HEADER_MAKE_CONNECTION="make connection";
 	public static final String HEADER_CONNECTION_REQUEST="connection request";
 	public static final String HEADER_USER_LEFT="user left";
@@ -128,7 +155,12 @@ public class Message implements Serializable
 		if(username==null)throw new NullPointerException("username cannot be null");
 		addTargetsToInclude(targetsToInclude);
 		addTargetsToExclude(targetsToExclude);
-	}
+	} 
+	/**
+	 * Creates a new Message which is essentially a copy of message but ignores targets
+	 * to include and targets to exclude
+	 * @param message - the message to copy
+	 */
 	public Message(Message message)
 	{
 		this(message.message,message.username,message.type,message.header);
@@ -182,6 +214,10 @@ public class Message implements Serializable
 	 * @see Message
 	 */
 	public Object getMessage(){return message;}
+	/**
+	 * 
+	 * @return the name of the user who sent this message.
+	 */
 	public String getUsername(){return username;}
 	/**
 	 * @return the type of this Message
@@ -196,11 +232,7 @@ public class Message implements Serializable
 	 * @see #header
 	 */
 	public String getHeader(){return header;}
-	/**
-	 * Sets the header of this Message
-	 * @param header the new header of this Message
-	 */
-	public void setHeader(String header){this.header=header;}
+	
 	
 	/**
 	 * @return true is and only if this Message's type is equal to 
@@ -232,6 +264,7 @@ public class Message implements Serializable
 	 */
 	public boolean isMessageConnectionInfo(){return type==TYPE_CONNECTION_INFO;}
 	
+	@Override
 	public String toString()
 	{
 		return

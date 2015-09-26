@@ -95,7 +95,7 @@ public class Account
 		
 		String restrinctions=
 				"*.metadata*\t*.~lock*\t*.gvfs\t*.thumbnails*"
-		+ "\t*.backup*\t*~\t*.dropbox*\t*/proc/*\t*/sys/*\t*/dev/*\t*/run/*\t"
+		+ "\t*.backup*\t*~\t*.git*\t*.dropbox*\t*/proc/*\t*/sys/*\t*/dev/*\t*/run/*\t"
 		+ "*.*outputstream*\t*appcompat*\t*/.recommenders/*\t*.attach_pid*";
 		for(String restriction:restrinctions.split("\t"))
 			addRestrictions(restriction);

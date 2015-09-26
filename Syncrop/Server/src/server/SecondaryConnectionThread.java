@@ -71,7 +71,8 @@ public class SecondaryConnectionThread extends GenericConnectionThread{
 			else if(m.getHeader().equals(Message.HEADER_MAKE_CONNECTION))//Secondary connects to primary
 			{
 				PrimaryConnectionThread c=Server.connections.get(m.getMessage()+"");//makes connection by id
-				c.printMessage(new Message("Connect to "+username+"?",username,Message.TYPE_CONNECTION_INFO,Message.HEADER_CONNECTION_REQUEST));//ask primary to play with secondary
+				//ask primary to connect to secondary
+				c.printMessage(new Message("Connect to "+username+"?",username,Message.TYPE_CONNECTION_INFO,Message.HEADER_CONNECTION_REQUEST));
 				log("trying to connect: "+username+" to "+c.username );
 				
 				Message connectionAnswer=c.readConnectionInfo();

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-home="/home/taaparthur/Documents/Xubuntu Apps/Jar Creation"
+home="/home/taaparthur/Documents/Syncrop/Syncrop/Jar Creation"
 
 path="/home/taaparthur/Documents/Syncrop/Jars" #/home/taaparthur/Documents/Syncrop
 
@@ -8,14 +8,21 @@ linux_path="/home/taaparthur/Documents/Syncrop/Linux/syncrop/usr/lib/syncrop"
 windows_path="/home/taaparthur/Documents/Syncrop/Windows/Jars"
 
 
-cd /home/taaparthur/Documents/Xubuntu\ Apps/SyncropGUI/bin
+cd /home/taaparthur/Documents/Syncrop/Syncrop/SyncropGUI/bin
 jar cfm "$path"/SyncropGUI.jar "$home"/SyncropGUI_MANIFEST.MF *
-cd /home/taaparthur/Documents/Xubuntu\ Apps/Syncrop/bin
+git commit . -m "Code was updated"
+cd /home/taaparthur/Documents/Syncrop/Syncrop/SyncropDaemon/bin
+git commit . -m "Code was updated"
 jar cfm "$path"/SyncropDaemon.jar "$home"/SyncropDaemon_MANIFEST.MF * ../Resources
 jar cfm "$path"/SyncropCloud.jar "$home"/Cloud_MANIFEST.MF * ../Resources
+git commit . -m "Code was updated"
 cd ../../Server/bin
 jar cf "$path"/Client.jar client/* logger/* message/*
 jar cf "$path"/Server.jar server/* logger/* message/*
+git commit . -m "Code was updated"
+
+cd "$path"
+git commit . -m "Code was updated"
 
 #############Linux################
 version=`java -jar "$path"/SyncropDaemon.jar -v`
@@ -33,5 +40,7 @@ zip /home/taaparthur/Documents/TAAPArthur/html/syncrop/SyncropCloudFiles *
 
 ln -f $path/* $linux_path/
 
+git commit $linux_path -m "Code was updated"
 #############Windows#################
 ln -f $path/* $windows_path/
+git commit $windows_path -m "Code was updated"
