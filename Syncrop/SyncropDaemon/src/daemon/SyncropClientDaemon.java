@@ -37,6 +37,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 		new SyncropClientDaemon(instance);
 	}
 	public static void stop(){
+		logger.log("Method stop called");
 		System.exit(0);
 	}
 
@@ -175,9 +176,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 				initializingConnection=false;
 				break;
 			} 
-			catch (IOException e){
-				
-			}
+			catch (IOException e){logger.log(e.toString());}
 			catch (Exception e) {
 				logger.logFatalError(e, "occured after connecting to Cloud");
 				System.exit(0);

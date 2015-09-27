@@ -4,10 +4,12 @@ public class QueueMember{
 	private String path;
 	private String owner;
 	String target;
+	final long timeStamp;
 	public QueueMember(String path,String owner,String target){
 		this.path=path;
 		this.owner=owner;
 		this.target=target;
+		timeStamp=System.currentTimeMillis();
 	}
 	@Override
 	public boolean equals(Object o){
@@ -25,6 +27,7 @@ public class QueueMember{
 	public String getTarget(){
 		return target;
 	}
+	public long getTimeStamp(){return timeStamp;}
 	@Override
 	public String toString(){
 		return "path:"+path+"; owner:"+owner+"; target:"+target;

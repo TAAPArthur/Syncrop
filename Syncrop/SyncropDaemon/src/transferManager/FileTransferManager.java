@@ -734,8 +734,10 @@ public class FileTransferManager extends Thread{
 		{
 			if(logger.isDebugging())
 				logger.log("All files finished transferring");
-			if(Settings.autoQuit())
+			if(Settings.autoQuit()){
+				logger.log("auto quitting");
 				System.exit(0);
+			}
 		}
 		uploadCount=downloadCount=0;
 		uploadNameOfFirstFile=downloadNameOfFirstFile=null;			

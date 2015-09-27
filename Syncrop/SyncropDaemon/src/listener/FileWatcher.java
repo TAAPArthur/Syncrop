@@ -16,6 +16,7 @@ import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -154,32 +155,24 @@ public class FileWatcher extends Thread{
 						return 0;
 					}
 					logger.logTrace("detected new file "+path);
-					ResourceManager.writeFile(item);
-					if(daemon!=null){
-						daemon.addToSendQueue(item);
-					}
 				}
 				else {
 					item=ResourceManager.getFile(path, a.getName());
-					if(item.hasBeenUpdated()){
-						ResourceManager.writeFile(item);
-						if(daemon!=null&&item.hasBeenUpdated())
-							daemon.addToSendQueue(item);
+				}
+				
+				if(Files.isDirectory(item.getFile().toPath())&&(!(item instanceof SyncROPSymbolicLink)||
+						!a.isPathEnabled(((SyncROPSymbolicLink) item).getTargetPath())))
+					try {
+						logger.log("Registering symbolic dir "+file,SyncropLogger.LOG_LEVEL_ALL);
+						register(file.toPath(),path,a, removable);
+						for(String f:file.list())
+							count+=checkFiles(a,path+((path.isEmpty()&&!removable)
+								||path.equals(File.separator)?
+								"":
+									File.separator)+f,removable);
+					} catch (IOException e) {
+						logger.logError(e, "occured when trying to register dir: "+file);
 					}
-				}
-			if(Files.isDirectory(item.getFile().toPath())&&(!(item instanceof SyncROPSymbolicLink)||
-					!a.isPathEnabled(((SyncROPSymbolicLink) item).getTargetPath())))
-				try {
-					logger.log("Registering symbolic dir "+file,SyncropLogger.LOG_LEVEL_ALL);
-					register(file.toPath(),path,a, removable);
-					for(String f:file.list())
-						count+=checkFiles(a,path+((path.isEmpty()&&!removable)
-							||path.equals(File.separator)?
-							"":
-								File.separator)+f,removable);
-				} catch (IOException e) {
-					logger.logError(e, "occured when trying to register dir: "+file);
-				}
 		}
 		else if(Files.isDirectory(file.toPath(), LinkOption.NOFOLLOW_LINKS)){
 			try {
@@ -194,10 +187,7 @@ public class FileWatcher extends Thread{
 							metadataFile.delete();
 						item=new SyncROPDir(path,a.getName(),file.lastModified());
 					}
-					//if a new file has been added or if the file has been modified
-					if(!metadataFile.exists()||item.getDateModified()!=file.lastModified()){
-						ResourceManager.writeFile(item);
-					}
+					
 				}
 				else if(metadataFile.exists()&&files.length>0){
 					ResourceManager.deleteFile(ResourceManager.getFile(path, a.getName()));
@@ -219,25 +209,26 @@ public class FileWatcher extends Thread{
 			item=new SyncROPFile(path,a.getName(),-1);
 			if(!item.isEnabled())return 0;
 			logger.logTrace("detected new file "+path);
-			ResourceManager.writeFile(item);
-			if(daemon!=null){
-				daemon.addToSendQueue(item);
-			}
+			
 		}
 		else {
 			item=ResourceManager.getFile(path, a.getName());
 			if(item==null){
 				logger.logWarning("error occured when reading file. path="+path);
 			}
-			else if(item instanceof SyncROPFile||((SyncROPDir)item).isEmpty())
-				if(item.hasBeenUpdated())
-					item.save();
+			
 		}
 		//else daemon.setPropperPermissions(AccountManager.getFileByPath(path, a.getName()));
-		if(item!=null&&item.hasBeenUpdated())
+		
+		if(item!=null&&item.hasBeenUpdated()){
 			onFileChange(item.getAbsPath());
-	
-	
+			item.save();
+			
+			if(daemon!=null){
+				daemon.addToSendQueue(item);
+			}
+		}
+
 		if(item==null||item.hasBeenUpdated())
 			updateAccountSize(a, file, item);
 		if(item!=null)
@@ -287,8 +278,10 @@ public class FileWatcher extends Thread{
 				break;
 			}
 		try {
-			if(!SyncropClientDaemon.isShuttingDown())
+			if(!SyncropClientDaemon.isShuttingDown()){
+				logger.log("Exited while loop prematurly shutind down");
 				System.exit(0);
+			}
 			watcher.close();
 		} catch (IOException e) {
 			logger.logError(e, "occured while trying to close watcher");
@@ -300,18 +293,19 @@ public class FileWatcher extends Thread{
 		
 		WatchKey key = watcher.take();
 		//watcher.p
-	
-		SyncropClientDaemon.sleep(500);//used to eliminate duplicate events
+		
+		SyncropClientDaemon.sleep(100);//used to eliminate duplicate events
 		WatchedDir dir = keys.get(key);
 		
 		List<WatchEvent<?> >events=key.pollEvents();
-		
+		System.out.println(new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS").format(System.currentTimeMillis()));
+		System.out.println("-------------------");
 		for (WatchEvent<?>e :events)
 			try
 			{
 				String path=dir.getPath()+File.separator+e.context();
 				File file=new File(ResourceManager.getHome(dir.getAccountName(), dir.isRemovable()),path);
-							
+				System.out.println(path+" "+e.kind());			
 				SyncROPItem item=ResourceManager.getFile(path, dir.getAccountName());
 				//if(!(file.isDirectory()&&e.kind()==ENTRY_MODIFY)&&logger.isLogging(Logger.LOG_LEVEL_ALL))
 				//	logger.log("Detected change in file "+file+" "+e.kind(),Logger.LOG_LEVEL_ALL);
@@ -404,7 +398,7 @@ public class FileWatcher extends Thread{
 					item=new SyncROPDir(path, owner);						
 			}
 			else item=new SyncROPFile(path, owner);
-			if(item!=null&&item.hasBeenUpdated()){
+			if(item!=null&&item.isEmpty()){
 				tryToSendFile(item);
 				ResourceManager.writeFile(item);
 			}

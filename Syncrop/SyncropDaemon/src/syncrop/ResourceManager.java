@@ -381,7 +381,7 @@ public class ResourceManager
 		return metaDataFile.delete();
 	}
 		
-	public static synchronized void lockFile(String path,String owner) throws IOException{
+	public static synchronized void lockFile(String path,String owner){
 		lockedPath=path;
 		lockedOwner=owner;
 		//logger.logTrace("locking file path:"+lockedPath+" owner:"+lockedOwner);

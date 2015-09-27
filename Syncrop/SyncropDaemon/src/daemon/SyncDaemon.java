@@ -306,7 +306,7 @@ protected final String CLOUD_USERNAME="Cloud";
 			fileTransferManager.receivedFile();
 			return;
 		}
-		
+		ResourceManager.lockFile(path,owner);
 		//if client file is directory and local file is directory
 		if(key==-1&&(localFile==null||localFile.getKey()==-1)){
 			logger.logTrace("downloading dir info");
@@ -316,6 +316,7 @@ protected final String CLOUD_USERNAME="Cloud";
 			if(exists){
 				if(!localFile.exists())
 					localFile.createFile(dateModified);
+				else localFile.setDateModified(dateModified);
 			}
 			else 
 				localFile.delete(dateModified);
@@ -323,7 +324,7 @@ protected final String CLOUD_USERNAME="Cloud";
 		else
 			try 
 			{
-				ResourceManager.lockFile(path,owner);
+				
 				//Difference in modification date is not considered because files
 				//are initially synced when connection is made
 				//so any any subsequent transfer have to be newer
@@ -408,7 +409,7 @@ protected final String CLOUD_USERNAME="Cloud";
 			
 			localFile.save();
 			
-			ResourceManager.unlockFile(path,owner);
+			
 			if(key!=-1&&exists&&localFile.getDateModified()!=dateModified)
 				logger.logWarning("The modification date of file "+localFile.getFile()+" was not set correctly");
 			
@@ -417,7 +418,7 @@ protected final String CLOUD_USERNAME="Cloud";
 				((SyncropCloud)(this)).updateAllClients(localFile,id);
 			logger.logTrace("Sending confirmation message");
 			fileTransferManager.receivedFile();
-			
+			ResourceManager.unlockFile(path,owner);
 			//sleepShort();
 		//}
 		/*else 

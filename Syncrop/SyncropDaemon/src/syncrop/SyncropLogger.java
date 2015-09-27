@@ -198,6 +198,9 @@ public class SyncropLogger implements logger.Logger{
         record.setThrown(t);
         
         handler.publish(record);
+        if(t!=null){
+        	t.printStackTrace(System.out);
+        }
         
 		if(logLevel==LOG_LEVEL_FATAL){
 			displayNotification("An unexpected error occurred see log for details");

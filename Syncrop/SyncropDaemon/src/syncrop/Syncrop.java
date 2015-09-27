@@ -13,7 +13,7 @@ public abstract class Syncrop {
 	/**
 	 * The version number of Syncrop
 	 */
-	static final private String VERSION_ID="0.993";
+	static final private String VERSION_ID="0.996";
 	static final private String METADATA_VERSION="2";
 	
 	/**

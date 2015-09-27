@@ -24,7 +24,8 @@ public class SendQueue{
 		queue.clear();
 	}
 	public boolean isEmpty(){
-		return queue.isEmpty();
+		
+		return queue.isEmpty()&&System.currentTimeMillis()-queue.peek().getTimeStamp()>1000;
 	}
 	public int size(){
 		return queue.size();

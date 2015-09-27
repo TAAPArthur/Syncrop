@@ -170,6 +170,7 @@ public class SyncROPFile extends SyncROPItem
 		logger.logDebug("Conflict avoided because file metadata is the same");
 		return false;
 	}
+	@Override
 	public boolean isEmpty(){return true;}
 	public boolean updateSize(){
 		long size=file.length();
