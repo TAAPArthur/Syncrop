@@ -43,7 +43,8 @@ zip /home/taaparthur/Documents/TAAPArthur/html/syncrop/SyncropCloudFiles *
 
 ln -f $path/* $linux_path/
 
-git commit $linux_path -m "Code was updated"
+git commit $path -m "Jar was updated"
+git commit $linux_path -m "Jar was updated"
 #############Windows#################
 ln -f $path/* $windows_path/
-git commit $windows_path -m "Code was updated"
+git commit $windows_path -m "Jar was updated"
