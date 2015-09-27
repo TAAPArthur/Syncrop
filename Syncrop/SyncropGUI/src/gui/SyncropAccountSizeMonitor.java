@@ -11,6 +11,7 @@ public class SyncropAccountSizeMonitor extends Thread{
 	}
 	@Override
 	public void run(){
+		setPriority(Thread.MIN_PRIORITY);
 		while(!SyncropGUI.isShuttingDown()){
 			ResourceManager.getAccount().calculateSize();
 			gui.update();

@@ -39,9 +39,9 @@ public class WindowsNotifications implements ActionListener
 		Image image=null;
 		
 		
-		URL url=getClass().getResource("/icon.png");
-		//url=getClass().getClassLoader().getResource("icon.png");
-		//url=ClassLoader.getSystemResource("icon.png");
+		URL url=getClass().getResource("/SyncropIcon.png");
+		//url=getClass().getClassLoader().getResource("SyncropIcon.png");
+		//url=ClassLoader.getSystemResource("SyncropIcon.png");
 		
 		image = new ImageIcon(url, "Syncrop icon").getImage().
 			getScaledInstance(16, 16, Image.SCALE_SMOOTH);

@@ -23,6 +23,7 @@ import javax.swing.JOptionPane;
 import file.Directory;
 import file.RemovableDirectory;
 import file.SyncROPItem;
+import syncrop.RecursiveDeletionFileVisitor;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
 /**
@@ -129,14 +130,28 @@ public class Account
 	public String getHome(boolean removable){
 		return ResourceManager.getHome(getName(), removable);
 	}
-	private void createFolder(){
+	public void deleteFolder() throws IOException{
+		boolean removable=false;
+		logger.log("Deleting Account folder for "+getName());
+		do 
+		{
+			File metadatahome=ResourceManager.getMetadataHome(getName(), removable);
+			if(metadatahome.exists()){
+				Files.walkFileTree(metadatahome.toPath(), new RecursiveDeletionFileVisitor());
+			}
+			File home=new File(ResourceManager.getHome(getName(), removable=!removable));
+			if(home.exists())
+				Files.walkFileTree(home.toPath(), new RecursiveDeletionFileVisitor());
+		}
+		while(removable);
+	}
+	public void createFolder(){
 		File f;
 		boolean removable=false;
 		do 
 		{
 			f=new File(ResourceManager.getHome(getName(), removable=!removable));
-			if(!f.exists())
-			{
+			if(!f.exists()){
 				logger.log("creating parent dir for account " +
 						getName()+" removable:"+removable);
 				if(!f.mkdirs())

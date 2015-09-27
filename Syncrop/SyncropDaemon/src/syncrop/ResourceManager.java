@@ -123,6 +123,10 @@ public class ResourceManager
 	public static void addAccount(Account account){
 		accounts.add(account);
 	}
+	public static void deleteAccount(Account account) throws IOException{
+		account.deleteFolder();
+		accounts.remove(account);
+	}
 	public static Account getAccount() {
 		for(Account account:accounts)
 			return account;
@@ -190,13 +194,18 @@ public class ResourceManager
 		{
 			try
 			{
-				out.println(account.getName());
-				out.println(account.getEmail());
-				out.println(account.getToken());
-				out.println(account.isEnabled()+"");
-				out.println(formatCollection(account.getRestrictions()));
-				out.println(formatCollection(account.getDirectories()));
-				out.println(isInstanceOfCloud()?"*":formatCollection(account.getRemovableDirectories()));
+				if(Syncrop.isInstanceOfCloud()){
+					out.println(account.getName()+"\t"+account.getEmail()+"\t"+account.isEnabled());
+				}
+				else {
+					out.println(account.getName());
+					out.println(account.getEmail());
+					out.println(account.getToken());
+					out.println(account.isEnabled()+"");
+					out.println(formatCollection(account.getRestrictions()));
+					out.println(formatCollection(account.getDirectories()));
+					out.println(formatCollection(account.getRemovableDirectories()));
+				}
 			}
 			catch (NullPointerException e) {
 				logger.logError(e, "occurred when saving Account "+account.getName());
@@ -335,22 +344,7 @@ public class ResourceManager
 	}
 	private static void deleteMetadata() throws IOException{
 		logger.log("deleting metadata");
-		Files.walkFileTree(metaDataFile.toPath(), new SimpleFileVisitor<Path>() {
-			@Override
-			public FileVisitResult postVisitDirectory(Path dir, IOException exc) {
-				dir.toFile().delete();
-				return FileVisitResult.CONTINUE;
-			}
-			@Override
-			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-				file.toFile().delete();
-				return FileVisitResult.CONTINUE;
-			}
-			@Override
-			public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
-				return FileVisitResult.SKIP_SUBTREE;
-			}	
-		});
+		Files.walkFileTree(metaDataFile.toPath(), new RecursiveDeletionFileVisitor());
 		metaDataFile.mkdirs();
 		metaDataVersionFile.createNewFile();
 		FileWriter writer=new FileWriter(metaDataVersionFile);
@@ -375,6 +369,14 @@ public class ResourceManager
 		if(isInstanceOfCloud())
 			prefix=owner+File.separator+prefix;
 		return new File(metaDataFile,prefix+File.separator+syncedPath+METADATA_ENDING);
+	}
+	public static File getMetadataHome(String owner,boolean removable){		
+		
+		String prefix=removable?"removable":"regular";
+					
+		if(isInstanceOfCloud())
+			prefix=owner+File.separator+prefix;
+		return new File(metaDataFile,prefix);
 	}
 	
 	public static  boolean deleteFile(SyncROPItem file){
@@ -507,7 +509,7 @@ public class ResourceManager
 	/**
 	 * Creates the configuation files if the do not exists
 	 */
-	static void initializeConfigurationFiles()
+	public static void initializeConfigurationFiles()
 	{
 		configFilesDirName=configFilesDirName+Syncrop.getInstance();
 		if(!new File(getConfigFilesHome()).exists())

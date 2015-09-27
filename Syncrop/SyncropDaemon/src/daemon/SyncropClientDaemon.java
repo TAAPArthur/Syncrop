@@ -78,8 +78,10 @@ public class SyncropClientDaemon extends SyncDaemon{
 			do
 			{
 				if(isShuttingDown())return;
-				if(lastConnectionFailedMessage!=-1&&!surpressConnectionMessage)
+				if(lastConnectionFailedMessage!=-1&&!surpressConnectionMessage){
 					displayNotification("Disconnected From Cloud");
+					surpressConnectionMessage=true;
+				}
 				
 				count++;
 				if(count++>15)

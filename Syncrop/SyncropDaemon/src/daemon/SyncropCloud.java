@@ -76,6 +76,7 @@ public final class SyncropCloud extends SyncDaemon
 					System.out.println(Syncrop.getVersionID());
 					System.exit(0);
 				}
+				else if(s.startsWith("-a"))
 		new SyncropCloud(instance);
 	}
 	
@@ -206,11 +207,15 @@ public final class SyncropCloud extends SyncDaemon
 	public void updateAllClients(SyncROPItem file,String targetToExclude)
 	{		
 		if(isConnectionActive()){
-			logger.logDebug("Updating "+file.getPath()+" to all owners "+
-				file.getOwner()+" excluding "+targetToExclude);
+			//TODO remove count
+			int count=0;
 			for(String key:clients.keySet())
-				if(!key.equals(targetToExclude)&&file.getOwner().equals(clients.get(key).getAccountName()))
+				if(!key.equals(targetToExclude)&&file.getOwner().equals(clients.get(key).getAccountName())){
 					fileTransferManager.addToSendQueue(file,key);
+					count++;
+				}
+			logger.logDebug("Updating "+file.getPath()+" to all owners "+
+					file.getOwner()+" excluding "+targetToExclude+" ("+count+")");
 		}
 	}
 	

@@ -13,7 +13,7 @@ public abstract class Syncrop {
 	/**
 	 * The version number of Syncrop
 	 */
-	static final private String VERSION_ID="0.990";
+	static final private String VERSION_ID="0.992";
 	static final private String METADATA_VERSION="2";
 	
 	/**
@@ -81,7 +81,7 @@ public abstract class Syncrop {
 	
 	public static SyncropLogger logger;
 	
-	private static String imageFileName="icon.png";
+	private static String imageFileName="SyncropIcon.png";
 	
 	private static long startTime;
 	
@@ -106,6 +106,9 @@ public abstract class Syncrop {
 		Syncrop.instance=instance;
 		Syncrop.instanceOfCloud=runAsCloud;
 		init();
+	}
+	public static void setInstanceOfCloud(boolean runAsCloud){
+		Syncrop.instanceOfCloud=runAsCloud;
 	}
 	private void init()throws IOException{
 		startTime=System.currentTimeMillis();

@@ -51,6 +51,7 @@ public class SyncropCommunicationThread extends Thread{
 	}
 	
 	public void run(){
+		setPriority(Thread.MIN_PRIORITY);
 		while(!SyncropGUI.isShuttingDown())
 			try {
 				if(socket==null)
@@ -65,15 +66,15 @@ public class SyncropCommunicationThread extends Thread{
 						out.flush();
 						setStatus(true, in.nextLine());
 					}
-				else System.out.println("Socket not bound");
-				
-				
-				Thread.sleep(5000);
+				else System.out.println("Socket not bound");		
 			} 
-			catch (NoSuchElementException|InterruptedException e){}
+			catch (NoSuchElementException e){}
 			catch (ConnectException e){}
 			catch (IOException e) {
 				Syncrop.logger.logError(e);
+			}
+			finally{
+				try {Thread.sleep(5000);} catch (InterruptedException e) {}
 			}
 	}
 	
