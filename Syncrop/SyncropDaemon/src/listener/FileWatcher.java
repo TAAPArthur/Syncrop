@@ -16,7 +16,6 @@ import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
-import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -35,9 +34,9 @@ import file.SyncROPFile;
 import file.SyncROPItem;
 import file.SyncROPSymbolicLink;
 import settings.Settings;
-import syncrop.SyncropLogger;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
+import syncrop.SyncropLogger;
 
 public class FileWatcher extends Thread{
 	
