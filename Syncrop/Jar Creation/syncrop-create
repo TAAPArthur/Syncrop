@@ -1,4 +1,6 @@
 #!/bin/bash
+cd "/home/taaparthur/Documents/Syncrop"
+git add .
 
 home="/home/taaparthur/Documents/Syncrop/Syncrop/Jar Creation"
 
