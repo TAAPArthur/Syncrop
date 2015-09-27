@@ -3,7 +3,7 @@ command=$1
 
 start()
 {
-	nohup java -Xms20M -Xmx20M -jar /usr/lib/syncrop/SyncropCloud.jar $2 >/syncrop/cloud.out&
+	nohup java -Xms20M -Xmx20M -jar /usr/lib/syncrop/SyncropCloud.jar "$@" >/syncrop/cloud.out&
 }
 
 stop()
@@ -20,8 +20,8 @@ version()
 {
 	java -Xmx15M -jar /usr/lib/syncrop/SyncropCloud.jar "-v"
 }
-
-case $1 in
+shift
+case $command in
 	start)
 		start
 		;;
