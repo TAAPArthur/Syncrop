@@ -20,6 +20,8 @@ cd ../../Server/bin
 jar cf "$path"/Client.jar client/* logger/* message/*
 jar cf "$path"/Server.jar server/* logger/* message/*
 
+cd ../../SyncropHelper/bin
+jar cf "$path"/SyncropHelper.jar"$home"/SyncropHelper_MANIFEST.MF helper/*
 
 git commit /home/taaparthur/Documents/Syncrop/Syncrop/ -m "Code was updated"
 

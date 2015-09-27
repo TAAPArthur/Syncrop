@@ -133,7 +133,7 @@ public class Account
 	public void deleteFolder() throws IOException{
 		boolean removable=false;
 		logger.log("Deleting Account folder for "+getName());
-		do 
+		do
 		{
 			File metadatahome=ResourceManager.getMetadataHome(getName(), removable);
 			if(metadatahome.exists()){
