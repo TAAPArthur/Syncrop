@@ -21,6 +21,5 @@ public class RecursiveDeletionFileVisitor extends SimpleFileVisitor<Path>{
 	@Override
 	public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
 		return FileVisitResult.SKIP_SUBTREE;
-	}	
-
+	}
 }

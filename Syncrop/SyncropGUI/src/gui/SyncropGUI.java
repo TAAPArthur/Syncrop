@@ -49,7 +49,7 @@ public class SyncropGUI extends Syncrop implements Updateable,ActionListener{
 	JButton startSyncropClient=new JButton("Start Syncrop");
 	JButton stopSyncropClient=new JButton("Stop Syncrop");
 	
-	public static final int WIDTH=430;
+	public static final int WIDTH=470;
 	public static final int HEIGHT=520;
 			
 	
