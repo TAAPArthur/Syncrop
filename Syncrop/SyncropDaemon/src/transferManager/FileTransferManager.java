@@ -544,8 +544,10 @@ public class FileTransferManager extends Thread{
 				{
 					if(!isSending()&&!sendQueue.isEmpty())
 					{
-						sendFile();
-						updateTimeSending();
+						if(System.currentTimeMillis()-sendQueue.peek().getTimeStamp()>1000){
+							sendFile();
+							updateTimeSending();
+						}
 					}
 					if(!isReceiving()&&!receiveQueue.isEmpty())
 					{
