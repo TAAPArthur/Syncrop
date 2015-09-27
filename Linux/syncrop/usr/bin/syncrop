@@ -1,5 +1,5 @@
 #!/bin/bash
 
-java -jar /usr/lib/syncrop/SyncropHelper.jar $1
+java -jar /usr/lib/syncrop/SyncropHelper.jar "$@"
 
 exit 0
