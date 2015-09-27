@@ -298,14 +298,13 @@ public class FileWatcher extends Thread{
 		WatchedDir dir = keys.get(key);
 		
 		List<WatchEvent<?> >events=key.pollEvents();
-		System.out.println(new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS").format(System.currentTimeMillis()));
-		System.out.println("-------------------");
+		
 		for (WatchEvent<?>e :events)
 			try
 			{
 				String path=dir.getPath()+File.separator+e.context();
 				File file=new File(ResourceManager.getHome(dir.getAccountName(), dir.isRemovable()),path);
-				System.out.println(path+" "+e.kind());			
+							
 				SyncROPItem item=ResourceManager.getFile(path, dir.getAccountName());
 				//if(!(file.isDirectory()&&e.kind()==ENTRY_MODIFY)&&logger.isLogging(Logger.LOG_LEVEL_ALL))
 				//	logger.log("Detected change in file "+file+" "+e.kind(),Logger.LOG_LEVEL_ALL);
