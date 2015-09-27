@@ -325,9 +325,7 @@ public class GenericClient implements Messenger
 			printMessage(reason, Message.TYPE_MESSAGE_TO_SERVER,Message.HEADER_CLOSE_CONNECTION);
 		
 		reasonToClose=reason;
-		
-		logger.log("Client: Closing connection: "+reason, Logger.LOG_LEVEL_TRACE);
-		
+				
 		main.clear();
 		notifications.clear();
 		

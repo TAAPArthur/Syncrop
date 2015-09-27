@@ -18,7 +18,6 @@ import daemon.SyncropClientDaemon;
 
 public class SyncropLogger implements logger.Logger{
     
-
     int logLevel=LOG_LEVEL_INFO;
     
     FileHandler handler;
@@ -65,7 +64,6 @@ public class SyncropLogger implements logger.Logger{
 		setLogLevel(level);
 		logFile=new File(getConfigFilesHome(),logFileName);
 		
-		System.out.println(logFile);
 		if(!logFile.exists()){
 			logFile.getParentFile().mkdirs();
 			logFile.createNewFile();

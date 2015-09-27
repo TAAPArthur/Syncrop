@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 
+import client.GenericClient;
 import file.SyncROPDir;
 import file.SyncROPFile;
 import file.SyncROPItem;
@@ -107,6 +108,7 @@ protected final String CLOUD_USERNAME="Cloud";
 		try
 		{
 			displayNotification("Syncrop started");
+			GenericClient.setLogger(Syncrop.logger);
 			init();
 		} 
 		catch (Exception|Error e) {
@@ -136,12 +138,14 @@ protected final String CLOUD_USERNAME="Cloud";
 	        public void shutdown()
 	    	{
 	        	Syncrop.shutdown();
-	    		//closes connection with server
-	    		if(mainClient!=null)
-	    			mainClient.closeConnection("shutting down",true);
-	    		//closes the notification; only needed for Windows
+	    		
 	    		
 	    		try {
+	    			//closes connection with server
+		    		if(mainClient!=null)
+		    			mainClient.closeConnection("shutting down",true);
+		    		
+		    		
 	    			//wakes all threads; they know to end since shuttingDown is true
 	    			fileWatcher.interrupt();
 	    			mainSocketListener.interrupt();
@@ -173,6 +177,7 @@ protected final String CLOUD_USERNAME="Cloud";
 	    		finally
 	    		{
 	    			mainClient=null;//will cause any remaining processes to exit via exception
+	    			//closes the notification; only needed for Windows
 	    			displayNotification("SYNCROP is shutting down");
 	    			Notification.close();
 	    			logger.log("Shutting down");

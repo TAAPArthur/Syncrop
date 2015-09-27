@@ -76,7 +76,7 @@ public final class SyncropCloud extends SyncDaemon
 					System.out.println(Syncrop.getVersionID());
 					System.exit(0);
 				}
-				else if(s.startsWith("-a"))
+				
 		new SyncropCloud(instance);
 	}
 	
