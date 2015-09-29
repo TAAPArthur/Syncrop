@@ -41,9 +41,12 @@ public class WindowsUpdator {
 	    } catch (IOException|SecurityException e) {
 	    	Syncrop.logger.logError(e, "occured while trying update");
 	    }
-	
-		
 	}
+	/**
+	 * Gets the latest version of Syncrop {@link Settings#getHost()}/syncrop_version.html<br/>
+	 * The version should be on the first line and the last word on the line. 
+	 * @return the latest version of Syncrop or "-1" if the version cannot be determined 
+	 */
 	private static String getLatestVersionName(){
 
 		String file="syncrop_version.html";
@@ -64,14 +67,31 @@ public class WindowsUpdator {
 	    }
 		return "-1";
 	}
+	/**
+	 * 
+	 * @param newVersion the version to compare the current version to.
+	 * @return the difference between versions
+	 * @see #isMarjorUpdateAvailable()
+	 * @see #isMarjorUpdateAvailable()
+	 */
 	private static double getVersionDiffrence(String newVersion){
 		double newVersionValue=Double.parseDouble(newVersion);
 		double currentVersionValue=Double.parseDouble(Syncrop.getVersionID());
 		return newVersionValue-currentVersionValue;
 	}
+	/**
+	 * 
+	 * @return true if there is a newer version of Syncrop available
+	 * @see #getLatestVersionName()
+	 */
 	public static boolean isUpdateAvailable(){
 		return getVersionDiffrence(getLatestVersionName())>0;
 	}
+	/**
+	 * 
+	 * @return true if there is has been an major update in Syncrop
+	 * @see #getLatestVersionName()
+	 */
 	public static boolean isMarjorUpdateAvailable(){
 		return getVersionDiffrence(getLatestVersionName())>1;
 	}

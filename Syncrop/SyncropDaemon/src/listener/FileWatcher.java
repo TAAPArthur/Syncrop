@@ -175,6 +175,7 @@ public class FileWatcher extends Thread{
 		}
 		else if(Files.isDirectory(file.toPath(), LinkOption.NOFOLLOW_LINKS)){
 			try {
+				Syncrop.sleepVeryShort();
 				String files[]=file.list();
 				//IF cannot read sub dirs
 				if(files==null)return 0;
