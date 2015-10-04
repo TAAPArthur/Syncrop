@@ -150,7 +150,9 @@ public class SyncropClientDaemon extends SyncDaemon{
 							lastConnectionFailedMessage=2;
 						}
 						catch (IOException e) {
-							logger.log(e.toString()+ " occured while trying to connection to Cloud");
+							if(lastConnectionFailedMessage!=3)
+								logger.log(e.toString()+ " occured while trying to connection to Cloud");
+							lastConnectionFailedMessage=3;
 						}
 						finally{
 							if(!mainClient.isConnectionAccepted()){
