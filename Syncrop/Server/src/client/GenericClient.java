@@ -9,7 +9,6 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.util.ArrayList;
 
-import logger.Logger;
 import message.Message;
 import message.Messenger;
 
@@ -38,7 +37,11 @@ public class GenericClient implements Messenger
 	 */
 	private volatile long milliSecondsPerPing=120000;
 	
-	
+
+	/**
+	 * the time internal in miliseconds that read methods will check to see if there is 
+	 * a message to forward
+	 */
 	private static long waitTime=10;
 	
 	/**
@@ -100,17 +103,15 @@ public class GenericClient implements Messenger
 	 */
 	volatile long timeLastPingRecieved;
 	
-	private static Logger logger;
-	
-	private static volatile boolean logPrintedMessages;
-	private static volatile boolean loggingMessages=true;
 		
 	ReadMessageThread readMessageThread=new ReadMessageThread();
+	/**
+	 * Sleeps half of {@link #milliSecondsPerPing} and checks to see if a message has been
+	 * sent to Cloud. If not, a ping is sent.
+	 */
 	Thread pingThread=new Thread("ping thread"){
-		public void run()
-		{
-			do
-			{
+		public void run(){
+			do{
 				try{
 					Thread.sleep(milliSecondsPerPing/2);
 					
@@ -128,27 +129,36 @@ public class GenericClient implements Messenger
 		}
 	};
 	
+	/**
+	 * Sends a ping message. A ping is used to ensure the recipient that the connection is
+	 * still active
+	 */
 	void ping(){
 		printMessage(Message.MESSAGE_PING,Message.TYPE_MESSAGE_TO_SERVER,Message.HEADER_IGNORE);
 	}
 	
+	/**
+	 * 
+	 * @param username the name of the user making the connection
+	 * @param host the hostname to connect to
+	 * @param port the port to connect to
+	 * @throws IOException
+	 */
 	public GenericClient(String username, String host, int port) throws IOException{
 		this.username=username;
 		connect(host,port);//TODO javadoc
 		pingThread.start();
 		readMessageThread.start();
-		
 	}
 	
-	
+	/**
+	 * 
+	 * @return the name of the user who created the connection
+	 */
 	public String getUsername()
 	{
 		return username;
 	}
-	
-	
-	
-	
 	
 	/**
 	 * Waits until the specified ArrayList has a size greater than 0<br/>
@@ -204,6 +214,7 @@ public class GenericClient implements Messenger
 	 */
 	protected Message readConnectionInfo() throws IOException{return read(connectionInfo);}
 	
+	
 	public void printNotification(Object o){printMessage(o, Message.TYPE_NOTIFICATION);}
 	
 	public void printMessage(Object o){printMessage(o, Message.TYPE_DEFAULT);}
@@ -248,9 +259,7 @@ public class GenericClient implements Messenger
 			//out.writeUnshared(messageToPrint);
 			out.writeObject(messageToPrint);
 			out.flush();
-			if(logPrintedMessages&&!messageToPrint.getMessage().equals(Message.MESSAGE_PING))
-				log(messageToPrint.toString());
-			
+						
 			count++;
 			//maxCount=10;
 			if(count>maxCount)
@@ -266,7 +275,6 @@ public class GenericClient implements Messenger
 		}
 		catch (Exception|Error e) 
 		{
-			log(e);
 			closeConnection(e.toString());
 		}
 	
@@ -338,9 +346,7 @@ public class GenericClient implements Messenger
 		{
 			closeSocket();
 		}
-		catch (IOException e) {
-			log(e);
-		}  
+		catch (IOException e) {}  
 	 }
 	private void closeSocket() throws IOException{
 		socket.shutdownOutput();
@@ -351,43 +357,6 @@ public class GenericClient implements Messenger
 		return reasonToClose;
 	}
 	
-	/**
-	 * Sets the PrintWriter to all errors will be written to
-	 * @param o the PrintWriter to log errors to
-	 */
-	public static void setLogger(Logger logger)
-	{
-		GenericClient.logger=logger;
-	}
-	public void log(String message)
-	{
-		if(logger!=null&&loggingMessages)
-			logger.log(message);
-		
-	}
-	public void log(Throwable e)
-	{
-		if(logger!=null&&loggingMessages){
-			logger.logError(e);
-		}
-		else e.printStackTrace();
-	}
-	
-	
-	public static boolean isLoggingPrintedMessages() {
-		return logPrintedMessages;
-	}
-	public static void setLoggingPrintedMessages(boolean logPrintedMessages) {
-		GenericClient.logPrintedMessages = logPrintedMessages;
-	}
-
-	public static boolean isLoggingMessages() {
-		return loggingMessages;
-	}
-	public static void setLoggingMessages(boolean loggingMessages) {
-		GenericClient.loggingMessages = loggingMessages;
-	}
-
 	
 	void setMilliSecondsPerPing(long milliSecondsPerPing){
 		this.milliSecondsPerPing=milliSecondsPerPing;
@@ -421,7 +390,6 @@ public class GenericClient implements Messenger
 						else if(message.getHeader().equals(Message.HEADER_SET_MILLISECONDS_TILL_PING)){
 							setMilliSecondsPerPing((long)message.getMessage());
 						}
-						else log(message.toString());
 					}
 					else if(message.isNotification())
 					{
@@ -443,14 +411,10 @@ public class GenericClient implements Messenger
 				}
 				catch (IOException|ClassNotFoundException|ClassCastException e)
 				{
-					
-					log(e);closeConnection(e.toString());
+					closeConnection(e.toString());
 				}
 				catch (Exception|Error e)
 				{
-					if(message!=null)
-						log(message+"");
-					log(e);
 					closeConnection(e.toString());
 				}
 			}

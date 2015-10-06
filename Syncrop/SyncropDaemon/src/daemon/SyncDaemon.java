@@ -13,7 +13,6 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 
-import client.GenericClient;
 import file.SyncROPDir;
 import file.SyncROPFile;
 import file.SyncROPItem;
@@ -24,9 +23,9 @@ import message.Messenger;
 import notification.Notification;
 import notification.NotificationManager;
 import settings.Settings;
-import syncrop.SyncropLogger;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
+import syncrop.SyncropLogger;
 import transferManager.FileTransferManager;
 
 public abstract class SyncDaemon extends Syncrop{
@@ -82,8 +81,9 @@ protected final String CLOUD_USERNAME="Cloud";
 	 */
 	protected static final String application="SYNCROP";
 	
-		/**
-	 * request recipient to handle authentication
+	/**
+	 * request recipient to handle authentication. This header should be sent with an object
+	 * array contain the name, email and token of the Account to be authenticated.
 	 */
 	public final static String HEADER_AUTHENTICATION="have cloud AUTHENTICATE the user";
 	public final static String HEADER_AUTHENTICATION_RESPONSE="the AUTHENTICATED accounts";
@@ -108,7 +108,6 @@ protected final String CLOUD_USERNAME="Cloud";
 		try
 		{
 			displayNotification("Syncrop started");
-			GenericClient.setLogger(Syncrop.logger);
 			init();
 		} 
 		catch (Exception|Error e) {

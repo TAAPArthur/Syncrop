@@ -18,8 +18,17 @@ import settings.Settings;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
 
+/**
+ * 
+ * An instance of Syncrop used for general purpose client communication.
+ * This class provides methods to connect to Cloud.
+ *
+ */
 public class SyncropClientDaemon extends SyncDaemon{
 
+	/**
+	 * If SyncropClientDaemon is in the process of autheniticating to Cloud
+	 */
 	static volatile boolean authenticating;
 	
 	public static void main (String args[]) throws IOException
@@ -36,6 +45,9 @@ public class SyncropClientDaemon extends SyncDaemon{
 				}
 		new SyncropClientDaemon(instance);
 	}
+	/**
+	 * kills the application
+	 */
 	public static void stop(){
 		logger.log("Method stop called");
 		System.exit(0);
@@ -51,13 +63,22 @@ public class SyncropClientDaemon extends SyncDaemon{
 	{
 		super(instance);
 	}
+	/**
+	 * {@inheritDoc}
+	 * <br/>
+	 * This method has been override to create a {@link SyncropCommunication}SyncropCommunication instance to 
+	 * communicate with a potential GUI.
+	 */
 	@Override
 	public void init(){
 		new SyncropCommunication(this).start();
 		if(!isShuttingDown())
 			super.init();
 	}
-	
+	/**
+	 * Attempts a connection to Cloud and waits until one is made, authenticated and
+	 *  files are synced
+	 */
 	protected void connectToServer(){	
 		initializingConnection=true;
 		int count=0;
@@ -203,7 +224,9 @@ public class SyncropClientDaemon extends SyncDaemon{
 		
 		return recieveAuthentication(m);
 	}
-	
+	/**
+	 * Sends a message to Cloud requesting authentication for {@link ResourceManager#getAccount()}
+	 */
 	private void requestAuthentication(){
 		logger.logTrace("Requesting Authentication");
 		authenticating=true;
@@ -213,14 +236,19 @@ public class SyncropClientDaemon extends SyncDaemon{
 		mainClient.printMessage(o,HEADER_AUTHENTICATION);
 	}
 
+	/**
+	 * Receives the authentication message and notifies the user if the account failed to
+	 * be authenticated. 
+	 * @param m the message containing the authentication response
+	 * @return true if and only if the account has been authenticated.
+	 */
 	private boolean recieveAuthentication(Message m){
 		boolean verifed= (boolean) m.getMessage();
-		if(!verifed)
-		{
+		if(!verifed){
 			Account a=ResourceManager.getAccount();
-				
-					a.setAuthenticated(false);
-				
+
+			a.setAuthenticated(false);
+	
 			String message="This account failed to be authenticated: "+a.getName()+
 					" Please update the password for these accounts";
 			displayNotification(message);
@@ -268,46 +296,54 @@ public class SyncropClientDaemon extends SyncDaemon{
 		File parent=ResourceManager.getMetadataDirectory();
 		
 		ArrayList<Object[]> message=new ArrayList<Object[]>();
-		int count=0;
-		
+				
 		logger.log("Syncing files");
 		
 		File[] files=parent.listFiles();
 		
 		for(File file:files)
 			if(!file.equals(ResourceManager.getMetadataVersionFile()))
-				count=syncFilesToCloud(file, message, count);
+				syncFilesToCloud(file, message);
 		//message=Arrays.copyOf(message, count);
-		mainClient.printMessage(message.toArray(new Object[count][5]), HEADER_SYNC_FILES);
+		if(message.size()!=0)
+			mainClient.printMessage(message.toArray(new Object[message.size()][5]), HEADER_SYNC_FILES);
 		//Tells Cloud to send any files that this client does not have
 		sleepShort();
 		mainClient.printMessage(
 				new String[][]{ResourceManager.getAccount().getRestrictionsList(),pathsToSync}
 				, HEADER_SYNC_GET_CLOUD_FILES);
 	}
-	
-	int syncFilesToCloud(File metaDataFile,ArrayList<Object[]> message,int count){
+	/**
+	 * Recursively goes through directories of the directory corresponding to metaDataFile uploads 
+	 * their metadata to cloud. To increase performance, messages are not sent immediately but instead are sent in a group of {@value Syncrop#KILOBYTE}.
+	 * <br/>
+	 * While recursing through files, the method checks to see if the file has been updated or deleted and updates the metadata.
+	 * Note this method does not check to see if new files have been added.
+	 * @param metaDataFile the metadata directory to recursively check
+	 * @param message the messages in queue to be sent; When messages are sent, this list is cleared
+	 */
+	private void syncFilesToCloud(File metaDataFile,ArrayList<Object[]> message){
 		final int maxTransferSize=KILOBYTE;
 		if(metaDataFile.isDirectory()){
 			sleepVeryShort();
 			HashSet<String> metaDataDirs=new HashSet<String>();
 			for(File file:metaDataFile.listFiles())
 				if(file.isDirectory()){
-					count=syncFilesToCloud(file, message, count);
+					syncFilesToCloud(file, message);
 					metaDataDirs.add(file.getName()+ResourceManager.METADATA_ENDING);
 				}
 			for(File file:metaDataFile.listFiles())
 				if(!file.isDirectory()&&!metaDataDirs.contains(file.getName())){
-					count=syncFilesToCloud(file, message, count);
+					syncFilesToCloud(file, message);
 				}
 			for(String metaDataDir: metaDataDirs)
-				count=syncFilesToCloud(new File(metaDataFile,metaDataDir), message, count);
+				syncFilesToCloud(new File(metaDataFile,metaDataDir), message);
 		}
 		else {
 			SyncROPItem file=ResourceManager.readFile(metaDataFile);
-			if(file==null)return count;
-			if(!file.isEnabled())return count;
-			if(file.exists()&&file.isDir()&&!file.isEmpty())return count;
+			if(file==null)return;
+			if(!file.isEnabled())return;
+			if(file.exists()&&file.isDir()&&!file.isEmpty())return;
 			if(!file.exists()&&!file.isDeletionRecorded()){
 				logger.logTrace("File was deleted while server was off path="+file);
 				file.setDateModified(Syncrop.getStartTime());
@@ -315,21 +351,22 @@ public class SyncropClientDaemon extends SyncDaemon{
 			}
 			if(file.hasBeenUpdated())
 				file.save();
-			
 			message.add(file.formatFileIntoSyncData());
-			count++;
 		}
 			
-		if(count==maxTransferSize){
-			count=0;			
-			mainClient.printMessage(message.toArray(new Object[count][5]), HEADER_SYNC_FILES);
+		if(message.size()==maxTransferSize){
+						
+			mainClient.printMessage(message.toArray(new Object[message.size()][5]), HEADER_SYNC_FILES);
 			message.clear();
 			Syncrop.sleep();
 		}
-		return count;
+		
 	}
 	
 	@Override
+	/**
+	 * {@inheritDoc}
+	 */
 	public boolean handleResponse(Message message){
 		if(super.handleResponse(message))return true;
 		else if(message.getHeader().equals(HEADER_AUTHENTICATION_RESPONSE)){
@@ -339,6 +376,9 @@ public class SyncropClientDaemon extends SyncDaemon{
 		else return false;
 	}
 	@Override
+	/**
+	 * 	{@inheritDoc}
+	 */
 	public boolean verifyUser(String id,String accountName){
 		return true;
 	}

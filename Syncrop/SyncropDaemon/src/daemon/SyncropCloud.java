@@ -24,7 +24,6 @@ import java.util.Set;
 
 import account.Account;
 import authentication.Authenticator;
-import client.GenericClient;
 import file.Directory;
 import file.SyncROPDir;
 import file.SyncROPFile;
@@ -34,9 +33,9 @@ import message.Message;
 import server.InternalServer;
 import server.Server;
 import settings.Settings;
-import syncrop.SyncropLogger;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
+import syncrop.SyncropLogger;
 import transferManager.FileTransferManager;
 
 /**
@@ -117,7 +116,6 @@ public final class SyncropCloud extends SyncDaemon
 			} catch (IOException e) {
 				if(!triedToConnectToServer){
 					logger.log("Could not connect to server");
-					GenericClient.setLoggingMessages(false);
 					sleep();
 				}
 				sleepLong();
@@ -129,7 +127,6 @@ public final class SyncropCloud extends SyncDaemon
 			logger.log("Connected to server");
 		fileTransferManager.pause(false);
 		initializingConnection=false;
-		GenericClient.setLoggingMessages(true);
 	}
 	
 	@Override

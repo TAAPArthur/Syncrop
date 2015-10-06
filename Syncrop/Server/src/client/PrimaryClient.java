@@ -99,9 +99,7 @@ public class PrimaryClient extends GenericClient
 					while(connectionInfo.size()==0&&isConnectedToServer())
 						try {
 							Thread.sleep(1000);
-						} catch (InterruptedException e1) {
-							log(e1);
-						}
+						} catch (InterruptedException e1) {}
 					Message message=readConnectionInfo();
 					
 					if(!isConnectedToServer())return;
@@ -119,8 +117,7 @@ public class PrimaryClient extends GenericClient
 							else printMessage(Message.MESSAGE_CONNECTION_REJECTED,Message.TYPE_CONNECTION_INFO);
 					}
 				} catch (HeadlessException|IOException e) {
-					log("Error occured while waiting for connection thread");
-					log(e);
+					closeConnection(e.toString(), true);
 				}
 			}
 		}

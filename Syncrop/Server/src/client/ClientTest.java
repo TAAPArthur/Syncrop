@@ -9,34 +9,51 @@ import server.ExternalServer;
 import server.InternalServer;
 import server.Server;
 
+/**
+ * 
+ * A test class to test the Client Server connection
+ *
+ */
 public class ClientTest 
 {
-	static String application="Test";
-	public static Messenger getPrimary(boolean internal,String host,int port) throws IOException{
-		String username="Testuser1";
-		long milliSecondsPerPing=7000;
-		if(internal){
-			return new InternalServer(Server.UNLIMITED_CONNECTIONS, port, new GenericLogger(System.out),
-					username,application, milliSecondsPerPing);
-		}
-		else {
-			new ExternalServer(Server.UNLIMITED_CONNECTIONS,port,new GenericLogger(System.out));
-
-			try {Thread.sleep(1000);} catch (InterruptedException e2) {e2.printStackTrace();}
-			System.out.println("Server started");
-			//creates the Primary Client
-			return new PrimaryClient(username,host,port,application,PrimaryClient.AUTOMATIC_YES,3, milliSecondsPerPing);
-
-		}
-	}
-	public static void main(String args[]) throws IOException
-	{
-		final int port=50022;
+	/**
+	 * Identifies this application has a test
+	 */
+	private final String application="Test";
+	/**
+	 * 
+	 * @param args optionally the host and port can be specified
+	 * @throws IOException
+	 */
+	public static void main(String args[]) throws IOException{
+		int port=50022;
 		String host="localhost";
-		GenericClient.setLogger(new GenericLogger(System.out));
+		boolean internal=true;
+		if(args.length>0)host=args[0];
+		if(args.length>1)port=Integer.parseInt(args[1]);
+		if(args.length>2)internal=Boolean.parseBoolean(args[2]);
+		new ClientTest(host,port,internal);
+	}
+	/**
+	 * Creates an ClientTest with host localhost and port 50022 that is trying to make an
+	 * internal connection
+	 * @throws IOException
+	 */
+	public ClientTest()throws IOException{
+		this("localhost",50022,true);
+	}
+	/**
+	 * 
+	 * @param host the host to connect to
+	 * @param port the port on the host to connect to
+	 * @throws IOException
+	 */
+	public ClientTest(String host, int port,boolean internal)throws IOException{
+
+
 
 		//creates the Primary Client
-		final Messenger primary=getPrimary(true, host, port);
+		final Messenger primary=getPrimary(host, port,internal);
 		try {Thread.sleep(100);} catch (InterruptedException e2) {e2.printStackTrace();}
 		//creates 2 Secondary Clients
 		final SecondaryClient secondary=new SecondaryClient("Testuser2",host,port,application);
@@ -119,5 +136,33 @@ public class ClientTest
 		}
 		System.out.println("exiting");
 		sc.close();
+	
+	}
+	/**
+	 * 
+	 * 
+	 * @param host the host to connect to 
+	 * @param port the port to connect to 
+	 * @param internal whether this program will run the server itself of will connect to an
+	 * already running server
+	 * @return the Primary connection
+	 * @throws IOException
+	 */
+	private Messenger getPrimary(String host,int port,boolean internal) throws IOException{
+		String username="Testuser1";
+		long milliSecondsPerPing=7000;
+		if(internal){
+			return new InternalServer(Server.UNLIMITED_CONNECTIONS, port, new GenericLogger(System.out),
+					username,application, milliSecondsPerPing);
+		}
+		else {
+			new ExternalServer(Server.UNLIMITED_CONNECTIONS,port,new GenericLogger(System.out));
+
+			try {Thread.sleep(1000);} catch (InterruptedException e2) {e2.printStackTrace();}
+			System.out.println("Server started");
+			//creates the Primary Client
+			return new PrimaryClient(username,host,port,application,PrimaryClient.AUTOMATIC_YES,3, milliSecondsPerPing);
+
+		}
 	}
 }
