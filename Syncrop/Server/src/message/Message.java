@@ -109,7 +109,7 @@ public class Message implements Serializable
 	public static final String HEADER_IGNORE="IGNORE";
 	
 	private Object message;
-	private String username;
+	private String userID;
 	private String header=null;
 	private HashSet<String>targetsToInclude=new HashSet<String>(),
 			targetsToExclude=new HashSet<String>();
@@ -151,7 +151,7 @@ public class Message implements Serializable
 				e.printStackTrace();
 				throw e;
 			}
-		this.message=message;this.username=username;this.type=(byte) type;this.header=header;
+		this.message=message;this.userID=username;this.type=(byte) type;this.header=header;
 		if(username==null)throw new NullPointerException("username cannot be null");
 		addTargetsToInclude(targetsToInclude);
 		addTargetsToExclude(targetsToExclude);
@@ -163,7 +163,7 @@ public class Message implements Serializable
 	 */
 	public Message(Message message)
 	{
-		this(message.message,message.username,message.type,message.header);
+		this(message.message,message.userID,message.type,message.header);
 	}
 	/**
 	 * Adds names to send this message to
@@ -218,7 +218,7 @@ public class Message implements Serializable
 	 * 
 	 * @return the name of the user who sent this message.
 	 */
-	public String getUsername(){return username;}
+	public String getUserID(){return userID;}
 	/**
 	 * @return the type of this Message
 	 * @see #type
@@ -269,7 +269,7 @@ public class Message implements Serializable
 	{
 		return
 				"message:"+((message instanceof Object[])?Arrays.asList((Object[])message):message)+", "+
-				"username:"+username+","+
+				"username:"+userID+","+
 				"type:"+type+", "+
 				"header:"+header;
 	}

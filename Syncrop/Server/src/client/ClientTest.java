@@ -50,8 +50,6 @@ public class ClientTest
 	 */
 	public ClientTest(String host, int port,boolean internal)throws IOException{
 
-
-
 		//creates the Primary Client
 		final Messenger primary=getPrimary(host, port,internal);
 		try {Thread.sleep(100);} catch (InterruptedException e2) {e2.printStackTrace();}

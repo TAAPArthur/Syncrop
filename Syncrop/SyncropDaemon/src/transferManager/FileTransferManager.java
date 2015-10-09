@@ -761,9 +761,9 @@ public class FileTransferManager extends Thread{
 			
 		if(header.equals(HEADER_CANCEL_UPLOAD)||header.equals(HEADER_UPLOAD_FAILED)){
 			if(path.equals(getFileSending()))
-				if(!isUserSendingTo(message.getUsername())||
-						!daemon.verifyUser(message.getUsername(), fileSendingOwner)){
-					logger.log("Received signal to cancel upload but user:"+message.getUsername()+
+				if(!isUserSendingTo(message.getUserID())||
+						!daemon.verifyUser(message.getUserID(), fileSendingOwner)){
+					logger.log("Received signal to cancel upload but user:"+message.getUserID()+
 							"did not have permission to stop it");
 					return;
 				}
@@ -781,15 +781,15 @@ public class FileTransferManager extends Thread{
 				SyncropClientDaemon.sleep();
 			}
 		}
-		else if(isUserSendingTo(message.getUsername())&&
+		else if(isUserSendingTo(message.getUserID())&&
 				path.equals(getFileSending())&&
-				daemon.verifyUser(message.getUsername(), fileSendingOwner))
+				daemon.verifyUser(message.getUserID(), fileSendingOwner))
 			switch (header)
 			{
 				case HEADER_REQUEST_FILE_UPLOAD:
 					String owner=((String[])message.getMessage())[1];
 					if(owner.equals(fileSendingOwner))
-						daemon.uploadFile(path,owner,message.getUsername());
+						daemon.uploadFile(path,owner,message.getUserID());
 					break;
 				case HEADER_FILE_UPLOAD_NEXT_PACKET:
 					canSendNextPacket=true;
@@ -805,12 +805,12 @@ public class FileTransferManager extends Thread{
 		{
 			String s="405 Error! message "+message.getHeader()+" has been ignored because ";
 			if(isSending()) s+="fileTransferManager is not sending";
-			else if(!isUserSendingTo(message.getUsername()))
-				s+=message.getUsername()+"!="+getUserSendingTo();
+			else if(!isUserSendingTo(message.getUserID()))
+				s+=message.getUserID()+"!="+getUserSendingTo();
 			else if(!path.equals(getFileSending()))
 				s+=path+"!="+getFileSending();
 			else 
-				s+=message.getUsername()+" does not have access to "+fileSendingOwner;
+				s+=message.getUserID()+" does not have access to "+fileSendingOwner;
 			logger.log(s);
 			cancelUpload(originalPath, true, false);
 		}
@@ -823,7 +823,7 @@ public class FileTransferManager extends Thread{
 		String path=isNotWindows()?originalPath:
 			SyncROPItem.toWindowsPath(originalPath);
 		
-		if(isUserReceivingFrom(message.getUsername())&&
+		if(isUserReceivingFrom(message.getUserID())&&
 				path.equals(getFileReceiveing()))
 		{
 			if(message.getHeader().equals(HEADER_CANCEL_DOWNLOAD))
@@ -838,7 +838,7 @@ public class FileTransferManager extends Thread{
 			}
 			
 			Object syncData[]=(Object[])message.getMessage();
-			String sender=message.getUsername();
+			String sender=message.getUserID();
 			String owner=(String)syncData[OWNER];
 							
 			long dateModified=(long)syncData[DATE_MODIFIED];
@@ -881,37 +881,37 @@ public class FileTransferManager extends Thread{
 			String s="406 Error! message "+message.getHeader()+" has been ignored because ";
 			if(!path.equals(getFileReceiveing()))
 				s+=path+"!="+getFileReceiveing();
-			else if(!isUserReceivingFrom(message.getUsername()))
+			else if(!isUserReceivingFrom(message.getUserID()))
 				if(!isReceiving())
 					s+="fileTransferManager is not receiving";
 				else 
-					s+=message.getUsername()+"!="+getUserReceivingFrom();
+					s+=message.getUserID()+"!="+getUserReceivingFrom();
 			logger.log(s);
 					
-			cancel(originalPath, HEADER_CANCEL_UPLOAD, message.getUsername());
+			cancel(originalPath, HEADER_CANCEL_UPLOAD, message.getUserID());
 		}
 
 	
 	}
 	public void addToQueueRequest(Message message){
 
-		String sender=message.getUsername();
+		String sender=message.getUserID();
 		switch (message.getHeader()) 
 		{
 			case HEADER_ADD_TO_RECEIVE_QUEUE:
 				String s[]=(String[])message.getMessage();
 				String path=s[0];
 				String owner=s[1];
-				if(daemon.verifyUser(message.getUsername(), owner))
+				if(daemon.verifyUser(message.getUserID(), owner))
 					addToReceiveQueue(path, owner, sender);
 				break;
 			case HEADER_ADD_TO_SEND_QUEUE:
 				addToSendQueue(
-						(String)message.getMessage(),sender, message.getUsername());
+						(String)message.getMessage(),sender, message.getUserID());
 				break;
 			case HEADER_ADD_MANY_TO_SEND_QUEUE:
 				addToSendQueue(
-						(String[])message.getMessage(),sender, message.getUsername());
+						(String[])message.getMessage(),sender, message.getUserID());
 				break;
 		}
 	}

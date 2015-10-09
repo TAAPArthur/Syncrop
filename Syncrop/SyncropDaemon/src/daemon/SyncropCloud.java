@@ -90,6 +90,7 @@ public final class SyncropCloud extends SyncDaemon
 	public String getUsername(){
 		return CLOUD_USERNAME;
 	}
+	
 	@Override
 	protected void connectToServer()
 	{
@@ -180,15 +181,24 @@ public final class SyncropCloud extends SyncDaemon
 			}
 		}.start();
 	}
+	/**
+	 * Resets the Cloud to before any Clients were connected to it. This method should
+	 * be called when the last client has left
+	 */
 	public void reset()
 	{
 		fileTransferManager.reset();
+		
 		clients.clear();
 		if(syncedFiles!=null)
 			syncedFiles.clear();
 		logger.log("Reseting");
 	}
 	
+	/**
+	 * Removes the user from the list of connected clients  
+	 * @param username the name of the user to remove
+	 */
 	public void removeUserInfo(String username)
 	{
 		clients.remove(username);
@@ -203,24 +213,27 @@ public final class SyncropCloud extends SyncDaemon
 		
 	public void updateAllClients(SyncROPItem file,String targetToExclude)
 	{		
-		if(isConnectionActive()){
-			//TODO remove count
-			int count=0;
+		if(isConnectionActive())
 			for(String key:clients.keySet())
-				if(!key.equals(targetToExclude)&&file.getOwner().equals(clients.get(key).getAccountName())){
+				if(!key.equals(targetToExclude)&&file.getOwner().equals(clients.get(key).getAccountName()))
 					fileTransferManager.addToSendQueue(file,key);
-					count++;
-				}
-			logger.logDebug("Updating "+file.getPath()+" to all owners "+
-					file.getOwner()+" excluding "+targetToExclude+" ("+count+")");
-		}
 	}
 	
-		
-	void authenticate(Message m){
+	/**
+	 * Authenticates the user who sent m
+	 * @param m A message containing a String [] of accountName,email, and token
+	 */
+	private void authenticate(Message m){
 		Object o[]=(Object[]) m.getMessage();
-		authenticate(m.getUsername(),(String)o[0],(String)o[1],(String)o[2]);
+		authenticate(m.getUserID(),(String)o[0],(String)o[1],(String)o[2]);
 	}
+	/**
+	 * 
+	 * @param id the userID of the client who requsted authentication
+	 * @param accountName the name of the account to authenticate
+	 * @param email the email of the user
+	 * @param refreshToken the token of the user
+	 */
 	void authenticate(String id, String accountName,String email, String refreshToken)
 	{	
 		if(Authenticator.authenticateUser(accountName, email, refreshToken)){
@@ -236,15 +249,13 @@ public final class SyncropCloud extends SyncDaemon
 	}
 	
 	
-	
-	
 	protected void syncFilesWithClient(Message message)
 	{
 		logger.log("Syncing remaining files with client");
 		final String []restrictions=((String[][])message.getMessage())[0];
 		String []parentPaths=((String[][])message.getMessage())[1];
 		
-		SyncropUser user=clients.get(message.getUsername());
+		SyncropUser user=clients.get(message.getUserID());
 		user.addRestrictions(restrictions);
 		logger.log("client restrinction"+user.getRestrictions().toString());
 		
@@ -253,10 +264,10 @@ public final class SyncropCloud extends SyncDaemon
 		
 		for(File metaDataFile:parent.listFiles())
 			if(!metaDataFile.equals(ResourceManager.getMetadataVersionFile()))
-				syncFilesToClient(message.getUsername(),user,metaDataFile,"", parentPaths);
+				syncFilesToClient(message.getUserID(),user,metaDataFile,"", parentPaths);
 		
-		this.syncedFiles.get(message.getUsername()).clear();
-		logger.log("files from Cloud have been synced with "+message.getUsername()+"("+accountName+")");
+		this.syncedFiles.get(message.getUserID()).clear();
+		logger.log("files from Cloud have been synced with "+message.getUserID()+"("+accountName+")");
 	}
 	
 	void syncFilesToClient(final String id,final SyncropUser user,File metaDataFile,String relativePath,final String []parentPaths){
@@ -286,14 +297,14 @@ public final class SyncropCloud extends SyncDaemon
 	protected void syncFiles(Message message)
 	{
 		Object files[][]=(Object[][])message.getMessage();
-		String accountName=clients.get(message.getUsername()).getAccountName();
+		String accountName=clients.get(message.getUserID()).getAccountName();
 		
 		
-		HashSet<String>syncedFiles=checkClientsfiles(files, accountName, message.getUsername());
+		HashSet<String>syncedFiles=checkClientsfiles(files, accountName, message.getUserID());
 		if(syncedFiles==null)return;
 		
-		this.syncedFiles.get(message.getUsername()).addAll(syncedFiles);	
-		logger.log("total Synced file size="+this.syncedFiles.get(message.getUsername()).size(),SyncropLogger.LOG_LEVEL_ALL);
+		this.syncedFiles.get(message.getUserID()).addAll(syncedFiles);	
+		logger.log("total Synced file size="+this.syncedFiles.get(message.getUserID()).size(),SyncropLogger.LOG_LEVEL_ALL);
 	}
 	
 	private HashSet<String> checkClientsfiles(Object files[][],String owner,String id)
@@ -351,6 +362,7 @@ public final class SyncropCloud extends SyncDaemon
 						((SyncROPSymbolicLink)localFile).isTargetDir()&&
 						clientDir&&clientFileExists){}
 				else if(clientDir){
+					//keys do not need to be updated because dirs don't have keys
 					if(localFile==null)
 						if(clientFileExists)//if client file exists and local file doesn't, create dir
 						{
@@ -435,8 +447,13 @@ public final class SyncropCloud extends SyncDaemon
 		return listOfClientFiles;
 	}
 
+	/**
+	 * Removes all files that are restricted for the user specified by the userID of the message.
+	 * @param message a message containing the userID of the SyncropUser to whoose files should be cleaned.
+	 * 
+	 */
 	private void clean(Message message){
-		final SyncropUser user=clients.get(message.getUsername());
+		final SyncropUser user=clients.get(message.getUserID());
 		
 		SimpleFileVisitor<Path>visitor=new SimpleFileVisitor<Path>() {
 			Account account=ResourceManager.getAccount(user.getAccountName());

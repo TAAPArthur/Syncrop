@@ -105,9 +105,9 @@ public class PrimaryConnectionThread extends GenericConnectionThread{
 			if(client==null)continue;
 		    if(client.isReady()){
 		    	Message m= client.readMessage();
-		    	if(!m.getUsername().equals(key))
+		    	if(!m.getUserID().equals(key))
 		    		terminateConnection("User:"+key+" is sending messages with "
-		    				+ "different id-"+m.getUsername(), true);
+		    				+ "different id-"+m.getUserID(), true);
 		    	else {
 		    		log("Primary read message:"+m, Logger.LOG_LEVEL_ALL);
 		    		return m;

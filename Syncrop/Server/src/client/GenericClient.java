@@ -37,7 +37,6 @@ public class GenericClient implements Messenger
 	 */
 	private volatile long milliSecondsPerPing=120000;
 	
-
 	/**
 	 * the time internal in miliseconds that read methods will check to see if there is 
 	 * a message to forward
@@ -70,9 +69,10 @@ public class GenericClient implements Messenger
 	 */
 	private Socket socket=null;
 	/**
-	 * The name of this Messenger. All Messages sent from this Messenger will have this username 
+	 * The name of this Messenger. All Messages sent from this Messenger will have this 
+	 * userID 
 	 */
-	private final String username;
+	private final String userID;
 	
 	/**
 	 * connection status
@@ -139,26 +139,19 @@ public class GenericClient implements Messenger
 	
 	/**
 	 * 
-	 * @param username the name of the user making the connection
+	 * @param username the unique name of the user making the connection
 	 * @param host the hostname to connect to
 	 * @param port the port to connect to
 	 * @throws IOException
 	 */
-	public GenericClient(String username, String host, int port) throws IOException{
-		this.username=username;
-		connect(host,port);//TODO javadoc
+	public GenericClient(String userID, String host, int port) throws IOException{
+		this.userID=userID;
+		connect(host,port);
 		pingThread.start();
 		readMessageThread.start();
 	}
 	
-	/**
-	 * 
-	 * @return the name of the user who created the connection
-	 */
-	public String getUsername()
-	{
-		return username;
-	}
+	
 	
 	/**
 	 * Waits until the specified ArrayList has a size greater than 0<br/>
@@ -214,70 +207,70 @@ public class GenericClient implements Messenger
 	 */
 	protected Message readConnectionInfo() throws IOException{return read(connectionInfo);}
 	
-	
+	/**
+	 * Prints a message with {@link Message#TYPE_NOTIFICATION}
+	 * @param o the object to be sent 
+	 */
 	public void printNotification(Object o){printMessage(o, Message.TYPE_NOTIFICATION);}
+	
 	
 	public void printMessage(Object o){printMessage(o, Message.TYPE_DEFAULT);}
 	public void printMessage(Object o,int type)
 	{
-		printMessage(new Message(o,username,type));
+		printMessage(new Message(o,userID,type));
 	}
 	public void printMessage(Object o,String header)
 	{
-		printMessage(new Message(o,username,Message.TYPE_DEFAULT,header));
+		printMessage(new Message(o,userID,Message.TYPE_DEFAULT,header));
 	}
 	public void printMessage(Object o,int type,String header)
 	{
-		printMessage(new Message(o,username,type,header));
+		printMessage(new Message(o,userID,type,header));
 	}
 	public void printMessage(Object o,String[]target)
 	{
-		printMessage(new Message(o,username, Message.TYPE_DEFAULT,null,target));
+		printMessage(new Message(o,userID, Message.TYPE_DEFAULT,null,target));
 	}
 	public void printMessage(Object o,String header,String... target)
 	{
-		printMessage(new Message(o,username, Message.TYPE_DEFAULT,header,target));
+		printMessage(new Message(o,userID, Message.TYPE_DEFAULT,header,target));
 	}
 	public void printMessage(Object o,String header,String[]targetsToInclude,String... targetsToExclude)
 	{
-		printMessage(new Message(o,username, Message.TYPE_DEFAULT,header,targetsToInclude,targetsToExclude));
+		printMessage(new Message(o,userID, Message.TYPE_DEFAULT,header,targetsToInclude,targetsToExclude));
 	}
 	
 	public void printMessage(Object o,int type,String header,String... targetsToInclude)
 	{
-		printMessage(new Message(o,username,type,header,targetsToInclude));
+		printMessage(new Message(o,userID,type,header,targetsToInclude));
 	}
 	public void printMessage(Object o,int type,String header,String[] targetsToInclude,String... targetsToExclude)
 	{
-		printMessage(new Message(o,username,type,header,targetsToInclude,targetsToExclude));
+		printMessage(new Message(o,userID,type,header,targetsToInclude,targetsToExclude));
 	}
 	
-	public synchronized void printMessage(Message messageToPrint)
-	{
-		try 
-		{
+	/**
+	 * Prints a message to the server
+	 */
+	public synchronized void printMessage(Message messageToPrint){
+		try {
 			//out.writeUnshared(messageToPrint);
 			out.writeObject(messageToPrint);
 			out.flush();
-						
 			count++;
-			//maxCount=10;
-			if(count>maxCount)
-			{
+
+			if(count>maxCount){
 				out.reset();
 				count=0;
 			}
 			timeLastMessageWasSent=System.currentTimeMillis();
 		}
-		catch (SocketException e)
-		{
+		catch (SocketException e){
 			closeConnection(e.toString());
 		}
-		catch (Exception|Error e) 
-		{
+		catch (Exception|Error e){
 			closeConnection(e.toString());
 		}
-	
 	}
 	
 	
@@ -307,10 +300,9 @@ public class GenericClient implements Messenger
 	 * @param host the host name
 	 * @param port the port number
 	 */
-	void connect(String host,int port) throws IOException
+	private void connect(String host,int port) throws IOException
 	{	
 		socket = new Socket(host, port);
-		
     	out = new ObjectOutputStream(new BufferedOutputStream(socket.getOutputStream()));
     	out.flush();
     	in = new ObjectInputStream(new BufferedInputStream(socket.getInputStream()));
@@ -326,6 +318,14 @@ public class GenericClient implements Messenger
 	{
 		closeConnection(reason, false);
 	}
+	
+	/**
+	 * Closes the connection due to an external factor
+	 * @param reason the reason for the close
+	 * @param localClose if the signial to close the connection was sent from the server or
+	 * internally
+	 * 
+	 */
 	public void closeConnection(String reason,boolean localClose) 
 	{
 		if(!connectedToServer)return;
@@ -348,24 +348,38 @@ public class GenericClient implements Messenger
 		}
 		catch (IOException e) {}  
 	 }
+	/**
+	 * Closes the socket used by this Client. Once the socket has been closed,
+	 * it cannot be reopened; an new socket needs to be created.
+	 * @throws IOException
+	 */
 	private void closeSocket() throws IOException{
-		socket.shutdownOutput();
-		socket.shutdownInput();
+		in.close();
+		out.close();
 		socket.close();
 	}
+	
+	/**
+	 * @return The reason the socket closed or null if no reason was specified
+	 */
 	public String getReasonToClose() {
 		return reasonToClose;
 	}
 	
-	
+	/**
+	 * Sets the time that at least at least one ping will be sent to/from the server.
+	 *  
+	 * @param milliSecondsPerPing the time that if no ping from/to the server was received,
+	 *  the connection will be closed
+	 */
 	void setMilliSecondsPerPing(long milliSecondsPerPing){
 		this.milliSecondsPerPing=milliSecondsPerPing;
 		pingThread.interrupt();
 	}
-	/**
-	 * opens a new thread and contiunally reads input and saves it into main or notification
-	 */
 	
+	/**
+	 * opens a new thread and continually reads input and saves it into main or notification
+	 */
 	class ReadMessageThread extends Thread
 	{
 

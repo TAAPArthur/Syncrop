@@ -106,8 +106,8 @@ public abstract class Server
 		String application=o[0]+"";
 		boolean primary=(Boolean)o[1];
 		if(primary)
-			new PrimaryConnectionThread(clientSocket, in, out, message.getUsername(), application, (int)o[2],(long)o[3]).start();
-		else new SecondaryConnectionThread(clientSocket,in,out,message.getUsername(),application).start();
+			new PrimaryConnectionThread(clientSocket, in, out, message.getUserID(), application, (int)o[2],(long)o[3]).start();
+		else new SecondaryConnectionThread(clientSocket,in,out,message.getUserID(),application).start();
 	
 	}
 	

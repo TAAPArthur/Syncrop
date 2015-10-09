@@ -30,9 +30,7 @@ import transferManager.FileTransferManager;
 
 public abstract class SyncDaemon extends Syncrop{
 	
-protected final String CLOUD_USERNAME="Cloud";
-	
-	
+	protected final String CLOUD_USERNAME="SYNCROP_Cloud";	
 	/**
 	 * When false SyncropDaemon will act as if it is not connected to Cloud until 
 	 * the connection has finished initializing 
@@ -117,6 +115,9 @@ protected final String CLOUD_USERNAME="Cloud";
 	}
 
 
+	/**
+	 * 
+	 */
 	protected abstract void connectToServer();
 	
 
@@ -228,7 +229,11 @@ protected final String CLOUD_USERNAME="Cloud";
 		
 	
 	
-		
+	/**
+	 * Closes the connection of the client or specified user if run from Cloud 
+	 * @param username the user to remove; can be null if not run from Cloud
+	 * @param reason the reason the user should be removed
+	 */
 	public static void removeUser(String username,String reason)
 	{
 		if(isInstanceOfCloud())
@@ -238,7 +243,10 @@ protected final String CLOUD_USERNAME="Cloud";
 	}
 	
 
-	
+	/**
+	 * Sets teh Permisions on the specifed file
+	 * @param item the file to set permissions for
+	 */
 	protected void setPropperPermissions(SyncROPItem item){return;}
 		
 	/**
@@ -561,5 +569,6 @@ protected final String CLOUD_USERNAME="Cloud";
 	}
 	public FileTransferManager getFileTransferManager(){return fileTransferManager;}
 	public boolean isUploadingLargeFile(){return uploadLargeFileThread.isUploadingLargeFile();}
+	
 	public void interruptUploadingLargeFile(){uploadLargeFileThread.interrupt();}
 }

@@ -54,7 +54,7 @@ class MainSocketListener extends Thread	{
 				}
 				catch (Exception e) {
 					SyncDaemon.logger.logFatalError(e," caused by message:"+message);
-					SyncDaemon.removeUser(message.getUsername(), e.toString());
+					SyncDaemon.removeUser(message.getUserID(), e.toString());
 				}
 				catch (OutOfMemoryError e)
 				{

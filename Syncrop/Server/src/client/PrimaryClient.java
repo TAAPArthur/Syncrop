@@ -71,26 +71,17 @@ public class PrimaryClient extends GenericClient
 		super(username,host, port);
 	
 		acceptUser=type;
-		
 		setMilliSecondsPerPing(milliSecondsPerPing);
+		//initiliazes this client as the host
 		printMessage(new Object[]{application,true,maxConnections,milliSecondsPerPing},Message.TYPE_CONNECTION_INFO);
-		new WaitForConnectionThread().start();
-		//tells the Server about this client
-		
-		
+		waitForConnectionThread.start();		
 	}
 
 	/**
 	 * waits for user to try connect to game;
-	 * @throws IOException
-	 */
-	
-	class WaitForConnectionThread extends Thread
-	{
-		public WaitForConnectionThread()
-		{
-			super("wait for connection");
-		}
+	 */	
+	Thread waitForConnectionThread =new Thread("wait for connection"){
+		
 		public void run()
 		{
 			while(isConnectedToServer())
@@ -107,7 +98,7 @@ public class PrimaryClient extends GenericClient
 					{
 							int c=(acceptUser==0)?0:
 								JOptionPane.showConfirmDialog
-								(null, "Connect to "+message.getUsername(),(String)message.getMessage(),JOptionPane.YES_NO_OPTION);
+								(null, "Connect to "+message.getUserID(),(String)message.getMessage(),JOptionPane.YES_NO_OPTION);
 							if(c==0)
 							{
 								//new Message
@@ -121,5 +112,5 @@ public class PrimaryClient extends GenericClient
 				}
 			}
 		}
-	}
+	};
 }

@@ -3,8 +3,8 @@ package message;
 import java.io.IOException;
 
 public interface Messenger {
-	
-	
+
+		
 	/**
 	 * 
 	 * @return true if and only if the Messenger is connected to a Server
@@ -35,7 +35,16 @@ public interface Messenger {
 	public Message readMessage() throws IOException;
 	public Message readNotification() throws IOException;
 	
+	/**
+	 * Prints a message
+	 * @param m the message to print
+	 */
 	public void printMessage(Message m);
+	/**
+	 * Constructs a Message with message o and set userID 
+	 * @param o the message of Message object to be created
+	 * @see Message#Message(Object, String)
+	 */
 	public void printMessage(Object o);
 	public void printMessage(Object o,String header);
 	public void printMessage(Object o,int type,String header);
