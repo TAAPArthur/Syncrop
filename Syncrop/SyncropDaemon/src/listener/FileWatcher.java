@@ -429,7 +429,7 @@ public class FileWatcher extends Thread{
 		//TODO rename
 	}
 	private void removeDeletedFileFromRecord(File metadataFile,String relativePath,String owner,final long timeOfDelete,final ArrayList<Object[]> message){
-		final int maxTransferSize=Syncrop.KILOBYTE;
+		final int maxTransferSize=128;
 		SyncROPItem item;
 		if(metadataFile.isDirectory()){
 			for(File f:metadataFile.listFiles())

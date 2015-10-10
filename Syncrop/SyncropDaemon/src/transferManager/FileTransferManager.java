@@ -425,12 +425,13 @@ public class FileTransferManager extends Thread{
 	public void sentFile()
 	{
 		SyncROPItem fileSent=ResourceManager.getFile(fileSending, fileSendingOwner);
-		if(fileSent instanceof SyncROPFile){
+		if(fileSent instanceof SyncROPFile&&fileSent.exists()){
 			((SyncROPFile)fileSent).setKey(dateMod);
+			ResourceManager.writeFile(fileSent);
 			//if(fileSent.getDateModified()!=dateMod)addToSendQueue(fileSent, userSendingTo);
 		}
 		timeOfLastCompletedFileTransfer=System.currentTimeMillis();
-		ResourceManager.writeFile(fileSent);
+		
 		
 		if(isKeepingRecord())
 		{
@@ -531,7 +532,7 @@ public class FileTransferManager extends Thread{
 		{
 			try 
 			{
-				SyncropClientDaemon.sleep(5);
+				SyncropClientDaemon.sleepShort();
 				if(paused){
 					Syncrop.sleep();
 					continue;

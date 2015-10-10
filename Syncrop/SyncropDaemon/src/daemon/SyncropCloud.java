@@ -433,7 +433,9 @@ public final class SyncropCloud extends SyncDaemon
 							fileTransferManager.addToSendQueue(localFile,id);//send file to client
 					}
 					else if(localDateMod<clientDateMod){//if client file is newer than cloud file
+						if(clientFileExists||clientKey!=localFile.getKey())
 							filesToAddToDownload.add(path);
+						else localFile.delete(clientDateMod);
 					}
 					else if(localFile.exists()^clientFileExists){
 						logger.log("rare case; client and local date mod is the same but only one exists: "+

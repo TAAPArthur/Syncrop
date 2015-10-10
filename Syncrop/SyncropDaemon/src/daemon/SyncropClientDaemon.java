@@ -323,7 +323,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 * @param message the messages in queue to be sent; When messages are sent, this list is cleared
 	 */
 	private void syncFilesToCloud(File metaDataFile,final ArrayList<Object[]> message){
-		final int maxTransferSize=KILOBYTE;
+		final int maxTransferSize=64;
 		if(metaDataFile.isDirectory()){
 			sleepVeryShort();
 			HashSet<String> metaDataDirs=new HashSet<String>();
@@ -355,7 +355,6 @@ public class SyncropClientDaemon extends SyncDaemon{
 		}
 			
 		if(message.size()==maxTransferSize){
-						
 			mainClient.printMessage(message.toArray(new Object[message.size()][5]), HEADER_SYNC_FILES);
 			message.clear();
 			Syncrop.sleep();

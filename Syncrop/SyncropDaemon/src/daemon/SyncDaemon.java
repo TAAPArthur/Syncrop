@@ -217,6 +217,7 @@ public abstract class SyncDaemon extends Syncrop{
 		fileWatcher.start();
 		fileWatcher.checkAllFiles();
 		FileWatcher.checkAllMetadataFiles();
+		System.gc();
 		
 	}
 	protected void startThreads()

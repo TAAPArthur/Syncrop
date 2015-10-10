@@ -19,7 +19,7 @@ public abstract class Syncrop {
 	 * The version number of Syncrop.<br/>
 	 * This value is the value version of the Syncrop DEB.
 	 */
-	static final private String VERSION_ID="0.998";
+	static final private String VERSION_ID="0.999";
 	/**
 	 * The version of the metadata. This value is stored in the metadata dir.
 	 * When this value differs from the stored value, the metadata is cleared.
@@ -236,7 +236,7 @@ public abstract class Syncrop {
 	 * This is a convince method for {@link Thread#sleep(long)} that suppress the error
 	 * @param i -milliseconds to sleep
 	 */
-	public static void sleep(){sleep(500);}
+	public static void sleep(){sleep(100);}
 	/**
 	 * Sleeps the current thread. This method should be used when a 
 	 * loop needs to be run after a large, arbitrary amount a time  
