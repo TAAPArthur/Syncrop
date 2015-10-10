@@ -6,6 +6,7 @@ import static file.SyncROPItem.EXISTS;
 import static file.SyncROPItem.KEY;
 import static file.SyncROPItem.PATH;
 import static file.SyncROPItem.SYMBOLIC_LINK_TARGET;
+import static transferManager.FileTransferManager.HEADER_DELETE_MANY_FILES;
 
 import java.io.File;
 import java.io.IOException;
@@ -54,6 +55,8 @@ public final class SyncropCloud extends SyncDaemon
 					PosixFilePermission.OWNER_WRITE,PosixFilePermission.OWNER_READ,
 					PosixFilePermission.GROUP_WRITE,PosixFilePermission.GROUP_READ,
 					PosixFilePermission.GROUP_EXECUTE,PosixFilePermission.OWNER_EXECUTE));
+	
+	private boolean updateAllClients=true;
 	
 	/**
 	 * key-clients id</br>
@@ -210,10 +213,19 @@ public final class SyncropCloud extends SyncDaemon
 			fileTransferManager.resetReceiveInfo();
 		logger.log(username+" was removed from cloud",SyncropLogger.LOG_LEVEL_DEBUG);
 	}
-		
+	@Override
+	public String deleteManyFiles(String userId,Object[][] files){
+		setUpdateAllClients(false);
+		String target=super.deleteManyFiles(userId, files);
+		setUpdateAllClients(true);
+		mainClient.printMessage(files, HEADER_DELETE_MANY_FILES,new String[]{target},userId);
+		return target;
+	}
+	public void setUpdateAllClients(boolean b){updateAllClients=b;}
+	
 	public void updateAllClients(SyncROPItem file,String targetToExclude)
-	{		
-		if(isConnectionActive())
+	 {		
+		if(isConnectionActive()&&updateAllClients)
 			for(String key:clients.keySet())
 				if(!key.equals(targetToExclude)&&file.getOwner().equals(clients.get(key).getAccountName()))
 					fileTransferManager.addToSendQueue(file,key);
@@ -238,7 +250,9 @@ public final class SyncropCloud extends SyncDaemon
 	{	
 		if(Authenticator.authenticateUser(accountName, email, refreshToken)){
 			clients.put(id, new SyncropUser(id,accountName));
+			mainClient.printMessage(new String[]{id,accountName}, Message.TYPE_MESSAGE_TO_SERVER, Message.HEADER_SET_GROUP);
 			mainClient.printMessage(true,HEADER_AUTHENTICATION_RESPONSE, id);
+			
 			syncedFiles.put(id, new HashSet<String>());
 			logger.log("Account "+accountName+" verified for "+id,SyncropLogger.LOG_LEVEL_TRACE);
 		}

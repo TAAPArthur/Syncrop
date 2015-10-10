@@ -1,6 +1,11 @@
 package daemon;
 
+import static file.SyncROPItem.DATE_MODIFIED;
+import static file.SyncROPItem.KEY;
+import static file.SyncROPItem.OWNER;
+import static file.SyncROPItem.PATH;
 import static notification.Notification.displayNotification;
+import static transferManager.FileTransferManager.HEADER_DELETE_MANY_FILES;
 import static transferManager.FileTransferManager.HEADER_FILE_SUCCESSFULLY_UPLOADED;
 import static transferManager.FileTransferManager.HEADER_FILE_UPLOAD_NEXT_PACKET;
 import static transferManager.FileTransferManager.HEADER_REQUEST_SMALL_FILE_DOWNLOAD;
@@ -64,15 +69,11 @@ public abstract class SyncDaemon extends Syncrop{
 	 * Used to upload large file 
 	 */
 	UploadLargeFileThread uploadLargeFileThread=new UploadLargeFileThread(fileTransferManager);
-	
 		
 	/**
 	 * Communication between SyncropDaemon and Cloud
 	 */
 	public static Messenger mainClient;
-	
-	
-	
 	
 	/**
 	 * The name of the application
@@ -436,6 +437,17 @@ public abstract class SyncDaemon extends Syncrop{
 		}*/
 	}
 	
+	public String deleteManyFiles(String userId,Object[][] files){
+		String owner=null;
+		for(Object syncData[]:files){
+			String path=(String)syncData[PATH];
+			owner=(String)syncData[OWNER];
+			long dateModified=(long)syncData[DATE_MODIFIED];
+			long key=(long)syncData[KEY];
+			downloadFile(userId, path,owner, dateModified, key, false, null, -1, false);
+		}
+		return owner;
+	}
 	/**
 	 * tells the reciepent to download a file
 	 * @param owners
@@ -561,6 +573,8 @@ public abstract class SyncDaemon extends Syncrop{
 			fileTransferManager.uploadRequest(message);
 		else if(message.getHeader().contains("download"))
 			fileTransferManager.downloadRequest(message);
+		else if(message.getHeader().equals(HEADER_DELETE_MANY_FILES))
+			fileTransferManager.deleteManyRequest(message);
 		/*else if(message.getHeader().equals(HEADER_REQUEST_FILE_RENAME)){
 			tryToRenameFile();
 		}*/		

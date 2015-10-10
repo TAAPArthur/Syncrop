@@ -4,26 +4,29 @@ import java.io.IOException;
 
 import message.Message;
 
-class MainSocketListener extends Thread	{
-	/**
-	 * 
-	 */
+/**
+ * 
+ * This thread continually reads from {@link SyncDaemon#mainClient} and passes output to
+ * {@link SyncDaemon#handleResponse(Message)}
+ * This thread should be paused
+ *  while the connection to server is not active of while authenticating
+ *
+ */
+public class MainSocketListener extends Thread	{
+	
 	private final SyncDaemon syncDaemon;
-	private Message message;
 	private volatile boolean paused;
-	public MainSocketListener(SyncDaemon syncDaemon)
-	{
+	public MainSocketListener(SyncDaemon syncDaemon){
 		super("main socket listener");
 		this.syncDaemon = syncDaemon;
 	}
 	
-	void setPaused(boolean b)
-	{
+	void setPaused(boolean b){
 		paused=b;
 	}
 	boolean isPaused(){return paused;}
-	public void run()
-	{
+	public void run(){
+		Message message=null;
 		while(!SyncDaemon.isShuttingDown())
 		{
 			while(SyncDaemon.mainClient.isConnectedToServer())

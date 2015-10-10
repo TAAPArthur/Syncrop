@@ -49,6 +49,11 @@ public class FileTransferManager extends Thread{
 	public final static String HEADER_ADD_MANY_TO_SEND_QUEUE="add many to send queue";
 	
 	/**
+	 * Used to delete many files
+	 */
+	public final static String HEADER_DELETE_MANY_FILES="delete many files";
+	
+	/**
 	 * This String is used as a header for a {@link Message}
 	 * to indicate that that a file was uploaded successfully. 
 	 * Upon receiving this message, {@link FileTransferManager#sentFile()} should be called.<br/>
@@ -814,7 +819,9 @@ public class FileTransferManager extends Thread{
 			logger.log(s);
 			cancelUpload(originalPath, true, false);
 		}
-	
+	}
+	public void deleteManyRequest(Message message){
+		daemon.deleteManyFiles(message.getUserID(), (Object[][])message.getMessage());
 	}
 	public void downloadRequest(Message message){
 

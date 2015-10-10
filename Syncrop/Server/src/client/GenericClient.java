@@ -16,8 +16,9 @@ import message.Messenger;
  * class used to communicate with Server
  * 
  */
-public class GenericClient implements Messenger
-{	
+public class GenericClient implements Messenger{
+	
+	private static boolean unshared=true;
 	/**
 	 * the host name, or null for the loopback address.
 	 */
@@ -254,8 +255,8 @@ public class GenericClient implements Messenger
 	 */
 	public synchronized void printMessage(Message messageToPrint){
 		try {
-			//out.writeUnshared(messageToPrint);
-			out.writeObject(messageToPrint);
+			if(unshared)out.writeUnshared(messageToPrint);
+			else out.writeObject(messageToPrint);
 			out.flush();
 			count++;
 
@@ -393,9 +394,8 @@ public class GenericClient implements Messenger
 			{
 				Message message = null;
 				try 
-				{	
-					//message=(Message)in.readUnshared();
-					message=(Message)in.readObject();	
+				{
+					message=(Message)(unshared?in.readUnshared():in.readObject());	
 					if(message.isMessageToClient())
 					{
 						if(message.getHeader().equals(Message.HEADER_CLOSE_CONNECTION))

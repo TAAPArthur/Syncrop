@@ -4,6 +4,7 @@ import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 import static syncrop.Syncrop.logger;
+import static transferManager.FileTransferManager.HEADER_DELETE_MANY_FILES;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,6 +17,7 @@ import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -347,36 +349,7 @@ public class FileWatcher extends Thread{
         }*/
 	}
 	
-	void onDelete(WatchedDir dir,String relativePath,File file,SyncROPItem item){
-		if(file.exists()){
-			logger.log("file exists; deletion canceled");
-			return;
-		}
-		String owner=dir.getAccountName();
-		if(item==null||!item.isDeletionRecorded()){
 
-			File metadataFile=
-					item!=null?
-							item.getMetadataFile():
-							new File(ResourceManager.getMetadataFile(relativePath, owner).getParent(),file.getName());
-//			File metadataFile=new File(
-//					ResourceManager.getMetaDataDirectory(),
-//					(SyncropClientDaemon.isInstanceOfCloud()?owner+File.separator:"")+
-//					relativePath).getParentFile();
-//			
-			
-			
-			long timeOfDelete=System.currentTimeMillis();
-			
-			removeDeletedFileFromRecord(metadataFile,relativePath,owner,timeOfDelete);
-			
-			if(item instanceof SyncROPDir)
-				ResourceManager.writeFile(item);
-			Syncrop.sleepVeryShort();
-		}
-		
-		//TODO rename
-	}
 	void onModify(WatchedDir dir,String path,File file,SyncROPItem item){
 		if(item==null)
 			onCreate(dir, path, file, item);
@@ -422,13 +395,46 @@ public class FileWatcher extends Thread{
 			}
 	}
 	
+	void onDelete(WatchedDir dir,String relativePath,File file,SyncROPItem item){
+		if(file.exists()){
+			logger.log("file exists; deletion canceled");
+			return;
+		}
+		String owner=dir.getAccountName();
+		if(item==null||!item.isDeletionRecorded()){
+
+			File metadataFile=
+					item!=null?
+							item.getMetadataFile():
+							new File(ResourceManager.getMetadataFile(relativePath, owner).getParent(),file.getName());
+//			File metadataFile=new File(
+//					ResourceManager.getMetaDataDirectory(),
+//					(SyncropClientDaemon.isInstanceOfCloud()?owner+File.separator:"")+
+//					relativePath).getParentFile();
+//			
+			
+			
+			long timeOfDelete=System.currentTimeMillis();
+			
+			ArrayList<Object[]> message=new ArrayList<Object[]>();
+			
+			removeDeletedFileFromRecord(metadataFile,relativePath,owner,timeOfDelete,message);
+			if(message.size()!=0)
+				SyncDaemon.mainClient.printMessage(message.toArray(new Object[message.size()][5]), HEADER_DELETE_MANY_FILES);
+			if(item instanceof SyncROPDir)
+				ResourceManager.writeFile(item);
+			Syncrop.sleepVeryShort();
+		}
 		
-	private void removeDeletedFileFromRecord(File metadataFile,String relativePath,String owner,final long timeOfDelete){
+		//TODO rename
+	}
+	private void removeDeletedFileFromRecord(File metadataFile,String relativePath,String owner,final long timeOfDelete,final ArrayList<Object[]> message){
+		final int maxTransferSize=Syncrop.KILOBYTE;
 		SyncROPItem item;
 		if(metadataFile.isDirectory()){
 			for(File f:metadataFile.listFiles())
 					removeDeletedFileFromRecord(
-						f,relativePath+File.separator+f.getName(),owner,timeOfDelete);
+						f,relativePath+File.separator+f.getName(),owner,timeOfDelete,message);
 			item=new SyncROPDir(relativePath, owner);
 		}
 		else {
@@ -444,7 +450,12 @@ public class FileWatcher extends Thread{
 					"not exists "+item.getFile().toString(),SyncropLogger.LOG_LEVEL_DEBUG);
 			item.setDateModified(timeOfDelete);
 			ResourceManager.writeFile(item);
-			tryToSendFile(item);
+			message.add(item.formatFileIntoSyncData());
+			if(message.size()==maxTransferSize){	
+				SyncDaemon.mainClient.printMessage(message.toArray(new Object[message.size()][5]), HEADER_DELETE_MANY_FILES);
+				message.clear();
+				Syncrop.sleep();
+			}
 		}
 	}
 	

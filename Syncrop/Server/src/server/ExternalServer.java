@@ -1,11 +1,9 @@
 package server;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import logger.GenericLogger;
 import logger.Logger;
-
 
 
 /**

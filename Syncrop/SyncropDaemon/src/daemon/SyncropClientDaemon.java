@@ -322,7 +322,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 * @param metaDataFile the metadata directory to recursively check
 	 * @param message the messages in queue to be sent; When messages are sent, this list is cleared
 	 */
-	private void syncFilesToCloud(File metaDataFile,ArrayList<Object[]> message){
+	private void syncFilesToCloud(File metaDataFile,final ArrayList<Object[]> message){
 		final int maxTransferSize=KILOBYTE;
 		if(metaDataFile.isDirectory()){
 			sleepVeryShort();

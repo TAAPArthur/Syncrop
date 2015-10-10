@@ -92,7 +92,13 @@ public class Message implements Serializable
 	public static final String MESSAGE_GET_CONNECTIONS="GET CONNECTIONS";
 	public static final String MESSAGE_CONNECTION_MADE="CONNECTION MADE";
 	
-	public static final String HEADER_CHANGE_GROUP="change group";
+	/**
+	 * A header for a Message from Primary to Server; 
+	 * The message should contain String[] with the first index being the 
+	 * name of the client and the rest being the list of aliases for 
+	 * secondary client
+	 */
+	public static final String HEADER_SET_GROUP="set group";
 	/**
 	 * This header should be sent with type {@link #TYPE_MESSAGE_TO_CLIENT}. <br/>
 	 * The message accompanying this header should return a String array of all the names of connections

@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 
 import logger.Logger;
 import message.Message;
@@ -20,6 +19,7 @@ import message.Message;
 public abstract class GenericConnectionThread extends Thread 
 {
 
+	private static boolean unshared=true;
 	private static long waitTime=10;
 	/**
 	 * the clients; this will be modified to accommodate more users
@@ -225,8 +225,9 @@ public abstract class GenericConnectionThread extends Thread
 	{
 		if(isConnectedToClient())
 			try {
-				//out.writeUnshared(o);
-				out.writeObject(o);
+				if(unshared)out.writeUnshared(o);
+				else out.writeObject(o);
+				
 				out.flush();
 				
 				if(count++>10){
@@ -300,8 +301,8 @@ public abstract class GenericConnectionThread extends Thread
 			{
 				try 
 				{
-					//Message m = (Message)in.readUnshared();
-					Message m = (Message)in.readObject();
+					
+					Message m =(Message)(unshared?in.readUnshared():in.readObject());
 					log("Read message:"+m.toString(), Logger.LOG_LEVEL_ALL);
 					active=true;
 					readMessage(m);
@@ -352,15 +353,16 @@ public abstract class GenericConnectionThread extends Thread
 					String[]param=(String[]) message.getMessage();
 					remove(param[0], param[1],true);
 				}
-				else if(primary&&message.getHeader().equals(Message.HEADER_CHANGE_GROUP))
+				else if(primary&&message.getHeader().equals(Message.HEADER_SET_GROUP))
 				{
 					try {
-						Object o[]=(Object[]) message.getMessage();
-						List<String> names=Arrays.asList((String[])o[1]);
-						clients.get(o[0]).names.clear();
-						clients.get(o[0]).names.addAll(names);
+						String names[]=(String[]) message.getMessage();
+						String key=(String) names[0];
 						
-						log(o[0]+" is a member of:"+names);
+						clients.get(key).names.clear();
+						clients.get(key).names.addAll(Arrays.asList(names));
+						
+						log(key+" is a member of:"+names);
 					} catch (ArrayIndexOutOfBoundsException e) {
 						log(username+": "+e.toString());
 					}

@@ -28,6 +28,17 @@ import syncrop.ResourceManager;
 import syncrop.Syncrop;
 /**
  * An account includes all the connection info needed to get files from the server.
+ * An Account is uniquely identified by its username, so if two accounts have the
+ * same name, they are the same account.
+ * <br/><br/>
+ * Account contains three major sets:
+ * <ul>
+ * <li>Directories -the paths of directives to sync relative to the user's home directory
+ * <li>Removable Directories - the absolute path of directories. 
+ * If the Removable Directory does not exists its childern are not considered deleted.
+ * This allows removable media like flash drives to be synced.
+ * <li>Restrictions -the abs path of directories that should not be synced. Accepts wildcards
+ * </ul>
  *
  */
 public class Account
@@ -40,6 +51,9 @@ public class Account
 	 * The email of the account
 	 */
 	private String email;
+	/**
+	 * The token of the account; it is used for authentication instead of a password 
+	 */
 	private String token;
 	
 	
@@ -50,9 +64,12 @@ public class Account
 	/**
 	 * The maxium size of an account measured in GB
 	 */
-	private final static long maximumAccountSize=4L*GIGABYTE;
+	private static long maximumAccountSize=4L*GIGABYTE;
 	
-	short warning=0;
+	/**
+	 * warns teh user about the 
+	 */
+	private short warning=0;
 	
 	/**
 	 * if enabled the files of this account will be synced with the cloud. File of 
@@ -83,9 +100,26 @@ public class Account
 	 * The path given should be the absolute path
 	 */
 	HashSet<Directory> restrictions = new HashSet<Directory>();
-
 	
+	/**
+	 * A tab separated list of the default restrictions. The default resticts aren't
+	 * added when using the default constructor. 
+	 */
+	private static final String defaultRestictions=
+			"*.metadata*\t*.~lock*\t*.gvfs\t*.thumbnails*"
+	+ "\t*.backup*\t*~\t*.git*\t*.dropbox*\t*/proc/*\t*/sys/*\t*/dev/*\t*/run/*\t"
+	+ "*.*outputstream*\t*appcompat*\t*/.recommenders/*\t*.attach_pid*";
+
+	/**
+	 * Creates an empty account; Username, email and token need to be specified manually
+	 */
 	public Account(){}
+	
+	/**
+	 * @param username the name of the Account
+	 * @param email the email associated with the Account
+	 * @param enabled true if the account is enabled
+	 */
 	public Account(String username,String email,boolean enabled){
 		this.name=username;
 		this.email=email;
@@ -94,12 +128,10 @@ public class Account
 		
 		addRemoveableDirs((String)null);
 		
-		String restrinctions=
-				"*.metadata*\t*.~lock*\t*.gvfs\t*.thumbnails*"
-		+ "\t*.backup*\t*~\t*.git*\t*.dropbox*\t*/proc/*\t*/sys/*\t*/dev/*\t*/run/*\t"
-		+ "*.*outputstream*\t*appcompat*\t*/.recommenders/*\t*.attach_pid*";
-		for(String restriction:restrinctions.split("\t"))
+		for(String restriction:defaultRestictions.split("\t"))
 			addRestrictions(restriction);
+		
+		//create home dir if on Cloud
 		if(isInstanceOfCloud())
 			createFolder();
 	}
@@ -127,9 +159,21 @@ public class Account
 		if(isInstanceOfCloud())
 			createFolder();
 	}
+	/**
+	 * Returns the home directory of the Account
+	 * @param removable if true the home for removable files is returned 
+	 * @return the home directory of the Account (either removable or non removable)
+	 * @see ResourceManager#getHome(String, boolean)
+	 */
 	public String getHome(boolean removable){
 		return ResourceManager.getHome(getName(), removable);
 	}
+	/**
+	 * Recursively deletes the home folders (both removable and non removable).
+	 * This deletion is permante and should only be run when a user account has been removed
+	 * on Cloud. 
+	 * @throws IOException if an IO error occured while deleting
+	 */
 	public void deleteFolder() throws IOException{
 		boolean removable=false;
 		logger.log("Deleting Account folder for "+getName());
@@ -145,6 +189,10 @@ public class Account
 		}
 		while(removable);
 	}
+	/**
+	 * Creates the home folders (both removable and non removable).
+	 * This method should only be run on Cloud
+	 */
 	public void createFolder(){
 		File f;
 		boolean removable=false;
@@ -160,6 +208,7 @@ public class Account
 		}
 		while(removable);
 	}
+	
 	@Override
 	public String toString()
 	{
@@ -169,7 +218,10 @@ public class Account
 	}
 	
 	
-	
+	/**
+	 * 
+	 * @return a String[] of all the restrictions
+	 */
 	public String[] getRestrictionsList(){
 		String list[]=new String[restrictions.size()];
 		int i=0;
@@ -177,6 +229,10 @@ public class Account
 			list[i++]=restriction.getLiteralDir();
 		return list;
 	}
+	/**
+	 * 
+	 * @param dirsToAdd adds a restriction
+	 */
 	public void addRestrictions(String... dirsToAdd)
 	{
 		for(int i=0;i<dirsToAdd.length;i++)
@@ -192,6 +248,10 @@ public class Account
 			}
 			else restrictions.add(new Directory(dirsToAdd[i], true));
 	}
+	/**
+	 * Adds a non-removable directory.
+	 * @param dirsToAdd the directory to add
+	 */
 	public void addDirs(String... dirsToAdd)
 	{
 		if(isInstanceOfCloud())
@@ -209,6 +269,10 @@ public class Account
 				else directories.add(new Directory(dirsToAdd[i], true));
 	}
 	
+	/**
+	 * Adds a removable directory
+	 * @param dirsToAdd the removable directory to add
+	 */
 	public void addRemoveableDirs(String... dirsToAdd)
 	{
 		if(isInstanceOfCloud())
@@ -230,7 +294,13 @@ public class Account
 				}
 				else removableDirectories.add(new RemovableDirectory(dirsToAdd[i],this));
 	}
-	
+	/**
+	 * Prompts the user to change the name of dir to make it legal. 
+	 * The user is continully prompted until the change has been made.
+	 * @param dir the path of the dir containing the illegal dir
+	 * @param title a description of the dir
+	 * @return
+	 */
 	static String removeIllegalChars(String dir,String title)
 	{
 		Matcher m;
@@ -242,34 +312,38 @@ public class Account
 			dir=removeIllegalChars(title, dir, m.start());
 		return dir;
 	}
+	/**
+	 * Prompts the user to change the name of dir to make it legal. 
+	 * The user is continually prompted until the change has been made.
+	 * @param pre a description of the dir
+	 * @param path the path of the dir containing the illegal dir
+	 * @param indec the position of the illegal char
+	 * @return
+	 */
 	static String removeIllegalChars(String pre,String path,int index)
 	{
 		return JOptionPane.showInputDialog(pre+" cannot contain illegal char '"+path.charAt(index)+
 				"'\nrename file: "+path,path);
 	}
-	/*
-	public boolean enableDir(String dirToEnable){return restrictions.remove(dirToEnable);}
-	public boolean disableDir(String dirToDisable){return restrictions.add(dirToDisable);}
-	*/
 	
+	/**
+	 * 
+	 * @param path the path to check
+	 * @param removable if the path is removable or not
+	 * @return true if and only if the path is a child of a removable or non removable directory
+	 */
 	public boolean isPathContainedInDirectory(final String path,boolean removable){
 		if(!removable)
-			for(Directory dir:directories)
-			{
+			for(Directory dir:directories){
 				if(dir.isPathContainedInDirectory(path))
-				{
 					return true;
-				}
 			}
-		else for(Directory dir:removableDirectories)
-		{
+		else for(Directory dir:removableDirectories){
 			if(dir.isPathContainedInDirectory(path))
-			{
 				if(new File(ResourceManager.getHome(getName(),removable),dir.getDir()).exists())
 				{
 					return true;
 				}
-			}
 		}
 		return false;
 	}
@@ -310,9 +384,17 @@ public class Account
 		
 		return true;
 	}
-	
+	/**
+	 * @return a set or non-removable directories
+	 */
 	public HashSet<Directory> getDirectories(){return directories;}
+	/**
+	 * @return a set or removable directories
+	 */
 	public HashSet<RemovableDirectory> getRemovableDirectories(){return removableDirectories;}
+	/**
+	 * @return a set or removable directories that exist
+	 */
 	public HashSet<String> getRemovableDirectoriesThatExists()
 	{
 		HashSet<String>dirsThatExists=new HashSet<String>();
@@ -321,8 +403,15 @@ public class Account
 				dirsThatExists.add(dir.getDir());
 		return dirsThatExists;
 	}
+	/**
+	 * 
+	 * @return a set of restrictions
+	 */
 	public HashSet<Directory> getRestrictions(){return restrictions;}
 		
+	/**
+	 * Calculates the size of the account by summing the size of every file.
+	 */
 	public void calculateSize(){
 		try {
 			long size=0;
@@ -341,6 +430,13 @@ public class Account
 		}
 	}
 	
+	/**
+	 * Recursivly sums all children of startPath
+	 * @param startPath the path to start with
+	 * @param removable if startPath is removable
+	 * @return the sum of the sizes of all children of startPath
+	 * @throws IOException
+	 */
 	private long getSize(String startPath,final boolean removable) throws IOException {
 	    final AtomicLong size = new AtomicLong(0);
 	    Path path = Paths.get(startPath);
@@ -369,10 +465,19 @@ public class Account
 	    });
 	    return size.get();
 	}
-	
+	/**
+	 * 
+	 * @return the last recorded size of the Account; may not be accurate
+	 */
 	public long getRecordedSize() {
 		return recordedSize;
 	}
+	/**
+	 * Sets the recorded size of the Account.
+	 * This method does not actually change the size of the Account, but is used to 
+	 * report to the user how much space is left.
+	 * @param recordedSize the new size of the Account
+	 */
 	public void setRecordedSize(long recordedSize) 
 	{
 		this.recordedSize = recordedSize;
@@ -391,15 +496,29 @@ public class Account
 		else warning=0;
 	}
 	
+	/**
+	 * 
+	 * @return true if the Account has exceeded its maxium size
+	 * @see #willBeFull(long)
+	 */
 	public boolean isFull()
 	{
 		return willBeFull(0);
 	}
-	public boolean willBeFull(long length)
+	/**
+	 * 
+	 * @param deltaLength the change in length of the account
+	 * @return true if the Account will exceed its maxium size if deltaLength bytes are added.
+	 */
+	public boolean willBeFull(long deltaLength)
 	{
-		return recordedSize+length>maximumAccountSize;
+		return recordedSize+deltaLength>maximumAccountSize;
 	}
 	
+	/**
+	 * 
+	 * @return the name of the account
+	 */
 	public String getName() {
 		return name;
 	}
@@ -415,23 +534,18 @@ public class Account
 	}
 	
 	
-	
 	/**
 	 * 
-	 * @return the maximum 
+	 * @return the maximum Account size {@value #maximumAccountSize} bytes 
+	 * @see #maximumAccountSize
 	 */
 	public static long getMaximumAccountSize() {
 		return maximumAccountSize;
 	}
 	public static void setMaximumAccountSize(long maximumAccountSize) {
-		//Account.maximumAccountSize = maximumAccountSize;
+		Account.maximumAccountSize = maximumAccountSize;
 	}
-	public short getWarning() {
-		return warning;
-	}
-	public void setWarning(short warning) {
-		this.warning = warning;
-	}
+	
 	public boolean isEnabled() {
 		return enabled&&maximumAccountSize>=recordedSize;
 	}
@@ -450,12 +564,7 @@ public class Account
 	public boolean equals(Object o){
 		return o instanceof Account&&name.equals(((Account)o).getName());
 		
-	}
-	@Override
-	public int hashCode(){
-		return name.hashCode();
-	}
-	
+	}	
 	public String getEmail() {
 		return email;
 	}
