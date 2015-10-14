@@ -234,9 +234,9 @@ public class FileWatcher extends Thread{
 		if(item==null||item.hasBeenUpdated())
 			updateAccountSize(a, file, item);
 		if(item!=null)
-			return count+item.getSize();
-		else return count;
-		
+			count+=item.getSize();
+		item=null;
+		return count;		
 	}
 	
 	

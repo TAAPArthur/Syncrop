@@ -12,10 +12,21 @@ import account.Account;
 import file.RemovableDirectory;
 import file.SyncROPDir;
 
+/**
+ * 
+ * Monitors the root directory of removable files to see if to see if it exists.
+ * The root directory is the absolute path stored in the configuration file.<br/>
+ * When a root removable directory is detected and the connection is active, it is synced to Cloud   
+ *
+ */
 public class RemovableFileWatcher implements Runnable{
-	FileWatcher fileWatcher;
+	private FileWatcher fileWatcher;
 
-	volatile HashSet<RemovableDirectory>activeRemovaleDirs=new HashSet<>();
+	/**
+	 * Set of the root removable directories that exist
+	 */
+	
+	private volatile HashSet<RemovableDirectory>activeRemovaleDirs=new HashSet<>();
 	public RemovableFileWatcher(FileWatcher fileWatcher){
 		this.fileWatcher=fileWatcher;
 	}
@@ -46,22 +57,27 @@ public class RemovableFileWatcher implements Runnable{
 			SyncropClientDaemon.sleep();
 		}		
 	}
-	void addActiveRemovableDir(RemovableDirectory dir){
-		activeRemovaleDirs.add(dir); 
-	}
-	void clear(){activeRemovaleDirs.clear();}
 	
+	/**
+	 * Syncs files to path and all its children to Cloud
+	 * @param path - the parent path of the files to sync
+	 * @throws IllegalAccessException
+	 */
 	void syncNewlyAddedRemovableDir(String path)throws IllegalAccessException
 	{
-		if(Syncrop.isInstanceOfCloud())
-			throw new IllegalAccessException("Cloud cannot new removable dirs");
-		if(logger.isDebugging())
-			logger.log("Syncing removable dir"+path+"; active removable dirs= "+activeRemovaleDirs);
-		if(!isNotWindows())
-			path=SyncROPDir.toLinuxPath(path);
-		
-		logger.log("Syncing newly added removable dirs");
-		
-		((SyncropClientDaemon) fileWatcher.daemon).syncFilesToCloud(path, path);
+		try {
+			if(Syncrop.isInstanceOfCloud())
+				throw new IllegalAccessException("Cloud cannot new removable dirs");
+			if(logger.isDebugging())
+				logger.log("Syncing removable dir"+path+"; active removable dirs= "+activeRemovaleDirs);
+			if(!isNotWindows())
+				path=SyncROPDir.toLinuxPath(path);
+			
+			logger.log("Syncing newly added removable dirs");
+			
+			((SyncropClientDaemon) fileWatcher.daemon).syncFilesToCloud(path, path);
+		} catch (Error e) {
+			logger.logError(e);
+		}
 	}
 }

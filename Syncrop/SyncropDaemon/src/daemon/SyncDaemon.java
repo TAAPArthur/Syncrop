@@ -202,6 +202,7 @@ public abstract class SyncDaemon extends Syncrop{
 			
 			//TODO auto update option gui
 			//Updator.checkForUpdate();
+			fileWatcher.start();
 			checkFiles();
 			connectToServer();
 			startThreads();
@@ -214,9 +215,9 @@ public abstract class SyncDaemon extends Syncrop{
 		
 		if(Settings.allowScripts())
 			fileWatcher.watch(ResourceManager.loadCommands());
-		fileWatcher.start();
+		
 		fileWatcher.checkAllFiles();
-		FileWatcher.checkAllMetadataFiles();
+		
 		System.gc();
 		
 	}

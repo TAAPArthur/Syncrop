@@ -30,6 +30,7 @@ import file.SyncROPDir;
 import file.SyncROPFile;
 import file.SyncROPItem;
 import file.SyncROPSymbolicLink;
+import listener.FileWatcher;
 import message.Message;
 import server.InternalServer;
 import server.Server;
@@ -92,6 +93,11 @@ public final class SyncropCloud extends SyncDaemon
 	
 	public String getUsername(){
 		return CLOUD_USERNAME;
+	}
+	@Override
+	protected void checkFiles(){
+		FileWatcher.checkAllMetadataFiles();
+		super.checkFiles();
 	}
 	
 	@Override

@@ -11,7 +11,7 @@ import java.nio.file.WatchService;
 
 import account.Account;
 
-class WatchedDir{
+public class WatchedDir{
 	Path dir;
 	String path;
 	boolean removable;
