@@ -530,7 +530,7 @@ public class FileTransferManager extends Thread{
 		logger.log("File Transfer Manager started");
 		while(!SyncropClientDaemon.isShuttingDown())
 		{
-			try 
+			try
 			{
 				SyncropClientDaemon.sleepShort();
 				if(paused){

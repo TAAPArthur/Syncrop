@@ -1,3 +1,5 @@
+/account/
+/authentication/
 /daemon/
 /encryption/
 /file/
@@ -7,5 +9,3 @@
 /settings/
 /syncrop/
 /transferManager/
-/account/
-/authentication/

@@ -9,6 +9,7 @@ import java.awt.event.MouseListener;
 import java.io.File;
 import java.io.IOException;
 
+import javax.crypto.BadPaddingException;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -125,22 +126,32 @@ class FileOptionMenu extends JPopupMenu implements ActionListener{
 					String key=getKey();
 					for(TreePath path:tree.getSelectionPaths()){
 						File file=new File(FileTree.getFilePath(path.getPath()));
-						if(e.getSource().equals(encrypt))
-							SyncropCipher.encrypt(file,key);
-						else 
-							SyncropCipher.decrypt(file,key);
+						try {
+							if(e.getSource().equals(encrypt))
+								SyncropCipher.encrypt(file,key);
+							else 
+								SyncropCipher.decrypt(file,key);
+							refresh();
+						} catch (BadPaddingException e1) {
+							JOptionPane.showMessageDialog(null, "Invalid password");
+						}
+						catch(IllegalArgumentException e1){
+							JOptionPane.showMessageDialog(null, "File is too large to encrypt");
+						}
 					}
 				}
 			}
 			else if(e.getSource().equals(refresh))
-				tree.refresh();
+				refresh();
 			
 		} catch (IOException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
 	}
-	
+	private void refresh(){
+		tree.refresh();
+	}
 	private String getKey(){
 		String keyString=JOptionPane.showInputDialog("Enter key");
 		if(keyString.length()<16)
@@ -156,18 +167,26 @@ class FileOptionMenu extends JPopupMenu implements ActionListener{
 						File file=tree.getSelectedNode().getFile();
 						String key=null;
 						File fileToBeOpened=file;
-						if(SyncropCipher.isEncrypted(file.getName())){
-							File tempFile=ResourceManager.createTemporaryFile(file);
-							fileToBeOpened=tempFile;
-							SyncropCipher.decrypt(file,fileToBeOpened , key=getKey());
+						try {
+							if(SyncropCipher.isEncrypted(file.getName())){
+								File tempFile=ResourceManager.createTemporaryFile(file);
+								fileToBeOpened=tempFile;
+								SyncropCipher.decrypt(file,fileToBeOpened , key=getKey());
+							}
+							//TODO fix implimation; update on save
+							String command[]={"xdg-open",fileToBeOpened.getAbsolutePath()};
+							Process p=Runtime.getRuntime().exec(command);
+							p.waitFor();//file has been closed
+							if(key!=null){//encryptFileAfterClose
+								SyncropCipher.encrypt(fileToBeOpened, file, key);
+							}
+						} catch (BadPaddingException e1) {
+							JOptionPane.showMessageDialog(null, "Invalid password");
 						}
-						//TODO fix implimation; update on save
-						String command[]={"xdg-open",fileToBeOpened.getAbsolutePath()};
-						Process p=Runtime.getRuntime().exec(command);
-						p.waitFor();//file has been closed
-						if(key!=null){//encryptFileAfterClose
-							SyncropCipher.encrypt(fileToBeOpened, file, key);
+						catch(IllegalArgumentException e1){
+							JOptionPane.showMessageDialog(null, "File is too large to encrypt");
 						}
+						
 					}
 					//TODO windows
 					//if(Syncrop.isNot())
