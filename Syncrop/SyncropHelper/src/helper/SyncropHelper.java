@@ -26,6 +26,7 @@ public class SyncropHelper {
 			
 		Account account = null;
 		String username=args[startIndex+1];
+		
 		switch (args[startIndex]){
 			case "enabled":
 				ResourceManager.getAccount(username).setEnabled(true);
@@ -73,5 +74,4 @@ public class SyncropHelper {
 			System.out.println("Account "+account.getName()+" alread exists");
 		else System.out.println("Account "+account.getName()+" has been created");
 	}
-
 }
