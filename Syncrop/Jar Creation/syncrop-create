@@ -11,7 +11,7 @@ windows_path="/home/taaparthur/Documents/Syncrop/Windows/Jars"
 
 
 cd /home/taaparthur/Documents/Syncrop/Syncrop/SyncropGUI/bin
-jar cfm "$path"/SyncropGUI.jar "$home"/SyncropGUI_MANIFEST.MF *
+jar cfmv "$path"/SyncropGUI.jar "$home"/SyncropGUI_MANIFEST.MF *
 
 cd /home/taaparthur/Documents/Syncrop/Syncrop/SyncropDaemon/bin
 
