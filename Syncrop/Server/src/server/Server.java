@@ -87,7 +87,9 @@ public abstract class Server
 						while(maxConnections==UNLIMITED_CONNECTIONS||maxConnections>connections.size())
 							acceptConnection(serverSocket.accept());
 						Thread.sleep(1000);
-					} catch (Exception e) {log(e);}
+					} 
+					catch (IOException e) {log(e);}
+					catch (Exception e) {log(e);}
 				}
 			}
 		}.start();

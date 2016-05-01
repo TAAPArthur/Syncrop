@@ -15,11 +15,13 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 import java.util.regex.Pattern;
@@ -28,13 +30,14 @@ import org.json.simple.JSONArray;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
+import settings.Settings;
+import sharing.SharedFile;
 import account.Account;
 import file.Directory;
 import file.SyncROPDir;
 import file.SyncROPFile;
 import file.SyncROPItem;
 import file.SyncROPSymbolicLink;
-import settings.Settings;
 
 /** 
  * 
@@ -56,6 +59,7 @@ public class ResourceManager
 	 * Modifying this file while Syncrop is running will cause it to reload the info 
 	 */
 	static File configFile;
+	static File fileSharingFile;
 	
 	/**
 	 * Directory that holds SYNCROPFile information like key for future sessions
@@ -105,6 +109,46 @@ public class ResourceManager
 	
 	private volatile static String lockedPath;
 	private volatile static String lockedOwner;
+	
+	public final static LinkedHashSet<SharedFile>sharedFiles=new LinkedHashSet<>();
+	
+	public static boolean isFileShared(String path){
+		for(SharedFile file:sharedFiles)
+			if(file.isFileShared(path))
+				return true;
+		return false;
+	}
+	public static SharedFile getSharedFileInfo(String path){
+		for(SharedFile file:sharedFiles)
+			if(file.isFileShared(path))
+				return file;
+		return null;
+	}
+	public static void addSharedFiles(SharedFile file){
+		sharedFiles.add(file);
+	}
+	public static void saveSharedFiles(){
+		try {
+			PrintWriter out=new PrintWriter(fileSharingFile,Settings.getEncoding());
+			for(SharedFile file:sharedFiles)
+				out.println(file.toString());
+			out.close();
+		} catch (FileNotFoundException | UnsupportedEncodingException e) {
+			logger.logError(e,"trying to write to file sharing file;");
+		}
+	}
+	public static void loadSharedFiles(){
+		
+		try {
+			BufferedReader in=new BufferedReader(new InputStreamReader(new FileInputStream(fileSharingFile)));
+			while(in.ready())
+				sharedFiles.add(new SharedFile(in.readLine()));
+			in.close();
+		} catch (NumberFormatException | IOException e) {
+			logger.logError(e,"trying to read from file sharing file;");
+		}
+			
+	}
 	
 	/**
 	 * Gets a single specified Account from a username.
@@ -171,6 +215,7 @@ public class ResourceManager
 		else 
 			return removable?"":HOME+File.separatorChar;
 	}
+	
 
 	public static boolean isFileRemovable(String path)
 	{
@@ -329,7 +374,7 @@ public class ResourceManager
 				in=new BufferedReader(new InputStreamReader(new FileInputStream(metaDataVersionFile)));
 				sameMetaDataVersion=in.readLine().equals(Syncrop.getMetaDataVersion());
 			}
-			if(!sameMetaDataVersion)
+			if(!sameMetaDataVersion&&metaDataFile.exists())
 				deleteMetadata();	
 		}
 		catch (IOException|SecurityException e){
@@ -414,8 +459,10 @@ public class ResourceManager
 			out.write(file.getOwner());out.newLine();
 			out.write(file.getDateModified()+"");out.newLine();
 			out.write(file.getKey()+"");out.newLine();
+			out.write(file.modifiedSinceLastKeyUpdate()+"");out.newLine();
 			out.write(file.getSize()+"");out.newLine();
 			out.write(file.isDeletionRecorded()+"");out.newLine();
+			out.write(file.getFilePermissions());out.newLine();
 			
 			out.close();
 		} catch (Exception e) {
@@ -439,10 +486,11 @@ public class ResourceManager
 				if(!isInstanceOfCloud())owner=getAccount().getName();
 				long dateModified=Long.parseLong(in.readLine());
 				long key=Long.parseLong(in.readLine());
+				boolean modifedSinceLastKeyUpdate=Boolean.parseBoolean(in.readLine());
 				long size=Long.parseLong(in.readLine());
 				boolean isDir=key==-1;
 				boolean deletionRecorded=Boolean.parseBoolean(in.readLine());
-								
+				String filePermissions=	in.readLine();
 				//TODO String shared;
 				
 				in.close();
@@ -463,12 +511,12 @@ public class ResourceManager
 							target=targetOfLink;
 					} catch (IOException e) {logger.logError(e);}
 				
-					file = new SyncROPSymbolicLink(path,owner,dateModified,key,target,size,deletionRecorded);
+					file = new SyncROPSymbolicLink(path,owner,dateModified,key,modifedSinceLastKeyUpdate,target,size,deletionRecorded,filePermissions);
 				}
 				else if(isDir)
-					file = new SyncROPDir(path, owner,dateModified,deletionRecorded);
+					file = new SyncROPDir(path, owner,dateModified,deletionRecorded,filePermissions);
 				else 
-					file=new SyncROPFile(path, owner,dateModified,key,size,deletionRecorded);
+					file=new SyncROPFile(path, owner,dateModified,key,modifedSinceLastKeyUpdate,size,deletionRecorded,filePermissions);
 	
 				//if(file.isEnabled())
 					return file;
@@ -516,10 +564,13 @@ public class ResourceManager
 		metaDataVersionFile=new File(metaDataFile,"METADATA_VERSION");
 		temp=new File(getConfigFilesHome(),".temp");
 		temporaryFile=new File(temp,"~.temporaryfile.temp");
+		fileSharingFile=new File(getConfigFilesHome(),"fileSharingInfo.dat");
 		deleteTemporaryFile();
 		try {
 			if(!temp.exists())temp.mkdir();
 			if(!configFile.exists())configFile.createNewFile();
+			if(!fileSharingFile.exists())fileSharingFile.createNewFile();
+			loadSharedFiles();
 			if(!metaDataFile.exists())metaDataFile.mkdir();
 		}
 		catch (IOException e) 

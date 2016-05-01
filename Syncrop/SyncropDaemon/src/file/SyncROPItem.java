@@ -1,5 +1,14 @@
 package file;
 
+import static java.nio.file.attribute.PosixFilePermission.GROUP_EXECUTE;
+import static java.nio.file.attribute.PosixFilePermission.GROUP_READ;
+import static java.nio.file.attribute.PosixFilePermission.GROUP_WRITE;
+import static java.nio.file.attribute.PosixFilePermission.OTHERS_EXECUTE;
+import static java.nio.file.attribute.PosixFilePermission.OTHERS_READ;
+import static java.nio.file.attribute.PosixFilePermission.OTHERS_WRITE;
+import static java.nio.file.attribute.PosixFilePermission.OWNER_EXECUTE;
+import static java.nio.file.attribute.PosixFilePermission.OWNER_READ;
+import static java.nio.file.attribute.PosixFilePermission.OWNER_WRITE;
 import static syncrop.Syncrop.isNotMac;
 import static syncrop.Syncrop.isNotWindows;
 import static syncrop.Syncrop.logger;
@@ -11,20 +20,24 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
+import java.nio.file.attribute.PosixFilePermission;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.HashSet;
 import java.util.NoSuchElementException;
+import java.util.Set;
 
 import javax.swing.JOptionPane;
 
-import com.sun.jna.platform.FileUtils;
-
-import account.Account;
-import daemon.SyncropClientDaemon;
 import settings.Settings;
-import syncrop.SyncropLogger;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
+import syncrop.SyncropLogger;
+import account.Account;
+
+import com.sun.jna.platform.FileUtils;
+
+import daemon.SyncropClientDaemon;
 
 public abstract class SyncROPItem 
 {
@@ -33,9 +46,13 @@ public abstract class SyncROPItem
 	 */
 	public static final String illegalChars[]={"<",">","\\","/",":","\"","|","?","*"};
 	
-	public final static int PATH=0,OWNER=1,DATE_MODIFIED=2,KEY=3,EXISTS=4,
-			SYMBOLIC_LINK_TARGET=5,
-			BYTES=5,SIZE=6;
+	public final static int INDEX_PATH=0,INDEX_OWNER=1,INDEX_DATE_MODIFIED=2,INDEX_KEY=3,
+			INDEX_FILE_PERMISSIONS=4,INDEX_EXISTS=5,INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE=6,
+			INDEX_SYMBOLIC_LINK_TARGET=7,
+					INDEX_BYTES=7,INDEX_SIZE=8;
+	
+	public final int INDEX_LENGTH=8;
+	public final int INDEX_LENGTH_EXTENDED=9;
 	
 	public static final String CONFLICT_ENDING=".SYNCROPconflict";
 		
@@ -46,14 +63,19 @@ public abstract class SyncROPItem
 	String owner;
 	boolean removable;
 	volatile long dateModified=-2;
-	
+	boolean modifiedSinceLastKeyUpdate;
 	
 	private static FileUtils fileUtils=null;
 	private boolean deletionRecorded=false;
 	private boolean hasBeenUpdated=false;
+	private String filePermisions;
 	
+	private final static PosixFilePermission orderedPermissions[]={OWNER_READ,OWNER_WRITE,OWNER_EXECUTE,    
+            GROUP_READ,GROUP_WRITE,GROUP_EXECUTE,
+          OTHERS_READ,OTHERS_WRITE,OTHERS_EXECUTE,
+	};
 	
-	public SyncROPItem(String path,String owner,long modificicationDate,boolean deletionRecorded) 
+	public SyncROPItem(String path,String owner,long modificicationDate,boolean modifedSinceLastKeyUpdate,boolean deletionRecorded,String filePermissions) 
 	{
 		for(String c:illegalChars)
 			if(path.contains(c)&&!File.separator.equals(c))
@@ -61,21 +83,29 @@ public abstract class SyncROPItem
 						"path '"+path+"' cannot contain illegal char '"+c+"'",c);
 		this.removable=ResourceManager.isFileRemovable(path);
 		
+		if(path==null)
+			throw new NullPointerException("path cannot be null");
 		this.path=path;
 		this.owner=owner;
 		this.file=new File(ResourceManager.getHome(owner, removable),path);
 		
+		this.modifiedSinceLastKeyUpdate=modifedSinceLastKeyUpdate;
 		dateModified=modificicationDate;
 		this.deletionRecorded=deletionRecorded;
+		
+		if(filePermissions.isEmpty())
+			updateFilePermissions();
+		else this.filePermisions=filePermissions;
+		
 		
 		if(Files.exists(file.toPath(), LinkOption.NOFOLLOW_LINKS)){
 			updateDateModified();
 			if(deletionRecorded){
-				hasBeenUpdated=true;
+				setHasBeenUpdated();
 			}
 		}
 		else if(!deletionRecorded){//if used to exist and doesn't exist
-			hasBeenUpdated=true;
+			setHasBeenUpdated();
 		}
 		
 		
@@ -86,6 +116,33 @@ public abstract class SyncROPItem
 	}
 	
 	
+	public String getFilePermissions(){
+		return filePermisions;
+	}
+	public static Set<PosixFilePermission> getPosixFilePermissions(String filePermisions){
+		Set<PosixFilePermission> permissions=new HashSet<>();
+		for(int i=0;i<orderedPermissions.length;i++)
+			if(filePermisions.charAt(i)!='-')
+				permissions.add(orderedPermissions[i]);
+		return permissions;
+	}
+	public void updateFilePermissions(){
+		String s="";
+		try {
+			Set<PosixFilePermission> permissions=Files.getPosixFilePermissions(file.toPath(), LinkOption.NOFOLLOW_LINKS);
+			
+			
+			for(int i=0;i<orderedPermissions.length;i++)
+				if(permissions.contains(orderedPermissions[i])){
+					if(i%3==0)s+="r";
+					else if(i%3==1)s+="w";
+					else s+="x";
+				}
+				else s+="-";
+		} catch (IOException e) {
+		}
+		filePermisions=s;
+	}
 	/**
 	 * Used to initialize {@link #fileUtils} which is used to send files to trash. Only call if os is Mac or Windows
 	 */
@@ -188,15 +245,15 @@ public abstract class SyncROPItem
 	{
 		if(file.exists()&&!file.canRead())return false;
 		//TODO enabled; ie max size
-		return isFiledEnabled()&&isPathEnabled();
+		return isFileEnabled(file)&&isPathEnabled(path,owner);
 	}
-	private boolean isFiledEnabled(){
+	public static boolean isFileEnabled(File file){
 		//TODO test hidden symbolic links
 		if(!Settings.canSyncHiddenFiles()&&file.isHidden())return false;
 		return true;
 	}
 	
-	private boolean isPathEnabled(){
+	public static boolean isPathEnabled(String path,String owner){
 		return ResourceManager.getAccount(owner).isPathEnabled(path);
 	}
 	
@@ -394,7 +451,13 @@ public abstract class SyncROPItem
 			else sendToTrash(file);
 			tryToCreateParentSyncropDir();
 		}
-		if(file.exists())logger.log("file still exists");
+		
+		if(file.exists()){
+			logger.log("file still exists");
+			int count=0;
+			do try {count++;Thread.sleep(5);} catch (InterruptedException e) {}
+			while(file.exists()&&count<10);
+		}
 				
 		return true;
 	}
@@ -474,17 +537,18 @@ public abstract class SyncROPItem
 	 */
 	public void setDateModified(Long l)
 	{
-		l=(l/1000)*1000;
+		//l=(l/1000)*1000;
 		dateModified=l;
 		if(file.exists()){
 			try {
-				System.out.println(l+" "+FileTime.fromMillis(l));
+				//System.out.println(l+" "+FileTime.fromMillis(l));
+				
 				Files.setLastModifiedTime(file.toPath(), FileTime.fromMillis(l));
 			} catch (IOException e) {
 				logger.logError(e, "occured while trying to change the modified time of "+file);
 			}
 		}
-		hasBeenUpdated=true;
+		setHasBeenUpdated();
 	}
 	/**
 	 * updates dateModified to match file.lastModified 
@@ -493,13 +557,13 @@ public abstract class SyncROPItem
 		try {
 			if(exists()){
 				long currentDateMod=Files.getLastModifiedTime(file.toPath(), LinkOption.NOFOLLOW_LINKS).toMillis();
-				if(dateModified==currentDateMod)
+				if(hasSameDateModifiedAs(currentDateMod))
 					return false;
 				logger.log("Updating modification date of "+path+": "+
 						getDateModified()+" to "+currentDateMod,
 						SyncropLogger.LOG_LEVEL_TRACE);
 				dateModified=currentDateMod;
-				hasBeenUpdated=true;
+				setHasBeenUpdated();
 				return true;
 			}
 			else logger.logTrace("update failed");
@@ -524,6 +588,7 @@ public abstract class SyncROPItem
 	
 	
 	
+	public String getTargetPath(){return null;}
 	/**
 	 * Saves key information of file to an object array
 	 * @param file the SyncROPItem to format
@@ -531,15 +596,17 @@ public abstract class SyncROPItem
 	 */
 	public Object[] formatFileIntoSyncData()
 	{
-		Object[] syncData=new Object[6];
-		syncData[PATH]=isNotWindows()?
+		Object[] syncData=new Object[INDEX_LENGTH];
+		syncData[INDEX_PATH]=isNotWindows()?
 				getPath():
 				SyncROPItem.toLinuxPath(getPath());
-		syncData[OWNER]=owner;
-		syncData[DATE_MODIFIED]=getDateModified();
-		syncData[KEY]=getKey();
-		syncData[EXISTS]=exists();
-		syncData[SYMBOLIC_LINK_TARGET]=null;
+		syncData[INDEX_OWNER]=owner;
+		syncData[INDEX_DATE_MODIFIED]=getDateModified();
+		syncData[INDEX_KEY]=getKey();
+		syncData[INDEX_FILE_PERMISSIONS]=getFilePermissions();
+		syncData[INDEX_EXISTS]=exists();
+		syncData[INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE]=modifiedSinceLastKeyUpdate();
+		syncData[INDEX_SYMBOLIC_LINK_TARGET]=getTargetPath();
 		return syncData;
 	}
 	
@@ -549,16 +616,18 @@ public abstract class SyncROPItem
 	
 	public Object[] formatFileIntoSyncData(byte[] bytes,long size)
 	{
-		Object[] syncData=new Object[7];
-		syncData[PATH]=isNotWindows()?
+		Object[] syncData=new Object[INDEX_LENGTH_EXTENDED];
+		syncData[INDEX_PATH]=isNotWindows()?
 				getPath():
 				toLinuxPath(getPath());
-		syncData[OWNER]=getOwner();
-		syncData[DATE_MODIFIED]=getDateModified();
-		syncData[KEY]=getKey();
-		syncData[EXISTS]=exists();
-		syncData[BYTES]=bytes;
-		syncData[SIZE]=size;
+		syncData[INDEX_OWNER]=getOwner();
+		syncData[INDEX_DATE_MODIFIED]=getDateModified();
+		syncData[INDEX_KEY]=getKey();
+		syncData[INDEX_FILE_PERMISSIONS]=getFilePermissions();
+		syncData[INDEX_EXISTS]=exists();
+		syncData[INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE]=modifiedSinceLastKeyUpdate();
+		syncData[INDEX_BYTES]=bytes;
+		syncData[INDEX_SIZE]=size;
 		return syncData;
 	}
 	
@@ -569,18 +638,40 @@ public abstract class SyncROPItem
 	public void recordDeletion(){deletionRecorded=true;}
 	public boolean isDeletionRecorded(){return deletionRecorded;}
 	
-	protected void mark(){
+	protected void setHasBeenUpdated(){
 		hasBeenUpdated=true;
+		modifiedSinceLastKeyUpdate=true;
 	}
-	public boolean hasBeenUpdated(){return hasBeenUpdated;}
+	public boolean hasBeenUpdated(){
+		return hasBeenUpdated;
+	}
+	public boolean modifiedSinceLastKeyUpdate(){return modifiedSinceLastKeyUpdate;}
+	public void setModifiedSinceLastKeyUpdate(boolean  b){modifiedSinceLastKeyUpdate=b;}
 	@Override
 	public String toString()
 	{
 		String dateModified=logger.getDateTimeFormat().format(this.dateModified);
-		String key=getKey()==-1?"-1":logger.getDateTimeFormat().format(this.getKey());
-		return "path:"+path+", owner:"+owner+", key: "+key+" dateMod:"+dateModified+
+		return "path:"+path+", owner:"+owner+" dateMod:"+dateModified+", key: "+getKey()+
+				", modifiedSinceLastKeyUpdate: "+modifiedSinceLastKeyUpdate()+
 				" exits:"+file.exists()+" deletion recorded "+isDeletionRecorded()+
 				" removeable:"+isRemovable()+" isDir:"+file.isDirectory();
+	}
+	
+	public boolean isDiffrentVersionsOfSameFile(long key,boolean modifiedSinceLastKeyUpdate){
+		
+		if(modifiedSinceLastKeyUpdate||this.modifiedSinceLastKeyUpdate)
+			return this.getKey()==key;
+		else return true;
+		
+	}
+	public boolean isNewerThan(long dateModified){
+		return (this.dateModified-dateModified)>1000;
+	}
+	public boolean isOlderThan(long dateModified){
+		return (dateModified-this.dateModified)>1000;
+	}
+	public boolean hasSameDateModifiedAs(long dateModified){
+		return Math.abs(dateModified-this.dateModified)<1000;
 	}
 	
 	public boolean isLocked(){

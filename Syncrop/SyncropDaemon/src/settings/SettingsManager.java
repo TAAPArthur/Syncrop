@@ -26,7 +26,7 @@ public class SettingsManager {
 		HOST("Host",String.class,"getHost","setHost",true),
 		PORT("Port",int.class,"getPort","setPort",true),
 		LOG_LEVEL("Log Level",int.class,"getLogLevel","setLogLevel",true),
-		MAX_ACCOUNT_SIZE("Max Account Size",double.class,"getMaxAccountSize","setMaxAccountSize",true),
+		MAX_ACCOUNT_SIZE("Max Account Size (MB)",double.class,"getMaxAccountSize","setMaxAccountSize",true),
 		MULTIPLE_INSTANCES("Multiple Instances",boolean.class,"allowMultipleInstances","setMultipleInstances",true),
 		AUTO_QUIT("Auto Quit",boolean.class,"autoQuit","setAutoQuit",true),
 		WINDOWS_COMPATIBLE("Windows Compatible",boolean.class,"isWindowsCompatible","setWindowsCompatible",true),
@@ -56,6 +56,7 @@ public class SettingsManager {
 			try {
 				Method setter=Settings.class.getMethod(setterName,clazz);
 				setter.invoke(null, value);
+				
 			} catch (NoSuchMethodException | SecurityException
 					| IllegalAccessException | IllegalArgumentException
 					| InvocationTargetException e) {

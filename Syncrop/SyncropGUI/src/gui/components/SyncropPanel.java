@@ -1,6 +1,9 @@
 package gui.components;
 
-import java.awt.GridLayout;
+import gui.SyncropGUI;
+
+import java.awt.Color;
+import java.awt.Dimension;
 import java.util.Collection;
 
 import javax.swing.JLabel;
@@ -21,17 +24,20 @@ public class SyncropPanel extends JPanel {
 	
 	public SyncropPanel(String title,boolean validateInput){
 		super();
-		setLayout(new GridLayout(0, 1));
+		//setLayout(new GridLayout(3, 1));
 		setName(title);
 		JLabel label=new JLabel(title);
-		label.setSize(getWidth(),10);
+		
+		label.setPreferredSize(new Dimension(getWidth(),100));
 		//label.setDisplayedMnemonic(title.charAt(0));
 		add(label);
+		label.setBackground(Color.BLUE);
 		textBox=new SyncropTextBox(validateInput,true);
 		textBox.setSize(getWidth(), 10);
 		label.setLabelFor(textBox);
 		JScrollPane scrollPane=new JScrollPane(textBox);
-		//scrollPane.setPreferredSize(new Dimension(100, 100));
+		
+		scrollPane.setPreferredSize(new Dimension(SyncropGUI.WIDTH,100));
 		add(scrollPane);
 	}
 	public void addLine(String line){

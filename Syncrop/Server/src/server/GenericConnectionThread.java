@@ -104,7 +104,7 @@ public abstract class GenericConnectionThread extends Thread
 	@Override
 	public String toString()
 	{
-		return username+" "+application;
+		return username+" APP:"+application+" AKA: "+names;
 	}
 	
 	/**
@@ -361,7 +361,7 @@ public abstract class GenericConnectionThread extends Thread
 						
 						clients.get(key).names.clear();
 						clients.get(key).names.addAll(Arrays.asList(names));
-						
+						//System.out.println(key+" is a member of:"+names);
 						log(key+" is a member of:"+names);
 					} catch (ArrayIndexOutOfBoundsException e) {
 						log(username+": "+e.toString());

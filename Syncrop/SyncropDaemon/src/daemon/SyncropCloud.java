@@ -1,11 +1,12 @@
 package daemon;
 
 
-import static file.SyncROPItem.DATE_MODIFIED;
-import static file.SyncROPItem.EXISTS;
-import static file.SyncROPItem.KEY;
-import static file.SyncROPItem.PATH;
-import static file.SyncROPItem.SYMBOLIC_LINK_TARGET;
+import static file.SyncROPItem.INDEX_DATE_MODIFIED;
+import static file.SyncROPItem.INDEX_EXISTS;
+import static file.SyncROPItem.INDEX_KEY;
+import static file.SyncROPItem.INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE;
+import static file.SyncROPItem.INDEX_PATH;
+import static file.SyncROPItem.INDEX_SYMBOLIC_LINK_TARGET;
 import static transferManager.FileTransferManager.HEADER_DELETE_MANY_FILES;
 
 import java.io.File;
@@ -23,6 +24,16 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
+import listener.FileWatcher;
+import message.Message;
+import server.InternalServer;
+import server.Server;
+import settings.Settings;
+import sharing.SharedFile;
+import syncrop.ResourceManager;
+import syncrop.Syncrop;
+import syncrop.SyncropLogger;
+import transferManager.FileTransferManager;
 import account.Account;
 import authentication.Authenticator;
 import file.Directory;
@@ -30,15 +41,6 @@ import file.SyncROPDir;
 import file.SyncROPFile;
 import file.SyncROPItem;
 import file.SyncROPSymbolicLink;
-import listener.FileWatcher;
-import message.Message;
-import server.InternalServer;
-import server.Server;
-import settings.Settings;
-import syncrop.ResourceManager;
-import syncrop.Syncrop;
-import syncrop.SyncropLogger;
-import transferManager.FileTransferManager;
 
 /**
  * this will run on the server
@@ -57,7 +59,6 @@ public final class SyncropCloud extends SyncDaemon
 					PosixFilePermission.GROUP_WRITE,PosixFilePermission.GROUP_READ,
 					PosixFilePermission.GROUP_EXECUTE,PosixFilePermission.OWNER_EXECUTE));
 	
-	private boolean updateAllClients=true;
 	
 	/**
 	 * key-clients id</br>
@@ -221,20 +222,34 @@ public final class SyncropCloud extends SyncDaemon
 	}
 	@Override
 	public String deleteManyFiles(String userId,Object[][] files){
-		setUpdateAllClients(false);
-		String target=super.deleteManyFiles(userId, files);
-		setUpdateAllClients(true);
-		mainClient.printMessage(files, HEADER_DELETE_MANY_FILES,new String[]{target},userId);
-		return target;
+		
+		String owner=super.deleteManyFiles(userId, files);
+
+		logger.log("Echoing message to delete many files");
+		mainClient.printMessage(files, HEADER_DELETE_MANY_FILES,new String[]{owner},userId);
+		return owner;
 	}
-	public void setUpdateAllClients(boolean b){updateAllClients=b;}
 	
-	public void updateAllClients(SyncROPItem file,String targetToExclude)
-	 {		
-		if(isConnectionActive()&&updateAllClients)
-			for(String key:clients.keySet())
+	public void updateAllClients(Message message,String owner,String targetToExclude){
+		logger.logTrace("Updating to all clients excluding "+targetToExclude);
+		Message newMessage=new Message(message,CLOUD_USERNAME);
+		newMessage.addTargetsToExclude(targetToExclude);
+		
+		if(isConnectionActive())
+			for(String key:clients.keySet()){
+				if(!key.equals(targetToExclude)&&owner.equals(clients.get(key).getAccountName()))
+					mainClient.printMessage(newMessage);
+			}
+	}
+	public void updateAllClients(SyncROPItem file,String targetToExclude){		
+		logger.logTrace("Updating to all clients excluding "+targetToExclude);
+		if(isConnectionActive())
+			for(String key:clients.keySet()){
+				logger.log(key+" "+targetToExclude+" "+file.getOwner()+" "+clients.get(key).getAccountName());
 				if(!key.equals(targetToExclude)&&file.getOwner().equals(clients.get(key).getAccountName()))
-					fileTransferManager.addToSendQueue(file,key);
+					if(!clients.get(key).isPathRestricted(file.getPath()))
+						fileTransferManager.addToSendQueue(file,key);
+			}
 	}
 	
 	/**
@@ -277,37 +292,57 @@ public final class SyncropCloud extends SyncDaemon
 		
 		SyncropUser user=clients.get(message.getUserID());
 		user.addRestrictions(restrictions);
-		logger.log("client restrinction"+user.getRestrictions().toString());
-		
+		logger.logTrace("client restrinction"+user.getRestrictions().toString());
+		logger.logTrace("client paths"+parentPaths==null?null:Arrays.asList(parentPaths).toString());
 		String accountName=user.getAccountName();
 		File parent=new File(ResourceManager.getMetadataDirectory(),accountName);
 		
-		for(File metaDataFile:parent.listFiles())
-			if(!metaDataFile.equals(ResourceManager.getMetadataVersionFile()))
-				syncFilesToClient(message.getUserID(),user,metaDataFile,"", parentPaths);
+		//change standards; metadata in home"
+		for(File metaDataFile:parent.listFiles())//regular vs removable
+			if(metaDataFile.isDirectory())
+					syncFilesToClient(message.getUserID(),user,metaDataFile,(metaDataFile.getName().equals("removable")?File.separator:""), parentPaths);
 		
 		this.syncedFiles.get(message.getUserID()).clear();
 		logger.log("files from Cloud have been synced with "+message.getUserID()+"("+accountName+")");
 	}
 	
 	void syncFilesToClient(final String id,final SyncropUser user,File metaDataFile,String relativePath,final String []parentPaths){
-		logger.log("Checking "+relativePath,SyncropLogger.LOG_LEVEL_ALL);
-		if(user.isPathRestricted(relativePath))
-			return;
+		
 		if(metaDataFile.isDirectory()){
-			for(File file:metaDataFile.listFiles())
-				syncFilesToClient(id,user,file,
-					relativePath+(relativePath.isEmpty()?"":File.separatorChar)+file.getName(),parentPaths);
-				
+			if(user.isPathRestricted(relativePath)){
+				logger.log("Path resticted for user "+user+" "+relativePath);
+				return;
+			}
+			for(File file:metaDataFile.listFiles()){
+				String newRelativePath=relativePath+(relativePath.isEmpty()||relativePath.endsWith(File.separator)?"":File.separatorChar)+file.getName();
+				for(String parentDir:parentPaths)
+					if(Directory.isPathContainedInDirectory(newRelativePath, parentDir)){
+						syncFilesToClient(id,user,file,newRelativePath,parentPaths);
+						break;
+					}				
+			}
 		}
-		if(!metaDataFile.isDirectory()||metaDataFile.list().length==0) {
+		else {
 			SyncROPItem file=ResourceManager.readFile(metaDataFile);
 			if(file==null||!file.exists()||syncedFiles.get(id).contains(file.getPath())||
 					!file.isEnabled())return;
 			if(file.exists()&&file.isDir()&&!file.isEmpty())return;
+			if(user.isPathRestricted(file.getPath())){
+				logger.log("Path resticted for user "+user+" "+relativePath);
+				return;
+			}
+			if(file.isSymbolicLink()){
+				try {
+					File target=Files.readSymbolicLink(file.getFile().toPath()).toFile();
+					if(target.list()!=null&&target.length()>=0)
+						return;
+				} catch (IOException e) {}
+			}
+
 			for(String parentDir:parentPaths)
 				if(Directory.isPathContainedInDirectory(file.getPath(), parentDir))
 				{
+					logger.log("Local client does not have "+file);
 					fileTransferManager.addToSendQueue(file, id);
 					return;
 				}
@@ -321,7 +356,10 @@ public final class SyncropCloud extends SyncDaemon
 		
 		
 		HashSet<String>syncedFiles=checkClientsfiles(files, accountName, message.getUserID());
-		if(syncedFiles==null)return;
+		if(syncedFiles==null){
+			logger.log("No files synced");
+			return;
+		}
 		
 		this.syncedFiles.get(message.getUserID()).addAll(syncedFiles);	
 		logger.log("total Synced file size="+this.syncedFiles.get(message.getUserID()).size(),SyncropLogger.LOG_LEVEL_ALL);
@@ -331,6 +369,7 @@ public final class SyncropCloud extends SyncDaemon
 	{
 		ArrayList<String>filesToAddToDownload=new ArrayList<String>();
 		HashSet<String> listOfClientFiles=new HashSet<String>(1);
+		ArrayList<Object[]>keysToUpdate=new ArrayList<Object[]>();
 		
 		if(files==null){
 			logger.logWarning("synced files were null");
@@ -339,8 +378,12 @@ public final class SyncropCloud extends SyncDaemon
 		for(int i=0;i<files.length;i++)
 		{
 			try {
-				final String path=(String)files[i][PATH];
+				final String path=(String)files[i][INDEX_PATH];
 				if(path==null)break;
+				if(syncedFiles.get(id).contains(path)){
+					logger.log("path has already been added to synced paths; path="+path);
+					continue;
+				}
 				SyncROPItem localFile=ResourceManager.getFile(path,owner);
 				if(!SyncROPFile.isValidFileName(path)||
 						(localFile!=null&&!localFile.isEnabled()))
@@ -355,16 +398,17 @@ public final class SyncropCloud extends SyncDaemon
 						localFile==null?
 							-1
 							:localFile.getDateModified();
-				Long clientDateMod=(Long)files[i][DATE_MODIFIED];
-				long clientKey=(Long)files[i][KEY];
-				boolean clientFileExists=(Boolean)(files[i][EXISTS]);
-				String linkTarget=(String)(files[i][SYMBOLIC_LINK_TARGET]);
+				Long clientDateMod=(Long)files[i][INDEX_DATE_MODIFIED];
+				long clientKey=(Long)files[i][INDEX_KEY];
+				boolean clientFileExists=(Boolean)(files[i][INDEX_EXISTS]);
+				String linkTarget=(String)(files[i][INDEX_SYMBOLIC_LINK_TARGET]);
+				boolean clientUpdatedSinceLastUpdate=(boolean)files[i][INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE];
+				
 				boolean clientDir=clientKey==-1;
 				
 				
-				if(syncedFiles.get(id).contains(path))
-					logger.log("path has already been added to synced paths; path="+path);
-				else listOfClientFiles.add(path);
+				
+				
 				
 				ResourceManager.lockFile(path, owner);
 				
@@ -372,6 +416,8 @@ public final class SyncropCloud extends SyncDaemon
 					logger.log(localFile.toString());
 					logger.log(Arrays.asList(files[i]).toString());
 				}
+				
+				
 				//if client file is existing symbolic link
 				//and local file is non symbolic dir
 				//then do nothing
@@ -381,15 +427,21 @@ public final class SyncropCloud extends SyncDaemon
 				else if(localFile!=null&&localFile.isSymbolicLink()&&
 						((SyncROPSymbolicLink)localFile).isTargetDir()&&
 						clientDir&&clientFileExists){}
+				//if both files exists and are links and point to same file
+				else if(localFile!=null&&localFile.exists()&&localFile.isSymbolicLink()&&
+						localFile.getTargetPath().equals(linkTarget)&&clientFileExists){}
 				else if(clientDir){
 					//keys do not need to be updated because dirs don't have keys
 					if(localFile==null)
 						if(clientFileExists)//if client file exists and local file doesn't, create dir
 						{
 							localFile=new SyncROPDir(path, owner,clientDateMod);
-							localFile.save();
-							localFile.createFile(clientDateMod);
-							updateAllClients(localFile,id);
+							if(localFile.isEmpty()){
+								localFile.save();
+								localFile.createFile(clientDateMod);
+								updateAllClients(localFile,id);
+							}
+							else continue;//only directory needs to be sent to client
 						}
 						else {
 							logger.logWarning("rare case: localfile==null but file exists; file is being deleted");
@@ -434,12 +486,17 @@ public final class SyncropCloud extends SyncDaemon
 					}
 				}
 				else {// for files
-					if(localDateMod>clientDateMod){//if cloud file is newer than client file
-						if(localFile.exists()||clientFileExists||localFile.getKey()!=clientKey)
+					if(localFile==null){
+						if(clientFileExists)
+							filesToAddToDownload.add(path);
+						//else ; //ignore
+					}
+					else if(localFile.isNewerThan(clientDateMod)){//if cloud file is newer than client file
+						if(localFile.exists()||clientFileExists||!localFile.isDiffrentVersionsOfSameFile(clientKey,clientUpdatedSinceLastUpdate))
 							fileTransferManager.addToSendQueue(localFile,id);//send file to client
 					}
-					else if(localDateMod<clientDateMod){//if client file is newer than cloud file
-						if(clientFileExists||clientKey!=localFile.getKey())
+					else if(localFile.isOlderThan(clientDateMod)){//if client file is newer than cloud file
+						if(clientFileExists||!localFile.isDiffrentVersionsOfSameFile(clientKey,clientUpdatedSinceLastUpdate))
 							filesToAddToDownload.add(path);
 						else localFile.delete(clientDateMod);
 					}
@@ -455,17 +512,31 @@ public final class SyncropCloud extends SyncDaemon
 							filesToAddToDownload.add(path);
 						}
 					}
+					else if(clientKey!=localFile.getKey()){//update key
+						keysToUpdate.add(new Object[]{path,localFile.getKey()});
+						
+					}
 				}
 				ResourceManager.unlockFile(path, owner);
+				listOfClientFiles.add(path);
 			} catch (Exception e) {
 				logger.logError(e, "Error syncing file "+i+" :"+files[i][0]);
 				removeUser(id, "Error syncing file "+i+" :"+files[i][0]);
 			}
 		}
-		logger.log("requesting to download "+filesToAddToDownload.size()+" files");
-		if(filesToAddToDownload.size()!=0)
+		
+		if(filesToAddToDownload.size()>0){
+			logger.log("requesting to download "+filesToAddToDownload.size()+" files");
 			mainClient.printMessage(filesToAddToDownload.toArray(new String[filesToAddToDownload.size()]),
 				FileTransferManager.HEADER_ADD_MANY_TO_SEND_QUEUE,id);
+		}
+		if(keysToUpdate.size()>0){
+			Object [][]o=new Object[keysToUpdate.size()][];
+			for(int i=0;i<keysToUpdate.size();i++)
+				o[i]=keysToUpdate.get(i);
+			mainClient.printMessage(o,
+					FileTransferManager.HEADER_UPDATE_KEYS,id);
+		}
 		return listOfClientFiles;
 	}
 
@@ -508,6 +579,42 @@ public final class SyncropCloud extends SyncDaemon
 		}
 		
 	}
+	
+	void stopSharingFile(Message message){
+		String path=(String) message.getMessage();
+		SyncropUser user=clients.get(message.getUserID());
+		SharedFile file=ResourceManager.getSharedFileInfo(path);
+		if(file!=null&&file.getOwner().equals(user.getAccountName())){
+			try {
+				Files.delete(file.getPath());
+			} catch (IOException e) {
+				logger.logError(e,"");
+			}
+		}
+	}
+	void createSharedFile(Message message){
+		boolean sharedPublicly=message.getHeader().equals(HEADER_REQUEST_SHARE_PUBLIC);
+		String []s=(String[]) message.getMessage();
+		String localPath=s[0];
+		SyncropUser user=clients.get(message.getUserID());
+		String accountName=user.accountName;
+		try {
+			if(message.getHeader().equals(HEADER_REQUEST_SHARE_PUBLIC)){
+				String absPath=ResourceManager.getAbsolutePath(localPath,accountName);
+				File absFile=new File(absPath);
+				String token=Integer.toString(absPath.hashCode(), 36)+Long.toString(System.currentTimeMillis()%(1000*3600*24*365), 36);
+				SharedFile file=new SharedFile(sharedPublicly, localPath,accountName, token);
+				Files.createSymbolicLink(absFile.toPath(), file.getPath());
+				ResourceManager.addSharedFiles(file);
+				ResourceManager.saveSharedFiles();
+				mainClient.printMessage(file.toString(), HEADER_SHARED_FILE);
+			}
+		} catch (IOException e) {
+			logger.logError(e,"");
+		}
+		
+	}
+	
 	@Override
 	public boolean handleResponse(Message message)
 	{
@@ -515,6 +622,12 @@ public final class SyncropCloud extends SyncDaemon
 		else
 			switch(message.getHeader())
 			{
+				case HEADER_REQUEST_SHARE_PUBLIC:
+				case HEADER_REQUEST_SHARE_PRIVATE:
+					createSharedFile(message);
+					break;
+				case HEADER_STOP_SHARING_FILE:
+					stopSharingFile(message);
 				case HEADER_SYNC_FILES:
 					syncFiles(message);
 					break;
@@ -536,7 +649,7 @@ public final class SyncropCloud extends SyncDaemon
 	
 	}
 	@Override
-	protected void setPropperPermissions(SyncROPItem item){
+	protected void setPropperPermissions(SyncROPItem item,String filePermissions){
 		try {
 			long dateMod= item.getDateModified();
 			if(!item.exists())

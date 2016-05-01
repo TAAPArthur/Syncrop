@@ -25,12 +25,21 @@ public class SyncropCommunication extends Thread
 	public static final String SHUTDOWN="SHUTDOWN";
 	public static final String STATUS="STATUS";
 	public static final String CLEAN="CLEAN";
+	public static final String UPDATE="UPDATE";
+	
+	public static final String SHARE="SHARE";
 	public static ServerSocket serverSocket;
 	SyncDaemon daemon;
+	PrintWriter out;
 	public SyncropCommunication(SyncDaemon daemon)
 	{
 		super("Syncrop communication thread");
 		this.daemon=daemon;
+	}
+	public void updateGUI(){
+		if(out!=null)
+			out.println(UPDATE);
+		out.flush();
 	}
 	public void run()
 	{
@@ -38,12 +47,14 @@ public class SyncropCommunication extends Thread
 		createSocket();
 		while(!SyncropClientDaemon.isShuttingDown())
 		{
+			Scanner sc=null;
+			Socket socket=null;
 			try {
 				if(serverSocket.isClosed())
 					createSocket();
-				Socket socket=serverSocket.accept();
-				PrintWriter out=new PrintWriter(socket.getOutputStream());
-				Scanner sc=new Scanner(new BufferedInputStream(socket.getInputStream()));
+				socket=serverSocket.accept();
+				out=new PrintWriter(socket.getOutputStream());
+				sc=new Scanner(new BufferedInputStream(socket.getInputStream()));
 				
 				while(!socket.isClosed()){
 					String line=sc.nextLine();
@@ -67,19 +78,26 @@ public class SyncropCommunication extends Thread
 							out.flush();
 							break;
 						case CLEAN:
-							SyncDaemon.mainClient.printMessage(
+							daemon.printMessage(
 									ResourceManager.getAccount().getRestrictionsList()
 									, SyncDaemon.HEADER_CLEAN_CLOUD_FILES);
 							break;
+						case SHARE:
+							boolean sharePublic=Boolean.parseBoolean(sc.nextLine());
+							String pathToShare=sc.nextLine();
+							String usersToShareWith=sharePublic?null:sc.nextLine();
+							String header=sharePublic?SyncDaemon.HEADER_REQUEST_SHARE_PUBLIC:SyncDaemon.HEADER_REQUEST_SHARE_PRIVATE;
+							Syncrop.logger.log("Sharing file"+pathToShare+" with"+usersToShareWith);
+							if(daemon.isConnectionAccepted())
+								daemon.printMessage(new String[]{pathToShare,usersToShareWith}, header);
+							break;
 						default:
-							out.println("Unkown");
+							out.println("Unknown");
 							out.flush();
 					}
 				}
-				sc.close();
-				out.flush();
-				out.close();
-				socket.close();
+				if(socket!=null)
+					socket.close();
 			}
 			catch (NoSuchElementException|IOException e){}
 			catch (Exception|Error e)
@@ -87,6 +105,13 @@ public class SyncropCommunication extends Thread
 				SyncropClientDaemon.logger.logFatalError(e, "occured in Syncrop check thread");
 				if(!SyncropClientDaemon.isShuttingDown())
 					System.exit(0);
+			}
+			finally{
+				if(sc!=null)
+					sc.close();
+				out.flush();
+				out.close();
+				
 			}
 		}
 	}

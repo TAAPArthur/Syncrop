@@ -4,12 +4,14 @@ import java.io.IOException;
 import account.Account;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
+import syncrop.SyncropLogger;
 
 public class SyncropHelper {
 
 	public static void main(String[] args) {
 		if(args!=null)
 			try {
+				Syncrop.logger=new SyncropLogger("syncropHeler.log");
 				ResourceManager.initializeConfigurationFiles();
 				ResourceManager.readFromConfigFile();
 				new SyncropHelper(args);
@@ -25,6 +27,10 @@ public class SyncropHelper {
 		}
 			
 		Account account = null;
+		if(args.length<startIndex+1){
+			System.out.println("useage");
+			return;
+		}
 		String username=args[startIndex+1];
 		
 		switch (args[startIndex]){

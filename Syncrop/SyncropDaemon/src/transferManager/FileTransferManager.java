@@ -1,7 +1,16 @@
 package transferManager;
 
 import static daemon.SyncDaemon.TRANSFER_SIZE;
-import static file.SyncROPItem.*;
+import static file.SyncROPItem.INDEX_BYTES;
+import static file.SyncROPItem.INDEX_DATE_MODIFIED;
+import static file.SyncROPItem.INDEX_EXISTS;
+import static file.SyncROPItem.INDEX_FILE_PERMISSIONS;
+import static file.SyncROPItem.INDEX_KEY;
+import static file.SyncROPItem.INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE;
+import static file.SyncROPItem.INDEX_OWNER;
+import static file.SyncROPItem.INDEX_PATH;
+import static file.SyncROPItem.INDEX_SIZE;
+import static file.SyncROPItem.INDEX_SYMBOLIC_LINK_TARGET;
 import static notification.Notification.displayNotification;
 import static syncrop.ResourceManager.getFile;
 import static syncrop.Syncrop.isInstanceOfCloud;
@@ -10,11 +19,12 @@ import static syncrop.Syncrop.logger;
 
 import java.util.LinkedList;
 
+import listener.FileWatcher;
 import message.Message;
 import settings.Settings;
-import syncrop.SyncropLogger;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
+import syncrop.SyncropLogger;
 import transferManager.queue.QueueMember;
 import transferManager.queue.SendQueue;
 import daemon.SyncDaemon;
@@ -22,7 +32,6 @@ import daemon.SyncropClientDaemon;
 import daemon.SyncropCloud;
 import file.SyncROPFile;
 import file.SyncROPItem;
-import listener.FileWatcher;
 /**
  * This class has a queue for sent and receive files. File transfer requests will be
  * sent in the order in which they appear. Only file can be transfered at a time and 
@@ -47,6 +56,8 @@ public class FileTransferManager extends Thread{
 	 * in Cloud 
 	 */
 	public final static String HEADER_ADD_MANY_TO_SEND_QUEUE="add many to send queue";
+	
+	public final static String HEADER_UPDATE_KEYS="UPDATE_KEYS";
 	
 	/**
 	 * Used to delete many files
@@ -218,9 +229,9 @@ public class FileTransferManager extends Thread{
 	private volatile boolean receiveing=false;
 	private volatile String userSendingTo,userReceivingFrom;
 	private volatile String fileSending, fileReceiveing;
+	private volatile long fileSendingDate;
 	private String fileSendingOwner;
 	
-	private volatile long dateMod;
 	private volatile long timeStartReceiving=0;
 	private volatile long timeStartSending=0;
 	private volatile boolean paused;
@@ -281,7 +292,10 @@ public class FileTransferManager extends Thread{
 	 */
 	public void addToSendQueue(SyncROPItem file,String target)
 	{
-		if(!file.isEnabled()){
+		if(file==null){
+			throw new NullPointerException("Cannont add a null file to send queue");
+		}
+		else if(!file.isEnabled()){
 			logger.log(file.getPath()+" cannot be added to send queue because it is not enabled");
 			return;
 		}
@@ -325,7 +339,7 @@ public class FileTransferManager extends Thread{
 				logger.log("Stopping upload of "+path+" because file is not enabled or is " +
 						"restricted");
 			
-			SyncropClientDaemon.mainClient.printMessage(path,HEADER_UPLOAD_FAILED,sender);
+			daemon.printMessage(path,HEADER_UPLOAD_FAILED,sender);
 			//SyncropDaemon.mainClient.printMessage(new Object[]{path,new String[]{owner}},SyncropDaemon.HEADER_REMOVE_FILE,sender);
 		}
 		else {
@@ -363,7 +377,7 @@ public class FileTransferManager extends Thread{
 			logger.log("file "+file+" was not sent because it is a non empty dir",SyncropLogger.LOG_LEVEL_DEBUG);
 		else if(file.isEnabled())
 		{
-			SyncropClientDaemon.mainClient.printMessage(
+			daemon.printMessage(
 					new String[]{
 							isNotWindows()?
 									file.getPath():
@@ -372,17 +386,15 @@ public class FileTransferManager extends Thread{
 					HEADER_ADD_TO_RECEIVE_QUEUE,userSendingTo);
 			sending=true;
 			timeOutSending=60;
-			
+			fileSendingDate=file.getDateModified();
 			fileSending=file.getPath();
+			logger.log("Sending: "+file.getPath()+" "+userSendingTo);
 			fileSendingOwner=file.getOwner();
 		}
 		else logger.log("file "+file+" was not sent because it is not" +
 					"enabled",SyncropLogger.LOG_LEVEL_DEBUG);
 	}
-	public void storeFileSentData(SyncROPItem item)
-	{
-		this.dateMod=item.getDateModified();
-	}
+	
 	private void receiveFile()
 	{
 		String values[]=receiveQueue.pop();
@@ -394,7 +406,7 @@ public class FileTransferManager extends Thread{
 			return;
 		userReceivingFrom=values[2];
 		
-		SyncropClientDaemon.mainClient.printMessage(new String[]{path,values[1]},
+		daemon.printMessage(new String[]{path,values[1]},
 				HEADER_REQUEST_FILE_UPLOAD,userReceivingFrom);
 		fileReceiveing=path;
 	
@@ -422,12 +434,14 @@ public class FileTransferManager extends Thread{
 		uploadCount=downloadCount=0;
 		uploadNameOfFirstFile=downloadNameOfFirstFile=null;
 	}
-	public void sentFile()
+	public void sentFile(long newKey)
 	{
 		SyncROPItem fileSent=ResourceManager.getFile(fileSending, fileSendingOwner);
-		if(fileSent instanceof SyncROPFile&&fileSent.exists()){
-			((SyncROPFile)fileSent).setKey(dateMod);
-			ResourceManager.writeFile(fileSent);
+		if(!SyncDaemon.isInstanceOfCloud()&& fileSent instanceof SyncROPFile&&fileSent.exists()){
+			((SyncROPFile)fileSent).setKey(newKey);
+			if(fileSendingDate!=fileSent.getDateModified())
+				fileSent.setModifiedSinceLastKeyUpdate(true);
+			fileSent.save();
 			//if(fileSent.getDateModified()!=dateMod)addToSendQueue(fileSent, userSendingTo);
 		}
 		timeOfLastCompletedFileTransfer=System.currentTimeMillis();
@@ -439,7 +453,7 @@ public class FileTransferManager extends Thread{
 				uploadNameOfFirstFile=fileSending;
 			uploadCount++;
 		}
-		
+		logger.log("File upload success"+fileSent);
 		resetSendInfo();
 		failCount=0;
 	}
@@ -460,8 +474,8 @@ public class FileTransferManager extends Thread{
 		userSendingTo=null;
 		fileSending=null;
 		fileSendingOwner=null;
-		dateMod=-1;
 		sending=false;
+		fileSendingDate=-1;
 	}
 
 	
@@ -521,7 +535,7 @@ public class FileTransferManager extends Thread{
 		logger.log("Telling "+target+
 				(header.contains("failed")?" that ":" to ")+
 				header+" file:"+path);
-		SyncropClientDaemon.mainClient.printMessage(path,header,target);
+		daemon.printMessage(path,header,target);
 	}
 	
 	@Override
@@ -538,7 +552,7 @@ public class FileTransferManager extends Thread{
 					continue;
 				}
 				if(isEmpty()){
-					if(!Syncrop.isInstanceOfCloud()&&SyncDaemon.mainClient.isConnectionAccepted()&&timeOfLastCompletedFileTransfer!=0&&!hasMetadataBeenCleaned){
+					if(!Syncrop.isInstanceOfCloud()&&daemon.isConnectionAccepted()&&timeOfLastCompletedFileTransfer!=0&&!hasMetadataBeenCleaned){
 						FileWatcher.checkAllMetadataFiles(false);
 						hasMetadataBeenCleaned=true;
 					}
@@ -546,7 +560,7 @@ public class FileTransferManager extends Thread{
 					continue;
 				}
 				//if(isSending()||isReceiving())continue;
-				if(SyncropClientDaemon.mainClient!=null&&SyncropClientDaemon.mainClient.isConnectionAccepted())	
+				if(daemon.isConnectionAccepted())	
 				{
 					if(!isSending()&&!sendQueue.isEmpty())
 					{
@@ -713,7 +727,7 @@ public class FileTransferManager extends Thread{
 	{
 		
 		if(!isInstanceOfCloud()&&downloadCount+uploadCount!=0&&
-				SyncropClientDaemon.mainClient.isConnectionAccepted()){
+				daemon.isConnectionAccepted()){
 			if(getTimeFromLastCompletedFileTransfer()>12000
 					||downloadCount+uploadCount>=12
 					||haveAllFilesFinishedTranferring())
@@ -757,8 +771,8 @@ public class FileTransferManager extends Thread{
 
 		final String header=message.getHeader();
 		String originalPath=
-				header.equals(HEADER_REQUEST_FILE_UPLOAD)?
-						((String[])message.getMessage())[0]:
+				header.equals(HEADER_REQUEST_FILE_UPLOAD)||header.equals(HEADER_FILE_SUCCESSFULLY_UPLOADED)?
+						(String)((Object[])message.getMessage())[0]:
 						(String)message.getMessage();
 						
 		String path=isNotWindows()?
@@ -801,7 +815,8 @@ public class FileTransferManager extends Thread{
 					canSendNextPacket=true;
 					break;
 				case HEADER_FILE_SUCCESSFULLY_UPLOADED:
-					sentFile();
+					long newKey=(long)((Object[])message.getMessage())[1];
+					sentFile(newKey);
 					break;
 				
 				default:
@@ -810,7 +825,7 @@ public class FileTransferManager extends Thread{
 		else
 		{
 			String s="405 Error! message "+message.getHeader()+" has been ignored because ";
-			if(isSending()) s+="fileTransferManager is not sending";
+			if(!isSending()) s+="fileTransferManager is not sending";
 			else if(!isUserSendingTo(message.getUserID()))
 				s+=message.getUserID()+"!="+getUserSendingTo();
 			else if(!path.equals(getFileSending()))
@@ -821,13 +836,18 @@ public class FileTransferManager extends Thread{
 			cancelUpload(originalPath, true, false);
 		}
 	}
+	public void deleteManyFiles(Object []array){
+		
+		daemon.printMessage(array, HEADER_DELETE_MANY_FILES);
+	}
 	public void deleteManyRequest(Message message){
 		daemon.deleteManyFiles(message.getUserID(), (Object[][])message.getMessage());
+		//((SyncropCloud)daemon).updateAllClients(message,owner,message.getUserID());
 	}
 	public void downloadRequest(Message message){
 
 		String originalPath=(String)(message.getMessage() instanceof Object[]?
-				((Object[])message.getMessage())[PATH]:message.getMessage());
+				((Object[])message.getMessage())[INDEX_PATH]:message.getMessage());
 		String path=isNotWindows()?originalPath:
 			SyncROPItem.toWindowsPath(originalPath);
 		
@@ -847,15 +867,16 @@ public class FileTransferManager extends Thread{
 			
 			Object syncData[]=(Object[])message.getMessage();
 			String sender=message.getUserID();
-			String owner=(String)syncData[OWNER];
+			String owner=(String)syncData[INDEX_OWNER];
 							
-			long dateModified=(long)syncData[DATE_MODIFIED];
-			long key=(long)syncData[KEY];
-			boolean exists=(boolean)syncData[EXISTS];
-			
+			long dateModified=(long)syncData[INDEX_DATE_MODIFIED];
+			long key=(long)syncData[INDEX_KEY];
+			String filePermissions=(String) syncData[INDEX_FILE_PERMISSIONS];
+			boolean exists=(boolean)syncData[INDEX_EXISTS];
+			boolean updatedSinceLastUpdate=(boolean)syncData[INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE];
 			if(message.getHeader().equals(HEADER_REQUEST_SYMBOLIC_LINK_DOWNLOAD)){
-				String target=(String)syncData[SYMBOLIC_LINK_TARGET];
-				daemon.downloadFile(sender, path,owner, dateModified, key,exists,null, 0,target, false);
+				String target=(String)syncData[INDEX_SYMBOLIC_LINK_TARGET];
+				daemon.downloadFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists,null, 0,target, false,true);
 				return;
 			}
 			
@@ -864,8 +885,8 @@ public class FileTransferManager extends Thread{
 			//String pathOfTarget=null;
 			if(syncData.length>5)
 			{
-					bytes=(byte[])syncData[BYTES];
-					size=(long)syncData[SIZE];						
+					bytes=(byte[])syncData[INDEX_BYTES];
+					size=(long)syncData[INDEX_SIZE];						
 			}
 			
 			switch (message.getHeader()) 
@@ -874,25 +895,24 @@ public class FileTransferManager extends Thread{
 					if(bytes!=null&&bytes.length!=size)
 						throw new IllegalArgumentException(
 								"length of bytes needs to equal size when syncing small file");
-					daemon.downloadFile(sender, path,owner, dateModified, key,exists,bytes, size, false);
+					daemon.downloadFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists,bytes, size, false);
 					break;
 				case HEADER_REQUEST_LARGE_FILE_DOWNLOAD:
-					daemon.downloadLargeFile(sender, path,owner, dateModified, key,exists,bytes, size, false);
+					daemon.downloadLargeFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists,bytes, size, false);
 					break;
 				case HEADER_REQUEST_END_LARGE_FILE_DOWNLOAD:
-					daemon.downloadLargeFile(sender, path,owner, dateModified, key,exists,bytes, size, true);
+					daemon.downloadLargeFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists,bytes, size, true);
 					break;
 			}
 		}
 		else 
 		{
 			String s="406 Error! message "+message.getHeader()+" has been ignored because ";
-			if(!path.equals(getFileReceiveing()))
+			if(!isReceiving())
+				s+="fileTransferManager is not receiving";
+			else if(!path.equals(getFileReceiveing()))
 				s+=path+"!="+getFileReceiveing();
 			else if(!isUserReceivingFrom(message.getUserID()))
-				if(!isReceiving())
-					s+="fileTransferManager is not receiving";
-				else 
 					s+=message.getUserID()+"!="+getUserReceivingFrom();
 			logger.log(s);
 					
@@ -926,6 +946,16 @@ public class FileTransferManager extends Thread{
 	public int getDownloadCount(){return downloadCount;}
 	public int getUploadCount(){return uploadCount;}
 	
+	public void  updateKeys(Object[][]array){
+		for(Object[] fileInfo:array){
+			SyncROPItem file=ResourceManager.getFile((String)fileInfo[0], null);
+			if(file instanceof SyncROPFile){
+				((SyncROPFile)file).setKey((long)fileInfo[1]);
+				file.save();
+			}
+		}
+		
+	}
 }
 
 

@@ -9,12 +9,15 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashSet;
 
+import notification.Notification;
+
 import account.Account;
 import client.SecondaryClient;
 import file.Directory;
 import file.SyncROPItem;
 import message.Message;
 import settings.Settings;
+import sharing.SharedFile;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
 
@@ -30,11 +33,12 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 * If SyncropClientDaemon is in the process of autheniticating to Cloud
 	 */
 	static volatile boolean authenticating;
-	
+	SyncropCommunication communication;
 	public static void main (String args[]) throws IOException
 	{
 		//handles parameters
 		String instance="";
+		
 		if(args.length>0)
 			for(String s:args)
 				if(s.startsWith("-i"))
@@ -71,7 +75,8 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 */
 	@Override
 	public void init(){
-		new SyncropCommunication(this).start();
+		communication=new SyncropCommunication(this);
+		communication.start();
 		if(!isShuttingDown())
 			super.init();
 	}
@@ -281,7 +286,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 			set.add(isNotWindows()?s:SyncROPItem.toLinuxPath(s));
 		
 		syncFilesToCloud(set.toArray(new String[set.size()]));
-		logger.logTrace("finished Syncing files");
+		logger.logTrace("finished Syncing files: "+set);
 	}
 
 	/**
@@ -368,11 +373,16 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 */
 	public boolean handleResponse(Message message){
 		if(super.handleResponse(message))return true;
-		else if(message.getHeader().equals(HEADER_AUTHENTICATION_RESPONSE)){
+		else if(message.getHeader().equals(HEADER_AUTHENTICATION_RESPONSE))
 			recieveAuthentication(message);
-			return true;
+		else if(message.getHeader().equals(HEADER_SHARED_FILE)){
+			ResourceManager.addSharedFiles(new SharedFile((String) message.getMessage()));
+			ResourceManager.saveSharedFiles();
+			Notification.displayNotification("File shared publicly "+(String) message.getMessage());
+			communication.updateGUI();
 		}
 		else return false;
+		return true;
 	}
 	@Override
 	/**

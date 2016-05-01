@@ -38,8 +38,8 @@ public class Notification {
 				File image=new File(getConfigFilesHome(),Syncrop.getImageFileName());
 				if(!image.exists())
 					try {
-						Files.copy(c.getResourceAsStream("/SyncropIcon.png"),image.toPath());
-					} catch (IOException e) {
+						Files.copy(c.getResourceAsStream("/Resources/SyncropIcon.png"),image.toPath());
+					} catch (NullPointerException|IOException e) {
 						logger.logError(e, "; Image could not be created");
 					}
 				pathToImage=image.getAbsolutePath();

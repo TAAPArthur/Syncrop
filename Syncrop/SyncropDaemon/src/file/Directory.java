@@ -11,7 +11,7 @@ public class Directory
 	/**
 	 * If true, then the Directory should be taken literally else it should be treated as pattern 
 	 */
-	private boolean literal=true;
+	protected boolean literal=true;
 	public Directory(String dir,boolean literal)
 	{
 		literalDir=dir;
@@ -34,7 +34,7 @@ public class Directory
 	{
 		if(literal)
 			return dir.equals(path)||dir.isEmpty()||
-					path.startsWith(dir+File.separatorChar);
+					path.startsWith(dir+File.separatorChar)||dir.startsWith(path+File.separatorChar);
 		else 
 			return path.matches(dir);
 	}

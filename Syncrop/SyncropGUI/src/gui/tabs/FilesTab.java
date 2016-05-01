@@ -1,5 +1,9 @@
 package gui.tabs;
 
+import encryption.SyncropCipher;
+import gui.SyncropGUI;
+import gui.filetree.FileTree;
+
 import java.awt.Component;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
@@ -17,9 +21,6 @@ import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.tree.TreePath;
 
-import encryption.SyncropCipher;
-import gui.SyncropGUI;
-import gui.filetree.FileTree;
 import settings.Settings;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
@@ -30,12 +31,14 @@ public class FilesTab extends JScrollPane implements SyncropTab,MouseListener{
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	SyncropGUI gui;
+	
 	final FileTree tree=getFileTree();
 	JPanel panel=new JPanel();
-	FileOptionMenu menu=new FileOptionMenu(tree);
-	public FilesTab(SyncropGUI parent){
+	FileOptionMenu menu;
+	public FilesTab(){
 		super();
+		
+		menu=new FileOptionMenu(tree);
 		setViewportView(panel);
 		
 		panel.setLayout(new GridLayout(0, 1));
@@ -44,7 +47,7 @@ public class FilesTab extends JScrollPane implements SyncropTab,MouseListener{
 		panel.add(tree);
 		setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
 		setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-		gui=parent;
+		
 		setName("Files");
 		tree.addMouseListener(this);
 		tree.setDragEnabled(true);
@@ -75,10 +78,13 @@ public class FilesTab extends JScrollPane implements SyncropTab,MouseListener{
 class FileOptionMenu extends JPopupMenu implements ActionListener{
 
 	private static final long serialVersionUID = 1L;
+	
 	JMenuItem open=new JMenuItem("Open");
 	JMenuItem delete=new JMenuItem("Delete");
 	JMenuItem newFile=new JMenuItem("New File");
 	JMenuItem newDirectory=new JMenuItem("New Directory");
+	JMenuItem sharePublicly=new JMenuItem("Share Public");
+	JMenuItem sharePrivately=new JMenuItem("Share Private");
 	JMenuItem encrypt=new JMenuItem("Encrypt");
 	JMenuItem decrypt=new JMenuItem("Decrypt");
 	JMenuItem search=new JMenuItem("Search");
@@ -88,15 +94,12 @@ class FileOptionMenu extends JPopupMenu implements ActionListener{
 	FileTree tree;
 	FileOptionMenu(FileTree tree){
 		super();
-		add(open);open.addActionListener(this);
-		add(delete);delete.addActionListener(this);
-		add(newFile);newFile.addActionListener(this);
-		add(newDirectory);newDirectory.addActionListener(this);
-		add(encrypt);encrypt.addActionListener(this);
-		add(decrypt);decrypt.addActionListener(this);
-		add(search);search.addActionListener(this);
-		add(refresh);refresh.addActionListener(this);
-		add(collapseAll);collapseAll.addActionListener(this);
+		
+		JMenuItem options[]={open, delete,newFile,newDirectory,sharePrivately,sharePublicly,encrypt,decrypt,search,refresh,collapseAll};
+		for(JMenuItem option:options){
+			add(option);
+			option.addActionListener(this);
+		}
 		this.tree=tree;
 	}
 	public void show(Component c,int x,int y){
@@ -117,6 +120,10 @@ class FileOptionMenu extends JPopupMenu implements ActionListener{
 				tree.createNode("New File", false);
 			else if(e.getSource().equals(newDirectory))
 				tree.createNode("New Directory", true);
+			else if(e.getSource().equals(sharePrivately))
+				SyncropGUI.shareFile(FileTree.getFilePath(tree.getSelectionPaths()[0].getPath()),true);
+			else if(e.getSource().equals(sharePublicly))
+				SyncropGUI.shareFile(FileTree.getFilePath(tree.getSelectionPaths()[0].getPath()),false);
 			else if(e.getSource().equals(search))
 				tree.search();
 			else if(e.getSource().equals(collapseAll))

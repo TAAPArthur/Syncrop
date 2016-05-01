@@ -113,15 +113,13 @@ public class Settings {
 	public static int getLogLevel(){return Syncrop.logger.getLogLevel();}
 	public static void setLogLevel(int i){Syncrop.logger.setLogLevel(i);}
 	
-	public static double getMaxAccountSize(){return Account.getMaximumAccountSize();}
+	public static double getMaxAccountSize(){return Account.getMaximumAccountSizeInMegaBytes();}
 	public static void setMaxAccountSize(double d){
-		Account.setMaximumAccountSize((long)(d*Syncrop.GIGABYTE));}
+		Account.setMaximumAccountSize((long)(d*Syncrop.MEGABYTE));}
 	
 	public static boolean autoStart(){return autoStart;}
 	public static void setAutoStart(boolean b) throws IOException{
-		if(b)
-			createAutoStartFile();
-		else deleteAutoStartFile();
+		createAutoStartFile(b);
 		autoStart=b;
 	}
 	public static void deleteAutoStartFile(){
@@ -130,49 +128,55 @@ public class Settings {
 					new File(HOME,"AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup/startSyncrop.bat");
 			startSyncrop.delete();
 	}
-	public static void createAutoStartFile() throws IOException{
+	public static void createAutoStartFile(boolean create) throws IOException{
 		if(isNotWindows()&&isNotMac())
 		{
 			
 			if(!isInstanceOfCloud())
 			{
-				File autoStartSyncrop=new File(HOME+File.separator+"/.config/autostart/startSyncrop"+Syncrop.getInstance()+".desktop");
-				//if(!autoStartSyncrop.exists())
-				{
-					autoStartSyncrop.createNewFile();
-					PrintWriter out=new PrintWriter(autoStartSyncrop);
-					out.println("[Desktop Entry]\nEncoding="+ENCODING+"\nVersion="+Syncrop.getVersionID()+"\n" +
-							"Type=Application\nName=Syncrop "+Syncrop.getInstance()+"\nComment=\n" +
-							"Exec= syncrop-daemon start " +Syncrop.getInstance()+
-							"\nOnlyShowIn=XFCE;\nStartupNotify=false\nTerminal=false\nHidden=false\n");
-					out.close();
+				File autoStartSyncrop=new File(HOME,".config/autostart/startSyncrop"+Syncrop.getInstance()+".desktop");
+				if(create){
+					if(!autoStartSyncrop.exists())
+					{
+						System.out.println("creating auto start file: "+autoStartSyncrop);
+						autoStartSyncrop.createNewFile();
+						PrintWriter out=new PrintWriter(autoStartSyncrop);
+						out.println("[Desktop Entry]\nEncoding="+ENCODING+"\nVersion="+Syncrop.getVersionID()+"\n" +
+								"Type=Application\nName=Syncrop "+Syncrop.getInstance()+"\nComment=Launch Syncrop\n" +
+								"Exec= syncrop-daemon start " +Syncrop.getInstance()+
+								"\nStartupNotify=false\nTerminal=false\nHidden=false\n");
+						out.close();
+					}
 				}
+				else if(autoStartSyncrop.exists())
+					autoStartSyncrop.delete();
 			}
 		}
 		else if(isNotMac())
 		{
 			File startSyncrop=new File(HOME,"AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup/startSyncrop.bat");
 	
-			File installdirinfo=new File(ResourceManager.getConfigFilesHome(),"installdir.txt");
-			BufferedReader in=new BufferedReader(new FileReader(installdirinfo));
-			String installDir=in.readLine();
-			in.close();
-			if(!startSyncrop.exists())
-			{
-				startSyncrop.createNewFile();
-				PrintWriter out=new PrintWriter(startSyncrop);
-				out.println("java -jar "+installDir+"\\Jars\\SyncropDaemon.jar");
-				out.close();
+			if(create){
+				File installdirinfo=new File(ResourceManager.getConfigFilesHome(),"installdir.txt");
+				BufferedReader in=new BufferedReader(new FileReader(installdirinfo));
+				String installDir=in.readLine();
+				in.close();
+				if(!startSyncrop.exists())
+				{
+					startSyncrop.createNewFile();
+					PrintWriter out=new PrintWriter(startSyncrop);
+					out.println("java -jar "+installDir+"\\Jars\\SyncropDaemon.jar");
+					out.close();
+				}
+				if(!startSyncrop.canExecute())
+					startSyncrop.setExecutable(true);
 			}
-			if(!startSyncrop.canExecute())
-				startSyncrop.setExecutable(true);
+			else if(startSyncrop.exists())
+				startSyncrop.delete();
 		}
 	}
 	
-	/**
-	 * TODO add settings
-	 * @return
-	 */
+	
 	public static boolean showNotifications(){
 		return showNotifications;
 	}

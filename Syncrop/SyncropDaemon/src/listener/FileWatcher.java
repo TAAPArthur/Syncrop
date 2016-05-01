@@ -4,7 +4,6 @@ import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 import static syncrop.Syncrop.logger;
-import static transferManager.FileTransferManager.HEADER_DELETE_MANY_FILES;
 
 import java.io.File;
 import java.io.IOException;
@@ -66,7 +65,7 @@ public class FileWatcher extends Thread{
     	WatchedDir dir=new WatchedDir(path,accessPath,account, removable);
         WatchKey key = dir.registerDir(watcher);
         if(keys.containsKey(key)){
-        	logger.log("Dir not registered because it is already registered "+path);
+        	logger.logTrace("Dir not registered because it is already registered "+path);
         	key.reset();
         }
         else keys.put(key, dir);
@@ -208,7 +207,7 @@ public class FileWatcher extends Thread{
 			}
 		}
 		else if(!metadataFile.exists()){	
-			item=new SyncROPFile(path,a.getName(),-1);
+			item=new SyncROPFile(path,a.getName());
 			if(!item.isEnabled())return 0;
 			logger.logTrace("detected new file "+path);
 			
@@ -223,7 +222,7 @@ public class FileWatcher extends Thread{
 		//else daemon.setPropperPermissions(AccountManager.getFileByPath(path, a.getName()));
 		
 		if(item!=null&&item.hasBeenUpdated()){
-			onFileChange(item.getAbsPath());
+			onFileChange(item,item.getAbsPath());
 			item.save();
 			
 			if(daemon!=null){
@@ -296,7 +295,7 @@ public class FileWatcher extends Thread{
 		WatchKey key = watcher.take();
 		//watcher.p
 		
-		SyncropClientDaemon.sleep(100);//used to eliminate duplicate events
+		SyncropClientDaemon.sleep(200);//used to eliminate duplicate events
 		WatchedDir dir = keys.get(key);
 		
 		List<WatchEvent<?> >events=key.pollEvents();
@@ -312,14 +311,25 @@ public class FileWatcher extends Thread{
 				//	logger.log("Detected change in file "+file+" "+e.kind(),Logger.LOG_LEVEL_ALL);
 				if(!dir.getAccount().isPathEnabled(path))continue;
 				if(item!=null&&!item.isEnabled())continue;
-				
-				onFileChange(file.getAbsolutePath(),e.kind());
+
+				onFileChange(item,file.getAbsolutePath(),e.kind());
 				
 				updateAccountSize(dir.getAccount(),file, item);
+				
+				if(item!=null&&item.hasBeenUpdated())
+					if(Syncrop.isInstanceOfCloud()&&item instanceof SyncROPFile){
+							((SyncROPFile) item).updateKey();
+							logger.log(item.toString());
+							//item.save();
+						}
+				
+				
+				
 				if(ResourceManager.isLocked(path,dir.getAccountName())){
 					logger.logTrace(path+" is locked");
 					continue;
 				}
+				
 				
 				if(!(file.isDirectory()&&e.kind()==ENTRY_MODIFY)&&!logger.isLogging(SyncropLogger.LOG_LEVEL_ALL))
 					logger.logTrace("Detected change in file "+file+" "+e.kind());
@@ -356,7 +366,7 @@ public class FileWatcher extends Thread{
 		else
 			if(item.hasBeenUpdated()){//item.getDateModified()!=item.getFile().lastModified()){
 				tryToSendFile(item);
-				ResourceManager.writeFile(item);
+				item.save();
 			}
 	}
 	void onCreate(WatchedDir dir,String path,File file,SyncROPItem item){
@@ -371,8 +381,8 @@ public class FileWatcher extends Thread{
 			}
 			else item=new SyncROPFile(path, owner);
 			if(item!=null&&item.isEmpty()){
+				item.save();
 				tryToSendFile(item);
-				ResourceManager.writeFile(item);
 			}
 		}
 		else {
@@ -397,7 +407,7 @@ public class FileWatcher extends Thread{
 	
 	void onDelete(WatchedDir dir,String relativePath,File file,SyncROPItem item){
 		if(file.exists()){
-			logger.log("file exists; deletion canceled");
+			logger.logTrace("file exists; deletion canceled");
 			return;
 		}
 		String owner=dir.getAccountName();
@@ -420,7 +430,8 @@ public class FileWatcher extends Thread{
 			
 			removeDeletedFileFromRecord(metadataFile,relativePath,owner,timeOfDelete,message);
 			if(message.size()!=0)
-				SyncDaemon.mainClient.printMessage(message.toArray(new Object[message.size()][5]), HEADER_DELETE_MANY_FILES);
+				daemon.fileTransferManager.deleteManyFiles(message.toArray(new Object[message.size()][5]));
+				
 			if(item instanceof SyncROPDir)
 				ResourceManager.writeFile(item);
 			Syncrop.sleepVeryShort();
@@ -452,15 +463,15 @@ public class FileWatcher extends Thread{
 			ResourceManager.writeFile(item);
 			message.add(item.formatFileIntoSyncData());
 			if(message.size()==maxTransferSize){	
-				SyncDaemon.mainClient.printMessage(message.toArray(new Object[message.size()][5]), HEADER_DELETE_MANY_FILES);
+				daemon.fileTransferManager.deleteManyFiles(message.toArray(new Object[message.size()][5]));
 				message.clear();
 				Syncrop.sleep();
 			}
 		}
 	}
 	
-	public void onFileChange(String path){onFileChange(path,StandardWatchEventKinds.ENTRY_MODIFY);}
-	public void onFileChange(String absPath,WatchEvent.Kind<?>  kind){
+	public void onFileChange(SyncROPItem item,String path){onFileChange(item,path,StandardWatchEventKinds.ENTRY_MODIFY);}
+	public void onFileChange(SyncROPItem item,String absPath,WatchEvent.Kind<?>  kind){
 		try {
 			if(Settings.allowScripts())
 				for(Command c:commands)

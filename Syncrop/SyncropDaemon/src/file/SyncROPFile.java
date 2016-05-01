@@ -22,23 +22,24 @@ public class SyncROPFile extends SyncROPItem
 	private long lastRecordedSize;
 	
 	public SyncROPFile(String path,String owner){
-		this(path, owner, -1);
+		this(path, owner, 0);
 	}
-	
+		
 	public SyncROPFile(String path, String owner,long key)
 	{
-		this(path,owner,-1, key,-1,false);
+		this(path,owner,0, key,false,-1,false,"");
 	}
 	
 	public SyncROPFile(String path,String owner,long modificicationDate,long key,long lastRecordedSize){
-		this(path, owner, modificicationDate, key,lastRecordedSize, false);
+		this(path, owner, modificicationDate, key,false,lastRecordedSize, false,"");
 	}
-	public SyncROPFile(String path,String owner,long modificicationDate,long key,long lastRecordedSize,boolean knownToExists)
+	public SyncROPFile(String path,String owner,long modificicationDate,long key,boolean modifedSinceLastKeyUpdate,long lastRecordedSize,boolean knownToExists,String filePermisions)
 	{
-		super(path, owner, modificicationDate,knownToExists);
+		super(path, owner, modificicationDate,modifedSinceLastKeyUpdate,knownToExists,filePermisions);
+		
+		if(key<=0)
+			key=dateModified;
 		this.key=key;
-		if(key==-1)
-			updateKey();
 		if(exists()&&Files.isDirectory(file.toPath(),LinkOption.NOFOLLOW_LINKS)){
 			throw new IllegalArgumentException("path "+path+" denotes a directory so "
 					+ "it cannot be a SyncROPFile");
@@ -103,14 +104,14 @@ public class SyncROPFile extends SyncROPItem
 		setKey(key);
 		setDateModified(dateModified);
 	}
-	public void updateKey()
-	{
-		setKey(dateModified);
+	public void updateKey(){
+		setKey(key+1);//UPDATE KEY
 	}
+	//public void updateKey(){setKey(dateModified);}
 	public void setKey(long key)
 	{		
 		logger.logTrace("key "+this.key+" is being changed to "+key+" path="+path);
-		mark();
+		modifiedSinceLastKeyUpdate=false;
 		this.key=key;
 		
 	}
@@ -159,16 +160,22 @@ public class SyncROPFile extends SyncROPItem
 		}
 		return i;
 	}
-	public boolean shouldMakeConflict(long dateMod,long key,long fileSize,String targetOfLink){
+	public boolean shouldMakeConflict(long dateMod,long key,boolean modifiedSinceLastUpdate,long fileSize,String targetOfLink){
 		if(!exists())return false;
-		if(getKey()==key)return false;
-		if(!(dateMod==this.dateModified&&getSize()==fileSize))return true;
-		if(targetOfLink==null&&!(this instanceof SyncROPSymbolicLink))
-			return false;
-		else if(targetOfLink!=null&&this instanceof SyncROPSymbolicLink)
+				
+		if(targetOfLink!=null&&this instanceof SyncROPSymbolicLink)
 			return !targetOfLink.equals(((SyncROPSymbolicLink)this).getTargetPath());
+		if(targetOfLink!=null&&!(this instanceof SyncROPSymbolicLink)||targetOfLink==null&&(this instanceof SyncROPSymbolicLink))
+			return true;
+			
+		if(isDiffrentVersionsOfSameFile(key, modifiedSinceLastUpdate)){
+			logger.logDebug("diffrent versions of same file");
+			return false;
+		}
+		//if(Math.abs(dateMod-this.dateModified)>1000||getSize()!=fileSize)return true;
+				
 		logger.logDebug("Conflict avoided because file metadata is the same");
-		return false;
+		return true;
 	}
 	@Override
 	public boolean isEmpty(){return true;}
@@ -176,7 +183,7 @@ public class SyncROPFile extends SyncROPItem
 		long size=file.length();
 		if(size!=lastRecordedSize){
 			lastRecordedSize=file.length();
-			mark();
+			setHasBeenUpdated();
 			return true;
 		}
 		else return false;

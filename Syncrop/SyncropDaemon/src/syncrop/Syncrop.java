@@ -19,8 +19,7 @@ public abstract class Syncrop {
 	 * The version number of Syncrop.<br/>
 	 * This value is the value version of the Syncrop DEB.
 	 */
-	static final private String VERSION_ID="1.002";
-	//static final private String VERSION_ID="0.999";
+	static final private String VERSION_ID="1.3.7";
 	/**
 	 * The version of the metadata. This value is stored in the metadata dir.
 	 * When this value differs from the stored value, the metadata is cleared.
@@ -28,7 +27,7 @@ public abstract class Syncrop {
 	 * is not compatible. Clearing the metadata directory is prone to cause conflicts
 	 * @see {@link ResourceManager#getMetadataDirectory()}
 	 */
-	static final private String METADATA_VERSION="2";
+	static final private String METADATA_VERSION="6";
 	
 	/**
 	 * 2^10 bytes

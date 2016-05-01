@@ -85,7 +85,7 @@ public class ClientTest
 					try {
 						System.out.println("2"+secondary.readMessage());
 					} catch (IOException e) {
-						// TODO Auto-generated catch block
+						
 						e.printStackTrace();
 					}
 			}

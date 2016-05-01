@@ -1,6 +1,7 @@
 package gui.sycrop.status;
 
 import static daemon.SyncropCommunication.STATUS;
+import gui.SyncropGUI;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -9,10 +10,9 @@ import java.net.Socket;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 
-import gui.SyncropGUI;
-import interfaces.Updateable;
 import settings.Settings;
 import syncrop.Syncrop;
+import daemon.SyncropCommunication;
 
 public class SyncropCommunicationThread extends Thread{
 	final int NOT_RUNNING=0;
@@ -20,13 +20,13 @@ public class SyncropCommunicationThread extends Thread{
 	private boolean running=false;
 	private String status;
 	
-	Updateable updateable;
+	
 	volatile Socket socket;
 	PrintWriter out;
 	Scanner in;
-	public SyncropCommunicationThread(Updateable updateable) throws IOException{
+	public SyncropCommunicationThread() throws IOException{
 		super("Syncrop Status Monitor");
-		this.updateable=updateable;
+		
 		connect();
 	}
 	private void connect() throws IOException{
@@ -45,18 +45,36 @@ public class SyncropCommunicationThread extends Thread{
 	public boolean isConnected(){
 		return socket!=null&&!socket.isClosed();
 	}
-	public void print(String s){
-		out.println(s);
+	private synchronized void print(String... args){
+		for(String s:args)
+			out.println(s);
 		out.flush();
 	}
-	
+	public void clean(){
+		print(SyncropCommunication.CLEAN);
+	}
+	public void sharePublic(String path){
+		SyncropGUI.logger.log("Sharing public file:"+path);
+		print(SyncropCommunication.SHARE,"true",path);
+	}
+	public void sharePrivate(String path,String user){
+		SyncropGUI.logger.log("Sharing private file:"+path);
+		print(SyncropCommunication.SHARE,"false",path,user);
+	}
+	public void requestFileSharing(String absPath,boolean sharePublic){
+		
+	}
 	public void run(){
 		setPriority(Thread.MIN_PRIORITY);
 		while(!SyncropGUI.isShuttingDown())
 			try {
 				if(socket==null)
 					connect();
-				else if(socket.isBound())
+				else if(socket.isBound()){
+					if(in.hasNextLine())
+						switch(in.nextLine()){
+							case SyncropCommunication.UPDATE:SyncropGUI.update();
+						}
 					if(socket.isClosed()){
 						setStatus(false,null);
 						connect();
@@ -66,6 +84,7 @@ public class SyncropCommunicationThread extends Thread{
 						out.flush();
 						setStatus(true, in.nextLine());
 					}
+				}
 				else System.out.println("Socket not bound");		
 			} 
 			catch (NoSuchElementException e){}
@@ -74,14 +93,17 @@ public class SyncropCommunicationThread extends Thread{
 				Syncrop.logger.logError(e);
 			}
 			finally{
-				try {Thread.sleep(5000);} catch (InterruptedException e) {}
+				if(!SyncropGUI.isShuttingDown())SyncropGUI.update();
+				try {Thread.sleep(10000);} catch (InterruptedException e) {}
 			}
 	}
 	
 	private void setStatus(boolean running,String status){
+		if(this.running==running&&this.status.equals(status))
+			return;
 		this.running=running;
 		this.status=status;
-		this.updateable.update();
+		SyncropGUI.update();
 	}
 	public boolean isSyncropRunning() {return running;}
 	public String getStatus() {return status;}

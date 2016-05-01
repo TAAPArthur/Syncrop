@@ -1,28 +1,26 @@
 package gui.tabs;
 
 import static syncrop.Syncrop.logger;
+import file.Directory;
+import file.RemovableDirectory;
+import gui.SyncropGUI;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Files;
 
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 
-import account.Account;
-import daemon.SyncropClientDaemon;
-import daemon.SyncropCommunication;
-import file.Directory;
-import file.RemovableDirectory;
-import gui.SyncropGUI;
 import listener.FileWatcher;
 import listener.actions.RemoveSyncROPConflictsAction;
 import listener.actions.SyncROPFileAction;
-import syncrop.SyncropLogger;
 import syncrop.ResourceManager;
+import syncrop.SyncropLogger;
+import account.Account;
+import daemon.SyncropClientDaemon;
 
 public class Optimization extends JPanel implements SyncropTab,ActionListener{
 
@@ -34,10 +32,7 @@ public class Optimization extends JPanel implements SyncropTab,ActionListener{
 	JButton removeConflicts=new JButton("Remove conflicts locally ");
 	JButton removeDisabledFilesOnCloud=new JButton("Remove disabled files on Clound");
 	
-	SyncropGUI gui;
-	
-	public Optimization(SyncropGUI gui) throws IOException{
-		this.gui=gui;
+	public Optimization(){
 		setName("Optimization");
 		initialize();
 	}
@@ -57,7 +52,7 @@ public class Optimization extends JPanel implements SyncropTab,ActionListener{
 		else if(e.getSource().equals(removeConflicts))
 			checkAllFiles(new RemoveSyncROPConflictsAction());
 		else if(e.getSource().equals(removeDisabledFilesOnCloud))
-			gui.getSyncropCommunicationThread().print(SyncropCommunication.CLEAN);
+			SyncropGUI.getSyncropCommunicationThread().clean();
 		
 	}
 
@@ -97,6 +92,6 @@ public class Optimization extends JPanel implements SyncropTab,ActionListener{
 	}
 	@Override
 	public void reload() {
-		removeDisabledFilesOnCloud.setEnabled(gui.getSyncropCommunicationThread().isSyncropRunning());
+		removeDisabledFilesOnCloud.setEnabled(SyncropGUI.getSyncropCommunicationThread().isSyncropRunning());
 	}
 }

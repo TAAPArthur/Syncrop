@@ -1,5 +1,10 @@
 package gui.tabs;
 
+import gui.SyncropGUI;
+import gui.components.SyncropPanel;
+import gui.components.SyncropTextBox;
+
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -13,12 +18,9 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 
-import account.Account;
-import gui.SyncropGUI;
-import gui.components.SyncropPanel;
-import gui.components.SyncropTextBox;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
+import account.Account;
 
 public class AccountTab extends JPanel implements SyncropTab,ActionListener{
 	/**
@@ -45,15 +47,12 @@ public class AccountTab extends JPanel implements SyncropTab,ActionListener{
 	JButton addNewRemovableFolder=new JButton("Add new folder");
 	JButton addNewRestrictionFolder=new JButton("Add new folder");
 	
-	SyncropGUI gui;
-	
-	
-	public AccountTab(SyncropGUI parent){
-		super();
-		gui=parent;
-		initilize();
-		setName("Account");
 		
+	public AccountTab(){
+		super();
+		
+		initilize();
+		setName("Account");	
 	}
 	
 	void initilize(){
@@ -69,6 +68,13 @@ public class AccountTab extends JPanel implements SyncropTab,ActionListener{
 		addNewRegularFolder.addActionListener(this);
 		addNewRemovableFolder.addActionListener(this);
 		addNewRestrictionFolder.addActionListener(this);
+		
+		addNewRegularFolder.setPreferredSize(new Dimension(SyncropGUI.WIDTH, 20));
+		addNewRemovableFolder.setPreferredSize(new Dimension(SyncropGUI.WIDTH, 20));
+		addNewRestrictionFolder.setPreferredSize(new Dimension(SyncropGUI.WIDTH, 20));
+		addNewRegularFolder.setMaximumSize(new Dimension(SyncropGUI.WIDTH, 20));
+		addNewRemovableFolder.setMaximumSize(new Dimension(SyncropGUI.WIDTH, 20));
+		addNewRestrictionFolder.setMaximumSize(new Dimension(SyncropGUI.WIDTH, 20));
 		
 		directoryPanel.add(addNewRegularFolder);
 		removableDirectoryPanel.add(addNewRemovableFolder);
@@ -89,7 +95,7 @@ public class AccountTab extends JPanel implements SyncropTab,ActionListener{
 		layout.add("", apply);
 		layout.add("",save);
 		add(layout);
-		
+		System.out.println(directoryPane);
 		reload();
 	}
 	
@@ -139,7 +145,7 @@ public class AccountTab extends JPanel implements SyncropTab,ActionListener{
 		account.addRemoveableDirs(removableDirectoryPanel.getLines());
 		account.addRestrictions(restirctionsPanel.getLines());
 		if(accountName.isEmpty()){
-			gui.loadHeaderPanel();
+			SyncropGUI.loadHeaderPanel();
 			//ResourceManager.generateID();
 		}
 	}
@@ -147,6 +153,7 @@ public class AccountTab extends JPanel implements SyncropTab,ActionListener{
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		Object source=e.getSource();
+		
 		if(source.equals(apply)){
 			updateAccount();
 		}
@@ -155,7 +162,7 @@ public class AccountTab extends JPanel implements SyncropTab,ActionListener{
 				updateAccount();
 				ResourceManager.writeConfigFile();
 				ResourceManager.readFromConfigFile();
-				gui.reload();
+				SyncropGUI.reload();
 			} catch (IOException e1) {
 				Syncrop.logger.logError(e1);
 			}

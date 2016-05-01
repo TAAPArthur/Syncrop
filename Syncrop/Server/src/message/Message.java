@@ -171,6 +171,10 @@ public class Message implements Serializable
 	{
 		this(message.message,message.userID,message.type,message.header);
 	}
+	public Message(Message message,String username)
+	{
+		this(message.message,message.userID,message.type,message.header);
+	}
 	/**
 	 * Adds names to send this message to
 	 * @param targetsToInclude a list of Messengers to send this message to

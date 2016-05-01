@@ -50,11 +50,7 @@ public class Command {
 					Process p=Runtime.getRuntime().exec(command.split(" "),null,
 							workingDir==null?null:new File(workingDir));
 					p.waitFor();
-					/*
-					Scanner sc=new Scanner(p.getInputStream());
-					while(sc.hasNext())
-						Syncrop.logger.log(sc.nextLine());
-					sc.close();*/
+					
 				} catch (InterruptedException e) {
 					Syncrop.logger.log("Command was innterrupted "+ command);
 				}

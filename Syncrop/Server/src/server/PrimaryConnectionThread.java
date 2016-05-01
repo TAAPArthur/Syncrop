@@ -84,6 +84,7 @@ public class PrimaryConnectionThread extends GenericConnectionThread{
 				clients.get(key).printMessage(message);
 		else //only writes to targeted messages 
 		{
+			//System.out.println(clients.keySet());
 			Message undirectedMessage=new Message(message);
 			for(String key:clients.keySet())
 				if(message.isTarget(clients.get(key).names))

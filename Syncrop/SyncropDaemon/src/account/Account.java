@@ -22,6 +22,7 @@ import javax.swing.JOptionPane;
 
 import file.Directory;
 import file.RemovableDirectory;
+import file.Restiction;
 import file.SyncROPItem;
 import syncrop.RecursiveDeletionFileVisitor;
 import syncrop.ResourceManager;
@@ -62,7 +63,7 @@ public class Account
 	 */
 	private long recordedSize;
 	/**
-	 * The maxium size of an account measured in GB
+	 * The maxium size of an account measured in bytes
 	 */
 	private static long maximumAccountSize=4L*GIGABYTE;
 	
@@ -99,7 +100,7 @@ public class Account
 	 * Dirs that should not be included in {@link #directories}. 
 	 * The path given should be the absolute path
 	 */
-	HashSet<Directory> restrictions = new HashSet<Directory>();
+	HashSet<Restiction> restrictions = new HashSet<Restiction>();
 	
 	/**
 	 * A tab separated list of the default restrictions. The default resticts aren't
@@ -207,8 +208,23 @@ public class Account
 			}
 		}
 		while(removable);
+		boolean sharePublic=false;
+		do 
+		{
+			f=getSharedFileHome(sharePublic=!sharePublic);
+			if(!f.exists()){
+				logger.log("creating shared dir for account " +
+						getName()+" public:"+sharePublic);
+				if(!f.mkdirs())
+					logger.log("Account folder failed to be created"+f);
+			}
+		}
+		while(sharePublic);
+		
 	}
-	
+	public File getSharedFileHome(boolean sharedPublicly){
+		return new File(File.separatorChar+"home/Syncrop"+File.separatorChar+getName()+File.separatorChar+"Shared "+(sharedPublicly?"Publicly":"Privately"));
+	}
 	@Override
 	public String toString()
 	{
@@ -239,14 +255,14 @@ public class Account
 			if(dirsToAdd[i]==null||dirsToAdd[i].isEmpty())continue;
 			else if(Directory.containsMatchingChars(dirsToAdd[i]))
 			{
-				restrictions.add(new Directory(dirsToAdd[i], false));
+				restrictions.add(new Restiction(dirsToAdd[i], false));
 			}
 			else if(!SyncROPItem.isValidFileName(dirsToAdd[i]))
 			{
 				dirsToAdd[i]=removeIllegalChars(dirsToAdd[i], "Restriction");
 				i--;
 			}
-			else restrictions.add(new Directory(dirsToAdd[i], true));
+			else restrictions.add(new Restiction(dirsToAdd[i], true));
 	}
 	/**
 	 * Adds a non-removable directory.
@@ -407,7 +423,7 @@ public class Account
 	 * 
 	 * @return a set of restrictions
 	 */
-	public HashSet<Directory> getRestrictions(){return restrictions;}
+	public HashSet<Restiction> getRestrictions(){return restrictions;}
 		
 	/**
 	 * Calculates the size of the account by summing the size of every file.
@@ -539,9 +555,16 @@ public class Account
 	 * @return the maximum Account size {@value #maximumAccountSize} bytes 
 	 * @see #maximumAccountSize
 	 */
-	public static long getMaximumAccountSize() {
+	public static long getMaximumAccountSizeInBytes() {
 		return maximumAccountSize;
 	}
+	public static long getMaximumAccountSizeInMegaBytes() {
+		return maximumAccountSize/Syncrop.MEGABYTE;
+	}
+	/**
+	 * 
+	 * @param maximumAccountSize -new max size in bytes
+	 */
 	public static void setMaximumAccountSize(long maximumAccountSize) {
 		Account.maximumAccountSize = maximumAccountSize;
 	}
@@ -584,7 +607,7 @@ public class Account
 	public void setDirectories(HashSet<Directory> directories) {
 		this.directories = directories;
 	}
-	public void setRestrictions(HashSet<Directory> restrictions) {
+	public void setRestrictions(HashSet<Restiction> restrictions) {
 		this.restrictions = restrictions;
 	}
 	public void clear(){

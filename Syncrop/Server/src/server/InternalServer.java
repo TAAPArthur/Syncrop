@@ -59,7 +59,18 @@ public class InternalServer extends Server implements Messenger {
 		printMessage(new Message(o,username,type,header,targetsToInclude,targetsToExclude));
 	}
 	public void printMessage(Message m){
-		primary.printMessageToClients(m);
+		switch(m.getType()){
+			case Message.TYPE_DEFAULT:
+			case Message.TYPE_NOTIFICATION:
+			case Message.TYPE_MESSAGE_TO_CLIENT:
+				primary.printMessageToClients(m);
+				break;
+			case Message.TYPE_MESSAGE_TO_SERVER:
+				primary.readMessagesThread.readMessage(m);
+				break;
+		}
+		
+		
 	}
 
 	@Override

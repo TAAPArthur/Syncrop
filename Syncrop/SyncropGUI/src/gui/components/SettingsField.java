@@ -9,6 +9,7 @@ import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 
 import settings.SettingsManager.Options;
+import syncrop.Syncrop;
 
 public class SettingsField extends JPanel{
 	/**
@@ -23,7 +24,7 @@ public class SettingsField extends JPanel{
 		if(option.getType().equals(double.class)||option.getType().equals(int.class)){
 			component=new JSpinner();
 			if(option.getType().equals(double.class))
-			((JSpinner)component).setModel(new SpinnerNumberModel(0, 0, 10.0, .1));
+			((JSpinner)component).setModel(new SpinnerNumberModel(0, 0, 10*Syncrop.KILOBYTE, 10));
 			
 			add(new JLabel(option.getTitle()));
 		}
@@ -37,6 +38,7 @@ public class SettingsField extends JPanel{
 		Object value=option.getValue();
 		if(option.getType().equals(double.class)||option.getType().equals(int.class)){
 			((JSpinner)component).setValue(value);
+			component.setSize(200, component.getHeight());
 		}
 		else if(option.getType().equals(boolean.class))
 			((JRadioButton)component).setSelected((boolean) value);

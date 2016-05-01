@@ -169,7 +169,7 @@ public class SyncropLogger implements logger.Logger{
 		try {
 			if(!logFile.exists())logFile.createNewFile();
 		} catch (IOException e) {
-			SyncropClientDaemon.mainClient.closeConnection(
+			SyncropClientDaemon.closeConnection(
 					"log file does not exists and cannot be created", true);
 			return false;
 			}
