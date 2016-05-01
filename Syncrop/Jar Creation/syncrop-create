@@ -1,7 +1,6 @@
 #!/bin/bash
 cd $HOME/Documents/Syncrop
 echo `pwd`
-git add .
 
 mfHome="$HOME/Documents/Syncrop/Syncrop/Jar Creation"
 
@@ -53,3 +52,4 @@ git commit $linux_path -m "Jar was updated"
 ln -f $path/* $windows_path/
 
 git commit $windows_path -m "Jar was updated"
+git push
