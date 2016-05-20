@@ -20,13 +20,13 @@ import java.util.regex.Matcher;
 
 import javax.swing.JOptionPane;
 
-import file.Directory;
-import file.RemovableDirectory;
-import file.Restiction;
-import file.SyncROPItem;
 import syncrop.RecursiveDeletionFileVisitor;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
+import file.Directory;
+import file.RemovableDirectory;
+import file.Restriction;
+import file.SyncROPItem;
 /**
  * An account includes all the connection info needed to get files from the server.
  * An Account is uniquely identified by its username, so if two accounts have the
@@ -100,13 +100,13 @@ public class Account
 	 * Dirs that should not be included in {@link #directories}. 
 	 * The path given should be the absolute path
 	 */
-	HashSet<Restiction> restrictions = new HashSet<Restiction>();
+	HashSet<Restriction> restrictions = new HashSet<Restriction>();
 	
 	/**
 	 * A tab separated list of the default restrictions. The default resticts aren't
 	 * added when using the default constructor. 
 	 */
-	private static final String defaultRestictions=
+	private static final String defaultRestrictions=
 			"*.metadata*\t*.~lock*\t*.gvfs\t*.thumbnails*"
 	+ "\t*.backup*\t*~\t*.git*\t*.dropbox*\t*/proc/*\t*/sys/*\t*/dev/*\t*/run/*\t"
 	+ "*.*outputstream*\t*appcompat*\t*/.recommenders/*\t*.attach_pid*";
@@ -129,7 +129,7 @@ public class Account
 		
 		addRemoveableDirs((String)null);
 		
-		for(String restriction:defaultRestictions.split("\t"))
+		for(String restriction:defaultRestrictions.split("\t"))
 			addRestrictions(restriction);
 		
 		//create home dir if on Cloud
@@ -208,23 +208,10 @@ public class Account
 			}
 		}
 		while(removable);
-		boolean sharePublic=false;
-		do 
-		{
-			f=getSharedFileHome(sharePublic=!sharePublic);
-			if(!f.exists()){
-				logger.log("creating shared dir for account " +
-						getName()+" public:"+sharePublic);
-				if(!f.mkdirs())
-					logger.log("Account folder failed to be created"+f);
-			}
-		}
-		while(sharePublic);
+		
 		
 	}
-	public File getSharedFileHome(boolean sharedPublicly){
-		return new File(File.separatorChar+"home/Syncrop"+File.separatorChar+getName()+File.separatorChar+"Shared "+(sharedPublicly?"Publicly":"Privately"));
-	}
+	
 	@Override
 	public String toString()
 	{
@@ -255,14 +242,14 @@ public class Account
 			if(dirsToAdd[i]==null||dirsToAdd[i].isEmpty())continue;
 			else if(Directory.containsMatchingChars(dirsToAdd[i]))
 			{
-				restrictions.add(new Restiction(dirsToAdd[i], false));
+				restrictions.add(new Restriction(dirsToAdd[i], false));
 			}
 			else if(!SyncROPItem.isValidFileName(dirsToAdd[i]))
 			{
 				dirsToAdd[i]=removeIllegalChars(dirsToAdd[i], "Restriction");
 				i--;
 			}
-			else restrictions.add(new Restiction(dirsToAdd[i], true));
+			else restrictions.add(new Restriction(dirsToAdd[i], true));
 	}
 	/**
 	 * Adds a non-removable directory.
@@ -423,7 +410,7 @@ public class Account
 	 * 
 	 * @return a set of restrictions
 	 */
-	public HashSet<Restiction> getRestrictions(){return restrictions;}
+	public HashSet<Restriction> getRestrictions(){return restrictions;}
 		
 	/**
 	 * Calculates the size of the account by summing the size of every file.
@@ -607,7 +594,7 @@ public class Account
 	public void setDirectories(HashSet<Directory> directories) {
 		this.directories = directories;
 	}
-	public void setRestrictions(HashSet<Restiction> restrictions) {
+	public void setRestrictions(HashSet<Restriction> restrictions) {
 		this.restrictions = restrictions;
 	}
 	public void clear(){

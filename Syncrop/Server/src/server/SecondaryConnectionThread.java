@@ -23,7 +23,6 @@ public class SecondaryConnectionThread extends GenericConnectionThread{
 		try {
 			setup();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}

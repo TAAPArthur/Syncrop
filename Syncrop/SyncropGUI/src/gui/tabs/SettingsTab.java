@@ -35,13 +35,8 @@ public class SettingsTab extends JPanel implements SyncropTab,ActionListener {
 		
 	void initilize(){
 		setLayout(new GridLayout(0,1));
-		for(Options option:Options.values()){
-			SettingsField field=new SettingsField(option);
-			fields.add(field);
-			add(field);
-		}
-		add(save);
 		save.addActionListener(this);
+		reload();
 	}
 	
 	@Override
@@ -57,7 +52,13 @@ public class SettingsTab extends JPanel implements SyncropTab,ActionListener {
 
 	@Override
 	public void reload() {
-		// TODO Auto-generated method stub
+		removeAll();
+		for(Options option:Options.values()){
+			SettingsField field=new SettingsField(option);
+			fields.add(field);
+			add(field);
+		}
+		add(save);
 		
 	}
 

@@ -1,4 +1,4 @@
 Manifest-Version: 1.0
-Main-Class: daemon.SyncropCloud
+Main-Class: daemon.cloud.SyncropCloud
 Class-Path: Server.jar jna.jar Client.jar json-simple-1.1.1.jar
 

@@ -28,8 +28,8 @@ import syncrop.SyncropLogger;
 import transferManager.queue.QueueMember;
 import transferManager.queue.SendQueue;
 import daemon.SyncDaemon;
-import daemon.SyncropClientDaemon;
-import daemon.SyncropCloud;
+import daemon.client.SyncropClientDaemon;
+import daemon.cloud.SyncropCloud;
 import file.SyncROPFile;
 import file.SyncROPItem;
 /**
@@ -247,6 +247,9 @@ public class FileTransferManager extends Thread{
 		this.daemon=daemon;
 		
 	}
+	public static void setAddLast(boolean addLast) {
+		SendQueue.setAddLast(addLast);
+	}
 	/**
 	 * Resets this FTM to default settings. The queues are cleared and it is 
 	 * not sending nor receiving. The temporary file is also deleted if it exists
@@ -261,6 +264,7 @@ public class FileTransferManager extends Thread{
 		failCount=0;
 		timeOfLastCompletedFileTransfer=0;
 		hasMetadataBeenCleaned=false;
+		setAddLast(true);
 	}
 	
 	/**
@@ -270,6 +274,10 @@ public class FileTransferManager extends Thread{
 	public boolean isEmpty()
 	{
 		return sendQueue.isEmpty()&&receiveQueue.isEmpty();
+	}
+	public int getSendQueueSize()
+	{
+		return sendQueue.size();
 	}
 
 	public void addToSendQueue(String[] paths,String owner,String target)
@@ -726,14 +734,14 @@ public class FileTransferManager extends Thread{
 	public void checkForNotifications()
 	{
 		
-		if(!isInstanceOfCloud()&&downloadCount+uploadCount!=0&&
-				daemon.isConnectionAccepted()){
+		if(!isInstanceOfCloud()&&downloadCount+uploadCount!=0&&daemon.isConnectionAccepted())
 			if(getTimeFromLastCompletedFileTransfer()>12000
 					||downloadCount+uploadCount>=12
-					||haveAllFilesFinishedTranferring())
+					||haveAllFilesFinishedTranferring()){
 		
-			notitfyUser();
-		}
+				notitfyUser();
+				FileTransferManager.setAddLast(true);
+			}
 	}
 	private void notitfyUser()
 	{
@@ -864,7 +872,8 @@ public class FileTransferManager extends Thread{
 				cancelDownload(path,false, true);
 				return;
 			}
-			
+			else if(!ResourceManager.getAccount().isPathEnabled(path))
+				cancelDownload(path,true, true);
 			Object syncData[]=(Object[])message.getMessage();
 			String sender=message.getUserID();
 			String owner=(String)syncData[INDEX_OWNER];

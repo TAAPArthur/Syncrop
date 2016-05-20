@@ -262,7 +262,6 @@ public abstract class GenericConnectionThread extends Thread
 				//outputResults("empty");
 				Thread.sleep(waitTime);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		

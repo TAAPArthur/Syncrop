@@ -131,7 +131,7 @@ public class SyncROPFile extends SyncROPItem
 	 * Handles conflicts. The name of the file is renamed to file.getName()+".SYNCROPconflict"+i
 	 * where is i is an integer that denotes the number of conflicts for this file<br/>
 	 * 
-	 * After every call, {@link daemon.SyncropCloud#updateAllClients(SyncROPFile, String, String[], String)}
+	 * After every call, {@link daemon.cloud.SyncropCloud#updateAllClients(SyncROPFile, String, String[], String)}
 	 * should be called to update other Clients
 	 * @throws IOException
 	 */

@@ -5,7 +5,7 @@ import static syncrop.Syncrop.logger;
 
 import java.util.HashSet;
 
-import daemon.SyncropClientDaemon;
+import daemon.client.SyncropClientDaemon;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
 import account.Account;

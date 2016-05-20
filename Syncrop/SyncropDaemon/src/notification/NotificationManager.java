@@ -21,7 +21,7 @@ public class NotificationManager extends Thread {
 				count++;
 			
 			if(Settings.showNotifications())
-				if(count==30||(count>10&&transferManager.haveAllFilesFinishedTranferring())){
+				if(count==64||(count>7&&transferManager.haveAllFilesFinishedTranferring())){
 					transferManager.checkForNotifications();
 					count=0;
 				}

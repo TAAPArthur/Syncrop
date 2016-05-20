@@ -14,11 +14,16 @@ import static transferManager.FileTransferManager.HEADER_REQUEST_SYMBOLIC_LINK_D
 import static transferManager.FileTransferManager.HEADER_UPDATE_KEYS;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 import listener.FileWatcher;
 import message.Message;
@@ -30,6 +35,9 @@ import syncrop.ResourceManager;
 import syncrop.Syncrop;
 import syncrop.SyncropLogger;
 import transferManager.FileTransferManager;
+import daemon.client.SyncropClientDaemon;
+import daemon.client.SyncropCommunication;
+import daemon.cloud.SyncropCloud;
 import file.SyncROPDir;
 import file.SyncROPFile;
 import file.SyncROPItem;
@@ -101,10 +109,16 @@ public abstract class SyncDaemon extends Syncrop{
 	public final static String HEADER_SYNC_GET_CLOUD_FILES="sync cloud's files";
 	
 	public final static String HEADER_CLEAN_CLOUD_FILES="clean cloud's files";
-	
-	public final static String HEADER_REQUEST_SHARE_PUBLIC="SHARE PUBLIC";
-	public final static String HEADER_REQUEST_SHARE_PRIVATE="SHARE PRIVATE";
-	public final static String HEADER_SHARED_FILE="SHARED FILE";
+	/**
+	 * parameter should be a string containing the relative path of the file to share
+	 */
+	public final static String HEADER_SHARE_FILE="SHARE";
+	/**
+	 * parameter should be a string containing the relative path of the file to share
+	 */
+	public final static String HEADER_SHARED_SUCCESS="SHARE KEY";
+	public final static String HEADER_REQUEST_ACCESS_TO_SHARED_FILE="REQUEST SHARED FILE";
+	public final static String HEADER_REQUEST_ACCESS_TO_SHARED_FILE_RESPONSE="REQUEST SHARED FILE RESPONSE";
 	public final static String HEADER_STOP_SHARING_FILE="STOP SHARING FILE";
 	
 	public SyncDaemon(String instance) throws IOException{
@@ -351,7 +365,7 @@ public abstract class SyncDaemon extends Syncrop{
 			else fileTransferManager.addToSendQueue(localFile, id);
 		}
 		else
-			try 
+			DOWNLOAD_FILE:try 
 			{
 				
 				//Difference in modification date is not considered because files
@@ -362,20 +376,32 @@ public abstract class SyncDaemon extends Syncrop{
 						((SyncROPFile)localFile).shouldMakeConflict(dateModified,key,modifiedSinceLastUpdate, length, 
 								linkTarget))//if conflict should be made 
 				{
+					
+					boolean areFilesTheSame=false;
+					try {
+						if(copyFromFile){
+							MessageDigest md = MessageDigest.getInstance("MD5");
+							byte[]b=md.digest(bytes);
+							if(b!=null&&b.equals(getFileHash(ResourceManager.getTemporaryFile())))
+								areFilesTheSame=true;
+						}
+						else {
+							byte[]b=getFileHash(localFile.getFile());
+							if(b!=null&&b.equals(getFileHash(ResourceManager.getTemporaryFile())))
+								areFilesTheSame=true;
+						}
+					} catch (NoSuchAlgorithmException e) {}
+					if(areFilesTheSame){
+						logger.log(localFile.getPath()+"  is out of sync but both versions are the same");
+						break DOWNLOAD_FILE;
+					}
 					logger.log("Conflict occured while trying to download file;"
 							+ " local file is being renamed");
 					logger.log(localFile.toString());
-					
-					
 					((SyncROPFile) localFile).makeConflict();
 					localFile.save();
 					addToSendQueue(localFile);
 					
-					/*
-					if(isInstanceOfCloud())
-						((Cloud)(this)).updateAllClients(localFile,null);
-					else fileTransferManager.addToSendQueue(localFile, id);
-					*/
 					localFile=null;
 				}
 				
@@ -419,7 +445,7 @@ public abstract class SyncDaemon extends Syncrop{
 							StandardOpenOption.SYNC);
 				}
 			}
-			catch (FileSystemException e){
+			catch (FileSystemException|SecurityException e){
 				logger.logFatalError(e, "occured while to trying to download file; Download has failed. path="+path);
 				fileTransferManager.cancelDownload(path,true, true);
 				return;
@@ -489,6 +515,22 @@ public abstract class SyncDaemon extends Syncrop{
 			downloadFile(userId, path,owner, dateModified, key,updatedSinceLastUpdate,"", false, null, -1, false,false);
 		}
 		return owner;
+	}
+	
+	private byte[]getFileHash(File file){
+		try {
+			MessageDigest md = MessageDigest.getInstance("MD5");
+			InputStream is = new FileInputStream(file);
+			DigestInputStream dis = new DigestInputStream(is, md);
+			while(dis.available()>0)
+				dis.read();
+			dis.close();
+			return md.digest();
+		} catch (NoSuchAlgorithmException | IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
 	}
 	/**
 	 * tells the reciepent to download a file

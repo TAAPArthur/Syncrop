@@ -15,7 +15,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.io.UnsupportedEncodingException;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,8 +29,9 @@ import org.json.simple.JSONArray;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
+import daemon.cloud.filesharing.SharedFile;
+
 import settings.Settings;
-import sharing.SharedFile;
 import account.Account;
 import file.Directory;
 import file.SyncROPDir;
@@ -59,7 +59,8 @@ public class ResourceManager
 	 * Modifying this file while Syncrop is running will cause it to reload the info 
 	 */
 	static File configFile;
-	static File fileSharingFile;
+	
+	
 	
 	/**
 	 * Directory that holds SYNCROPFile information like key for future sessions
@@ -72,6 +73,7 @@ public class ResourceManager
 	 * All non removable file paths are relative to Home
 	 */
 	public static final String HOME=System.getProperty("user.home");
+	private static String SYNCROP_CLOUD_HOME=File.separatorChar+"home/Syncrop"+File.separatorChar;
 	
 	/**
 	 * The name of the directory that holds configuration files
@@ -112,43 +114,18 @@ public class ResourceManager
 	
 	public final static LinkedHashSet<SharedFile>sharedFiles=new LinkedHashSet<>();
 	
-	public static boolean isFileShared(String path){
+	
+	public static SharedFile getSharedFile (String absPath){
 		for(SharedFile file:sharedFiles)
-			if(file.isFileShared(path))
-				return true;
-		return false;
-	}
-	public static SharedFile getSharedFileInfo(String path){
-		for(SharedFile file:sharedFiles)
-			if(file.isFileShared(path))
+			if(file.getAbsolutePath().equals(absPath))
 				return file;
 		return null;
 	}
+	
 	public static void addSharedFiles(SharedFile file){
 		sharedFiles.add(file);
 	}
-	public static void saveSharedFiles(){
-		try {
-			PrintWriter out=new PrintWriter(fileSharingFile,Settings.getEncoding());
-			for(SharedFile file:sharedFiles)
-				out.println(file.toString());
-			out.close();
-		} catch (FileNotFoundException | UnsupportedEncodingException e) {
-			logger.logError(e,"trying to write to file sharing file;");
-		}
-	}
-	public static void loadSharedFiles(){
-		
-		try {
-			BufferedReader in=new BufferedReader(new InputStreamReader(new FileInputStream(fileSharingFile)));
-			while(in.ready())
-				sharedFiles.add(new SharedFile(in.readLine()));
-			in.close();
-		} catch (NumberFormatException | IOException e) {
-			logger.logError(e,"trying to read from file sharing file;");
-		}
-			
-	}
+	
 	
 	/**
 	 * Gets a single specified Account from a username.
@@ -206,11 +183,12 @@ public class ResourceManager
 		String relativePath=absPath.substring(home.length());
 		return relativePath;
 	}
+	public static String getSyncropCloudHome(){return SYNCROP_CLOUD_HOME;}
 	public static String getHome(String accountName,boolean removable)
 	{
 		//TODO make path settings
 		if(Syncrop.isInstanceOfCloud())
-			return File.separatorChar+"home/Syncrop"+File.separatorChar+
+			return SYNCROP_CLOUD_HOME+
 				(removable?"removable"+File.separatorChar+accountName:accountName+File.separatorChar);
 		else 
 			return removable?"":HOME+File.separatorChar;
@@ -564,13 +542,12 @@ public class ResourceManager
 		metaDataVersionFile=new File(metaDataFile,"METADATA_VERSION");
 		temp=new File(getConfigFilesHome(),".temp");
 		temporaryFile=new File(temp,"~.temporaryfile.temp");
-		fileSharingFile=new File(getConfigFilesHome(),"fileSharingInfo.dat");
+		
 		deleteTemporaryFile();
 		try {
 			if(!temp.exists())temp.mkdir();
 			if(!configFile.exists())configFile.createNewFile();
-			if(!fileSharingFile.exists())fileSharingFile.createNewFile();
-			loadSharedFiles();
+			
 			if(!metaDataFile.exists())metaDataFile.mkdir();
 		}
 		catch (IOException e) 
@@ -578,6 +555,7 @@ public class ResourceManager
 			logger.logError(e,"trying to create one of the Syncrop configuration files");
 		}
 	}
+	
 	
 	/**
 	 * Deletes the temporary file if it already exists

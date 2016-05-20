@@ -27,7 +27,8 @@ import org.json.simple.JSONObject;
 
 import account.Account;
 import daemon.SyncDaemon;
-import daemon.SyncropClientDaemon;
+import daemon.client.SyncropClientDaemon;
+import daemon.cloud.filesharing.SharedFile;
 import file.Directory;
 import file.RemovableDirectory;
 import file.SyncROPDir;
@@ -148,6 +149,7 @@ public class FileWatcher extends Thread{
 		File metadataFile=ResourceManager.getMetadataFile(path, a.getName());
 		if(!ResourceManager.isLocked(path,a.getName()))
 			if(Files.isSymbolicLink(file.toPath())){
+				
 				if(!metadataFile.exists()){
 					item=tryToCreateSyncropLink(file, path, a,removable);
 					if(!item.isEnabled()){
@@ -159,7 +161,8 @@ public class FileWatcher extends Thread{
 				else {
 					item=ResourceManager.getFile(path, a.getName());
 				}
-				
+				if(Syncrop.isInstanceOfCloud())
+					checkIfFileIsShared(item);
 				if(Files.isDirectory(item.getFile().toPath())&&(!(item instanceof SyncROPSymbolicLink)||
 						!a.isPathEnabled(((SyncROPSymbolicLink) item).getTargetPath())))
 					try {
@@ -173,6 +176,7 @@ public class FileWatcher extends Thread{
 					} catch (IOException e) {
 						logger.logError(e, "occured when trying to register dir: "+file);
 					}
+				
 		}
 		else if(Files.isDirectory(file.toPath(), LinkOption.NOFOLLOW_LINKS)){
 			try {
@@ -253,6 +257,23 @@ public class FileWatcher extends Thread{
 		return new SyncROPFile(path, a.getName()) ;
 	}
 	
+	public void checkIfFileIsShared(SyncROPItem item){
+		if(item==null||!Syncrop.isInstanceOfCloud())return;
+		try {
+			String targetOfLink=Files.readSymbolicLink(item.getFile().toPath()).toString();
+			if(!targetOfLink.startsWith(item.getHome()))
+				if(targetOfLink.startsWith(ResourceManager.getSyncropCloudHome())){
+					SharedFile sharedFile=ResourceManager.getSharedFile(targetOfLink);
+					if(sharedFile!=null){
+						if(sharedFile.hasLinkToSharedFile(item.getAbsPath()))
+							sharedFile.addLinkToSharedFile(item.getAbsPath());
+					}
+					else new SharedFile(item.getTargetPath(), item.getOwner(), item.getAbsPath()); 
+				}
+		} catch (IOException e1) {
+			
+		}
+	}
 	
 	@Override
 	public void start(){
@@ -323,8 +344,6 @@ public class FileWatcher extends Thread{
 							//item.save();
 						}
 				
-				
-				
 				if(ResourceManager.isLocked(path,dir.getAccountName())){
 					logger.logTrace(path+" is locked");
 					continue;
@@ -374,6 +393,7 @@ public class FileWatcher extends Thread{
 		if(item==null){
 			if(Files.isSymbolicLink(file.toPath())){
 				item=tryToCreateSyncropLink(file, path, dir.getAccount(),dir.isRemovable());
+				checkIfFileIsShared(item);
 			}
 			else if(file.isDirectory()){
 				if(file.list().length==0)

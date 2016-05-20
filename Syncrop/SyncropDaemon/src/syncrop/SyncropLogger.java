@@ -14,7 +14,7 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.SimpleFormatter;
 
-import daemon.SyncropClientDaemon;
+import daemon.client.SyncropClientDaemon;
 
 public class SyncropLogger implements logger.Logger{
     

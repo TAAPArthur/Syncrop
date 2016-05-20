@@ -37,7 +37,7 @@ import account.Account;
 
 import com.sun.jna.platform.FileUtils;
 
-import daemon.SyncropClientDaemon;
+import daemon.client.SyncropClientDaemon;
 
 public abstract class SyncROPItem 
 {
@@ -281,6 +281,7 @@ public abstract class SyncROPItem
 	 * @return the relative path
 	 */
 	public String getPath(){return path;}
+	public String getHome(){return ResourceManager.getHome(getOwner(), isRemovable());}
 	/**
 	 * Returns the absolute path of this file. If {@link isInstanceOfCloud()}, then the path 
 	 * of the file for the first owner is returned
@@ -521,8 +522,6 @@ public abstract class SyncROPItem
 			if(path.contains(c)&&!File.separator.equals(c))
 				return false;
 		return true;
-		//TODO
-		//return !ResourceManager.illegalCharsPattern.matcher(path).find();
 	}
 	/**
 	 * 
@@ -676,7 +675,9 @@ public abstract class SyncROPItem
 	
 	public boolean isLocked(){
 		return ResourceManager.isLocked(path,getOwner());
+	}	
+	public static String generateShareKey(String path,String owner){
+		return Integer.toString((path+owner).hashCode(),36)+
+				Long.toString(System.currentTimeMillis()%(1000*3600*24*365), 36);
 	}
-	
-	
 }

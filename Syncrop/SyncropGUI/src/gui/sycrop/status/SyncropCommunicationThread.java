@@ -1,6 +1,6 @@
 package gui.sycrop.status;
 
-import static daemon.SyncropCommunication.STATUS;
+import static daemon.client.SyncropCommunication.STATUS;
 import gui.SyncropGUI;
 
 import java.io.IOException;
@@ -12,7 +12,7 @@ import java.util.Scanner;
 
 import settings.Settings;
 import syncrop.Syncrop;
-import daemon.SyncropCommunication;
+import daemon.client.SyncropCommunication;
 
 public class SyncropCommunicationThread extends Thread{
 	final int NOT_RUNNING=0;
@@ -53,14 +53,11 @@ public class SyncropCommunicationThread extends Thread{
 	public void clean(){
 		print(SyncropCommunication.CLEAN);
 	}
-	public void sharePublic(String path){
+	public void share(String path){
 		SyncropGUI.logger.log("Sharing public file:"+path);
-		print(SyncropCommunication.SHARE,"true",path);
+		print(SyncropCommunication.SHARE,path);
 	}
-	public void sharePrivate(String path,String user){
-		SyncropGUI.logger.log("Sharing private file:"+path);
-		print(SyncropCommunication.SHARE,"false",path,user);
-	}
+	
 	public void requestFileSharing(String absPath,boolean sharePublic){
 		
 	}

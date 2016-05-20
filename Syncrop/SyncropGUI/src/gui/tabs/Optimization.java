@@ -20,7 +20,7 @@ import listener.actions.SyncROPFileAction;
 import syncrop.ResourceManager;
 import syncrop.SyncropLogger;
 import account.Account;
-import daemon.SyncropClientDaemon;
+import daemon.client.SyncropClientDaemon;
 
 public class Optimization extends JPanel implements SyncropTab,ActionListener{
 

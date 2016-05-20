@@ -11,6 +11,8 @@ import static transferManager.FileTransferManager.HEADER_REQUEST_LARGE_FILE_DOWN
 import java.io.IOException;
 import java.nio.MappedByteBuffer;
 
+import daemon.client.SyncropClientDaemon;
+
 import file.SyncROPFile;
 import transferManager.FileTransferManager;
 

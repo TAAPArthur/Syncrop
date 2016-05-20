@@ -197,10 +197,7 @@ class FileOptionMenu extends JPopupMenu implements ActionListener{
 					}
 					//TODO windows
 					//if(Syncrop.isNot())
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (InterruptedException e) {
+				} catch (IOException|InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
