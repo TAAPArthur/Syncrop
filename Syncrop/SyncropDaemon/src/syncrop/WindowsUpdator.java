@@ -16,7 +16,7 @@ import settings.Settings;
 /**
  * 
  * Used to handle updates of Syncrop
- *
+ *TODO implement
  */
 public class WindowsUpdator {
 	/**

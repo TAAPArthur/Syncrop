@@ -17,7 +17,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
@@ -274,7 +273,7 @@ public abstract class SyncDaemon extends Syncrop{
 	protected void setPropperPermissions(SyncROPItem item,String filePermissions){
 		try {
 			Files.setPosixFilePermissions(item.getFile().toPath(),
-			SyncROPItem.getPosixFilePermissions(filePermissions));
+					SyncROPItem.getPosixFilePermissions(filePermissions));
 		}catch (SecurityException | IOException e) {
 				logger.logError(e, " occured while trying to change the write/execute permissions of "+item.getAbsPath());
 			}
@@ -445,17 +444,13 @@ public abstract class SyncDaemon extends Syncrop{
 							StandardOpenOption.SYNC);
 				}
 			}
-			catch (FileSystemException|SecurityException e){
+			catch (SecurityException|IOException e){
 				logger.logFatalError(e, "occured while to trying to download file; Download has failed. path="+path);
+				ResourceManager.unlockFile(path,owner);
 				fileTransferManager.cancelDownload(path,true, true);
 				return;
 			}
-			 catch (IOException e) {
-				logger.logError(e,
-						"occured while to trying to download file; Download has failed. path="+path);
-				fileTransferManager.cancelDownload(path,true, true);
-				return;
-			}
+			
 			
 			if(localFile.exists()){
 				logger.log("file downloaded: "+localFile);

@@ -18,14 +18,15 @@ import daemon.client.SyncropClientDaemon;
 
 public class SyncropLogger implements logger.Logger{
     
-    int logLevel=LOG_LEVEL_INFO;
+    private int logLevel=LOG_LEVEL_INFO;
     
-    FileHandler handler;
+    private FileHandler handler;
 	
 	/**
 	 * Keeps a record of various information for debugging purposes
 	 */
-	static File logFile;
+	private File logFile;
+	public File getLogFile(){return logFile;}
 	
 	/**
 	 * Handles the date format for logged messages
@@ -158,6 +159,9 @@ public class SyncropLogger implements logger.Logger{
      */
 	public void logTrace(String message){
 		log(message,LOG_LEVEL_TRACE,null);
+	}
+	public void logAll(String message){
+		log(message,LOG_LEVEL_ALL,null);
 	}
 	
 	public void log(String message,int logLevel){

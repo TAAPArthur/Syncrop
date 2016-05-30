@@ -613,7 +613,7 @@ public class ResourceManager
 	public static boolean canReadAndWriteSyncropConfigurationFiles()
 	{
 		return canReadAndWriteFile(configFile)&&canReadAndWriteFile(metaDataFile)&&
-				canReadAndWriteFile(SyncropLogger.logFile)&&
+				canReadAndWriteFile(logger.getLogFile())&&
 				(temporaryFile.exists()?canReadAndWriteFile(temporaryFile):true);
 	}
 	/**

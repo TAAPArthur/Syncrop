@@ -241,9 +241,7 @@ public class Account
 		for(int i=0;i<dirsToAdd.length;i++)
 			if(dirsToAdd[i]==null||dirsToAdd[i].isEmpty())continue;
 			else if(Directory.containsMatchingChars(dirsToAdd[i]))
-			{
 				restrictions.add(new Restriction(dirsToAdd[i], false));
-			}
 			else if(!SyncROPItem.isValidFileName(dirsToAdd[i]))
 			{
 				dirsToAdd[i]=removeIllegalChars(dirsToAdd[i], "Restriction");

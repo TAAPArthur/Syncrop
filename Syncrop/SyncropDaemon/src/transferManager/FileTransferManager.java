@@ -872,12 +872,14 @@ public class FileTransferManager extends Thread{
 				cancelDownload(path,false, true);
 				return;
 			}
-			else if(!ResourceManager.getAccount().isPathEnabled(path))
-				cancelDownload(path,true, true);
+			
 			Object syncData[]=(Object[])message.getMessage();
 			String sender=message.getUserID();
 			String owner=(String)syncData[INDEX_OWNER];
-							
+			
+			if(!ResourceManager.getAccount(owner).isPathEnabled(path))
+				cancelDownload(path,true, true);
+			
 			long dateModified=(long)syncData[INDEX_DATE_MODIFIED];
 			long key=(long)syncData[INDEX_KEY];
 			String filePermissions=(String) syncData[INDEX_FILE_PERMISSIONS];

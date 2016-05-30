@@ -227,6 +227,8 @@ public class FileWatcher extends Thread{
 		
 		if(item!=null&&item.hasBeenUpdated()){
 			onFileChange(item,item.getAbsPath());
+			if(SyncDaemon.isInstanceOfCloud()&&item instanceof SyncROPFile)
+				((SyncROPFile)item).updateKey();
 			item.save();
 			
 			if(daemon!=null){
@@ -384,6 +386,8 @@ public class FileWatcher extends Thread{
 			onCreate(dir, path, file, item);
 		else
 			if(item.hasBeenUpdated()){//item.getDateModified()!=item.getFile().lastModified()){
+				if(SyncDaemon.isInstanceOfCloud()&&item instanceof SyncROPFile)
+					((SyncROPFile)item).updateKey();
 				tryToSendFile(item);
 				item.save();
 			}
