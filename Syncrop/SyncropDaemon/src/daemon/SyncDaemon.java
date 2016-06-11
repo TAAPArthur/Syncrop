@@ -598,7 +598,7 @@ public abstract class SyncDaemon extends Syncrop{
 				mainClient.printMessage(
 						((SyncROPSymbolicLink)file).formatFileIntoSyncData(),
 						HEADER_REQUEST_SYMBOLIC_LINK_DOWNLOAD,
-						target);		 
+						target);
 			else if(file.getSize()<=TRANSFER_SIZE)
 			{
 				mainClient.printMessage(
@@ -606,7 +606,7 @@ public abstract class SyncDaemon extends Syncrop{
 					,HEADER_REQUEST_SMALL_FILE_DOWNLOAD,
 					target);		
 			}
-			else if(file.getSize()<MAX_FILE_SIZE)
+			else if(file.getSize()<=MAX_FILE_SIZE)
 				uploadLargeFileThread.startUploadingOfFile((SyncROPFile) file, path, target);
 			else
 			{

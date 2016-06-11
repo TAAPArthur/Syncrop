@@ -71,25 +71,23 @@ class UploadLargeFileThread extends Thread
 			//mainClient.logs();
 			for(int i=0;i<size;i+=offset)
 			{	
-				//System.out.println(3.3);
-				if(i!=0)
-				{
-					for(int x=0;!fileTransferManager.canSendNextPacket()&&!isShuttingDown();x++)
-					{
+				if(!fileTransferManager.isSending())
+					throw new IOException("Upload of "+path+" was aborted");
+				if(i!=0){
+					//waits for approval to send next packet
+					while(!fileTransferManager.canSendNextPacket()&&!isShuttingDown()){
 						sleepShort();
-						//Every 100ms, this loop will be entered
-						if(x%5==0)
-						{
-							//checks to make sure that the file being sent is still the file 
-							//that should be sent and that the connection has not closed
-							if(!mainClient.isConnectionAccepted())
-								throw new IOException("connection lost with server");
-							else if(!fileTransferManager.isSending())
-								return;
-							else if(!path.equals(fileTransferManager.getFileSending()))
-								throw new IllegalAccessException("path "+path+" does not match "+
-									fileTransferManager.getFileSending());
-						}
+
+						//checks to make sure that the file being sent is still the file 
+						//that should be sent and that the connection has not closed
+						if(!mainClient.isConnectionAccepted())
+							throw new IOException("connection lost with server");
+						else if(!fileTransferManager.isSending())
+							return;
+						else if(!path.equals(fileTransferManager.getFileSending()))
+							throw new IllegalAccessException("path "+path+" does not match "+
+								fileTransferManager.getFileSending());
+					
 					}
 					if(isShuttingDown())
 						return;

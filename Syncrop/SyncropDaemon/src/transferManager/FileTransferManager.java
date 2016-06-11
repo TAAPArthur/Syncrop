@@ -235,7 +235,7 @@ public class FileTransferManager extends Thread{
 	private volatile long timeStartReceiving=0;
 	private volatile long timeStartSending=0;
 	private volatile boolean paused;
-	private volatile int timeOutSending,timeOutReceiving;
+	private volatile int timeOutSending=60,timeOutReceiving=120;
 	
 	private volatile int failCount=0;
 	
@@ -247,9 +247,7 @@ public class FileTransferManager extends Thread{
 		this.daemon=daemon;
 		
 	}
-	public static void setAddLast(boolean addLast) {
-		SendQueue.setAddLast(addLast);
-	}
+	
 	/**
 	 * Resets this FTM to default settings. The queues are cleared and it is 
 	 * not sending nor receiving. The temporary file is also deleted if it exists
@@ -264,7 +262,7 @@ public class FileTransferManager extends Thread{
 		failCount=0;
 		timeOfLastCompletedFileTransfer=0;
 		hasMetadataBeenCleaned=false;
-		setAddLast(true);
+		
 	}
 	
 	/**
@@ -374,6 +372,7 @@ public class FileTransferManager extends Thread{
 	
 	private void sendFile()
 	{
+		
 		QueueMember member=sendQueue.poll();
 		SyncROPItem file=ResourceManager.getFile(member.getPath(),member.getOwner());
 		userSendingTo=member.getTarget();
@@ -393,7 +392,7 @@ public class FileTransferManager extends Thread{
 								,file.getOwner()},
 					HEADER_ADD_TO_RECEIVE_QUEUE,userSendingTo);
 			sending=true;
-			timeOutSending=60;
+			
 			fileSendingDate=file.getDateModified();
 			fileSending=file.getPath();
 			logger.log("Sending: "+file.getPath()+" "+userSendingTo);
@@ -419,7 +418,7 @@ public class FileTransferManager extends Thread{
 		fileReceiveing=path;
 	
 		receiveing=true;
-		timeOutReceiving=120;
+		
 	}
 	public void receivedFile()
 	{
@@ -740,7 +739,6 @@ public class FileTransferManager extends Thread{
 					||haveAllFilesFinishedTranferring()){
 		
 				notitfyUser();
-				FileTransferManager.setAddLast(true);
 			}
 	}
 	private void notitfyUser()
