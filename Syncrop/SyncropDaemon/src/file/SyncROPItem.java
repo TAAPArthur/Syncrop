@@ -51,8 +51,8 @@ public abstract class SyncROPItem
 			INDEX_SYMBOLIC_LINK_TARGET=7,
 					INDEX_BYTES=7,INDEX_SIZE=8;
 	
-	public final int INDEX_LENGTH=8;
-	public final int INDEX_LENGTH_EXTENDED=9;
+	public final static int INDEX_LENGTH=8;
+	public final static int INDEX_LENGTH_EXTENDED=9;
 	
 	public static final String CONFLICT_ENDING=".SYNCROPconflict";
 		

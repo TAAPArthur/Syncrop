@@ -454,7 +454,7 @@ public class FileWatcher extends Thread{
 			
 			removeDeletedFileFromRecord(metadataFile,relativePath,owner,timeOfDelete,message);
 			if(message.size()!=0)
-				daemon.fileTransferManager.deleteManyFiles(message.toArray(new Object[message.size()][5]));
+				daemon.fileTransferManager.deleteManyFiles(message.toArray(new Object[message.size()][SyncROPItem.INDEX_LENGTH]));
 				
 			if(item instanceof SyncROPDir)
 				ResourceManager.writeFile(item);
@@ -487,7 +487,7 @@ public class FileWatcher extends Thread{
 			ResourceManager.writeFile(item);
 			message.add(item.formatFileIntoSyncData());
 			if(message.size()==maxTransferSize){	
-				daemon.fileTransferManager.deleteManyFiles(message.toArray(new Object[message.size()][5]));
+				daemon.fileTransferManager.deleteManyFiles(message.toArray(new Object[message.size()][SyncROPItem.INDEX_LENGTH]));
 				message.clear();
 				Syncrop.sleep();
 			}
