@@ -32,7 +32,6 @@ import notification.NotificationManager;
 import settings.Settings;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
-import syncrop.SyncropLogger;
 import transferManager.FileTransferManager;
 import daemon.client.SyncropClientDaemon;
 import daemon.client.SyncropCommunication;
@@ -74,10 +73,7 @@ public abstract class SyncDaemon extends Syncrop{
 	 */
 	MainSocketListener mainSocketListener=new MainSocketListener(this);
 	
-	/**
-	 * Used to upload large file 
-	 */
-	UploadLargeFileThread uploadLargeFileThread=new UploadLargeFileThread(fileTransferManager);
+	
 		
 	/**
 	 * Communication between SyncropDaemon and Cloud
@@ -244,7 +240,7 @@ public abstract class SyncDaemon extends Syncrop{
 	protected void startThreads()
 	{
 		logger.logTrace("Starting threads");
-		uploadLargeFileThread.start();
+		
 		mainSocketListener.start();
 		fileTransferManager.start();
 		new NotificationManager(fileTransferManager).start();
@@ -310,8 +306,7 @@ public abstract class SyncDaemon extends Syncrop{
 				return;
 			}
 			//sleepShort();
-			if(logger.isLogging(SyncropLogger.LOG_LEVEL_TRACE))
-				logger.log("Adding "+bytes.length+" bytes to temp file",SyncropLogger.LOG_LEVEL_TRACE);
+			logger.logAll("Adding "+bytes.length+" bytes to temp file");
 			if(end)
 				downloadFile(id,path,owner,dateModified,key,modifiedSinceLastUpdate,filePermissions,exists,bytes,size,true,true);
 			else
@@ -607,7 +602,7 @@ public abstract class SyncDaemon extends Syncrop{
 					target);		
 			}
 			else if(file.getSize()<=MAX_FILE_SIZE)
-				uploadLargeFileThread.startUploadingOfFile((SyncROPFile) file, path, target);
+				new UploadLargeFileThread((SyncROPFile) file, path, target, fileTransferManager).start();
 			else
 			{
 				logger.log("Files is too big to upload; path="+path);
@@ -663,7 +658,6 @@ public abstract class SyncDaemon extends Syncrop{
 		return true;
 	}
 	public FileTransferManager getFileTransferManager(){return fileTransferManager;}
-	public boolean isUploadingLargeFile(){return uploadLargeFileThread.isUploadingLargeFile();}
 	public boolean isConnectionAccepted(){return mainClient==null||mainClient.isConnectionAccepted();}
 	public void printMessage(Object m,String header){
 		printMessage(m, header,null);
@@ -672,5 +666,4 @@ public abstract class SyncDaemon extends Syncrop{
 		if(mainClient!=null)
 			mainClient.printMessage(m,header,target);
 	}
-	public void interruptUploadingLargeFile(){uploadLargeFileThread.interrupt();}
 }

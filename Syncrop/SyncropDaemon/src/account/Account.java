@@ -110,7 +110,7 @@ public class Account
 			"*.metadata*\t*.~lock*\t*.gvfs\t*.thumbnails*"
 	+ "\t*.backup*\t*~\t*.git*\t*.dropbox*\t*/proc/*\t*/sys/*\t*/dev/*\t*/run/*"
 	+ "\r*.*outputstream*\t*appcompat*\t*/.recommenders/*\t*.attach_pid*\t*.tmp"
-	+ "\t*.settings*\t*/sys/*\t*.bash_history\t*.classpath\t*.project";
+	+ "\t*.settings*\t*/sys/*\t*.bash_history\t*.classpath\t*.project\t*.tmp/t/.*";
 
 	/**
 	 * Creates an empty account; Username, email and token need to be specified manually

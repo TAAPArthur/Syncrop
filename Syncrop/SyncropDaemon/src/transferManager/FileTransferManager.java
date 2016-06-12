@@ -801,11 +801,7 @@ public class FileTransferManager extends Thread{
 				logger.log("Received signal to cancel upload");
 				cancelUpload(path,false, true);
 			}
-				
-			if(daemon.isUploadingLargeFile()){
-				daemon.interruptUploadingLargeFile();
-				SyncropClientDaemon.sleep();
-			}
+			
 		}
 		else if(isUserSendingTo(message.getUserID())&&
 				path.equals(getFileSending())&&
