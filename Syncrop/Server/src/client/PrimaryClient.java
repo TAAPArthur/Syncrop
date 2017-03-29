@@ -38,20 +38,7 @@ public class PrimaryClient extends GenericClient
 	 */
 	public PrimaryClient(String username,String application,int acceptProtocol,int maxConnections)throws IOException
 	{
-		this(username,"localhost",DEFAULT_PORT, application, acceptProtocol, maxConnections, 7000L);
-	}
-	/**
-	 * Creates a Client and connects it to Cloud; This Client will be the 
-	 * acts as the "host" of the connection and can control how and when other users join  
-	 * @param username  the username of the user 
-	 * @param application the name of the application
-	 * @param acceptProtocol How users will be accepted
-	 * @param maxConnections the max number of connections allowed
-	 * @throws IOException If the Client could not connect to Cloud
-	 */
-	public PrimaryClient(String username,String application,int acceptProtocol,int maxConnections,long milliSecondsPerPing)throws IOException
-	{
-		this(username,DEFAULT_HOST,DEFAULT_PORT, application, acceptProtocol, maxConnections, milliSecondsPerPing);
+		this(username,"localhost",DEFAULT_PORT, application, acceptProtocol, maxConnections);
 	}
 	
 	/**
@@ -63,17 +50,15 @@ public class PrimaryClient extends GenericClient
 	 * @param application the name of the application
 	 * @param acceptProtocol How users will be accepted
 	 * @param maxConnections the max number of connections allowed
-	 * @param milliSecondsPerPing How often the Client should ping the client and how often the Server should ping the client;
 	 * @throws IOException If the Client could not connect to Cloud
 	 */
-	public PrimaryClient(String username,String host, int port,String application,int type,int maxConnections,long milliSecondsPerPing)throws IOException
+	public PrimaryClient(String username,String host, int port,String application,int type,int maxConnections)throws IOException
 	{
 		super(username,host, port);
 	
 		acceptUser=type;
-		setMilliSecondsPerPing(milliSecondsPerPing);
 		//initiliazes this client as the host
-		printMessage(new Object[]{application,true,maxConnections,milliSecondsPerPing},Message.TYPE_CONNECTION_INFO);
+		printMessage(new Object[]{application,true,maxConnections},Message.TYPE_CONNECTION_INFO);
 		waitForConnectionThread.start();		
 	}
 

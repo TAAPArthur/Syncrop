@@ -16,13 +16,13 @@ public class SyncROPSymbolicLink extends SyncROPFile{
 	
 	public SyncROPSymbolicLink(String path, String owner,
 			String targetPath){
-		this(path, owner, -1, -1,false, targetPath,-1,false,"");
+		this(path, owner, -1, -1,false, targetPath,-1,"");
 	}
 	
 	
 	public SyncROPSymbolicLink(String path, String owner,
-			long modificicationDate,long key,boolean modifedSinceLastKeyUpdate,String targetPath,long size,boolean knownToExists,String filePermissions){
-		super(path, owner, modificicationDate,key,modifedSinceLastKeyUpdate,size,knownToExists,filePermissions);
+			long modificicationDate,long key,boolean modifedSinceLastKeyUpdate,String targetPath,long lastRecordedSize,String filePermissions){
+		super(path, owner, modificicationDate,key,modifedSinceLastKeyUpdate,lastRecordedSize,filePermissions);
 		this.targetPath=targetPath;
 		targetFile=new File(ResourceManager.getHome(getOwner(), isRemovable()),targetPath);
 		
@@ -31,8 +31,10 @@ public class SyncROPSymbolicLink extends SyncROPFile{
 					+ "it cannot be a SyncROPSymbolicLink");
 		}
 	}
-	
-	
+	@Override
+	public long getSize(){
+		return file.exists()?4:-1;
+	}
 	@Override
 	public boolean createFile(){
 		try {
@@ -50,8 +52,7 @@ public class SyncROPSymbolicLink extends SyncROPFile{
 	public boolean isTargetEmpty(){
 		return targetFile.list()==null||targetFile.list().length==0;
 	}
-	@Override
-	public long getSize(){return 0;}
+	
 	@Override
 	public boolean exists() {
 		return Files.exists(file.toPath(),LinkOption.NOFOLLOW_LINKS);

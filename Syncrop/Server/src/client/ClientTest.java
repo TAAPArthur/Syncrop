@@ -120,15 +120,6 @@ public class ClientTest
 				case "break3":
 					third.closeConnection("",true);
 					break;
-				case "stopPing":
-					((GenericClient) primary).setMilliSecondsPerPing(100000000);
-					break;
-				case "stopPing2":
-					secondary.setMilliSecondsPerPing(100000000);
-					break;
-				case "stopPing3":
-					third.setMilliSecondsPerPing(100000000);
-					break;
 			}
 		}
 		System.out.println("exiting");
@@ -147,10 +138,10 @@ public class ClientTest
 	 */
 	private Messenger getPrimary(String host,int port,boolean internal) throws IOException{
 		String username="Testuser1";
-		long milliSecondsPerPing=7000;
+		
 		if(internal){
 			return new InternalServer(Server.UNLIMITED_CONNECTIONS, port, new GenericLogger(System.out),
-					username,application, milliSecondsPerPing);
+					username,application);
 		}
 		else {
 			new ExternalServer(Server.UNLIMITED_CONNECTIONS,port,new GenericLogger(System.out));
@@ -158,7 +149,7 @@ public class ClientTest
 			try {Thread.sleep(1000);} catch (InterruptedException e2) {e2.printStackTrace();}
 			System.out.println("Server started");
 			//creates the Primary Client
-			return new PrimaryClient(username,host,port,application,PrimaryClient.AUTOMATIC_YES,3, milliSecondsPerPing);
+			return new PrimaryClient(username,host,port,application,PrimaryClient.AUTOMATIC_YES,3);
 
 		}
 	}

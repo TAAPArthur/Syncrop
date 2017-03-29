@@ -62,6 +62,7 @@ public abstract class Server
 	public void close() throws IOException{
 		for(String name:connections.keySet())
 			connections.get(name).closeAllConnections("Server is shutting down",true);
+		log("Shutting down Server Socket");
 		if(serverSocket!=null)
 			serverSocket.close();
 	}
@@ -78,10 +79,12 @@ public abstract class Server
 	 */
 	private void waitForConnection()
 	{
+		
 		new Thread("Wait for connections")
 		{
 			public void run()
 			{
+				logger.log("Now accepting connections");
 				while(!serverSocket.isClosed()){
 					try {
 						while(maxConnections==UNLIMITED_CONNECTIONS||maxConnections>connections.size())
@@ -91,14 +94,16 @@ public abstract class Server
 					catch (IOException e) {log(e);}
 					catch (Exception e) {log(e);}
 				}
+				logger.log("Finished accepting connections");
 			}
 		}.start();
 	}
 	void acceptConnection(Socket clientSocket) throws IOException, ClassNotFoundException{
+		clientSocket.setSoTimeout(60*2*1000);
 		ObjectOutputStream out = new ObjectOutputStream(new BufferedOutputStream(clientSocket.getOutputStream()));
 		out.flush();
 		ObjectInputStream in = new ObjectInputStream(new BufferedInputStream(clientSocket.getInputStream()));
-							
+		logger.log("client connected");
 		Message message=(Message) in.readObject();
 	
 		if(message==null)
@@ -108,7 +113,7 @@ public abstract class Server
 		String application=o[0]+"";
 		boolean primary=(Boolean)o[1];
 		if(primary)
-			new PrimaryConnectionThread(clientSocket, in, out, message.getUserID(), application, (int)o[2],(long)o[3]).start();
+			new PrimaryConnectionThread(clientSocket, in, out, message.getUserID(), application, (int)o[2]).start();
 		else new SecondaryConnectionThread(clientSocket,in,out,message.getUserID(),application).start();
 	
 	}

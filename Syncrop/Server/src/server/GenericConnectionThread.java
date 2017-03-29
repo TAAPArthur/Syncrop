@@ -15,10 +15,12 @@ import java.util.HashSet;
 
 import logger.Logger;
 import message.Message;
+import message.TimeoutCalculator;
 
 public abstract class GenericConnectionThread extends Thread 
 {
-
+	TimeoutCalculator timeoutCalculator=new TimeoutCalculator();
+	public int getTimeout(){return timeoutCalculator.getTimeout();}
 	private static boolean unshared=true;
 	private static long waitTime=10;
 	/**
@@ -40,7 +42,7 @@ public abstract class GenericConnectionThread extends Thread
 	 */
 	//volatile private ArrayList<String>namesOfClients=null;
 	
-	long milliSecondsPerPing;
+	
 	/**
 	 * write to client
 	 */
@@ -288,9 +290,7 @@ public abstract class GenericConnectionThread extends Thread
 	
 	class ReadMessagesThread extends Thread
 	{
-
-		public ReadMessagesThread()
-		{
+		public ReadMessagesThread(){
 			super("READ");
 		}
 		@Override
@@ -300,7 +300,6 @@ public abstract class GenericConnectionThread extends Thread
 			{
 				try 
 				{
-					
 					Message m =(Message)(unshared?in.readUnshared():in.readObject());
 					log("Read message:"+m.toString(), Logger.LOG_LEVEL_ALL);
 					active=true;
@@ -344,7 +343,10 @@ public abstract class GenericConnectionThread extends Thread
 			boolean primary=GenericConnectionThread.this instanceof PrimaryConnectionThread;
 			if(message.isMessageToServer())
 			{
-				if(message.getHeader().equals(Message.HEADER_IGNORE));
+				if(message.getHeader().equals(Message.HEADER_PING))					
+					printMessage(new Message(message.getMessage(),Server.username,Message.TYPE_MESSAGE_TO_CLIENT,Message.HEADER_PONG));
+				else if(message.getHeader().equals(Message.HEADER_PONG))
+					timeoutCalculator.calcualteTimeout((int)(System.currentTimeMillis()-(long)message.getMessage()));
 				else if(message.getHeader().equals(Message.HEADER_CLOSE_CONNECTION))
 					terminateConnection("User request:"+message.getMessage(),false);
 				else if(message.getHeader().equals(Message.HEADER_REMOVE_USER)&&primary)

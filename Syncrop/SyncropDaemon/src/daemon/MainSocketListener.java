@@ -3,6 +3,7 @@ package daemon;
 import java.io.IOException;
 
 import message.Message;
+import syncrop.Syncrop;
 
 /**
  * 
@@ -33,6 +34,8 @@ public class MainSocketListener extends Thread	{
 			{
 				if(!SyncDaemon.isInstanceOfCloud()&&!SyncDaemon.mainClient.isConnectionAccepted())
 					break;
+				if(Syncrop.isShuttingDown()&&syncDaemon.fileTransferManager.haveAllFilesFinishedTranferring())
+					break;
 				try 
 				{
 					//if(mainClient.ready())
@@ -57,7 +60,7 @@ public class MainSocketListener extends Thread	{
 				}
 				catch (Exception e) {
 					SyncDaemon.logger.logFatalError(e," caused by message:"+message);
-					SyncDaemon.removeUser(message.getUserID(), e.toString());
+					syncDaemon.removeUser(message.getUserID(), e.toString());
 				}
 				catch (OutOfMemoryError e)
 				{
@@ -70,7 +73,6 @@ public class MainSocketListener extends Thread	{
 				}		
 			}
 			if(SyncDaemon.isShuttingDown())break;
-			SyncDaemon.sleepLong();
 			this.syncDaemon.connectToServer();
 		}	
 	}

@@ -3,6 +3,7 @@ package listener;
 import static syncrop.Syncrop.isNotWindows;
 import static syncrop.Syncrop.logger;
 
+import java.io.IOException;
 import java.util.HashSet;
 
 import daemon.client.SyncropClientDaemon;
@@ -46,7 +47,7 @@ public class RemovableFileWatcher implements Runnable{
 						if(SyncropClientDaemon.isConnectionActive())
 							try {
 								syncNewlyAddedRemovableDir(parentDir.getDir());
-							} catch (IllegalAccessException e) {
+							} catch (IOException|IllegalAccessException e) {
 								logger.logError(e);
 							}
 					}
@@ -63,21 +64,18 @@ public class RemovableFileWatcher implements Runnable{
 	 * @param path - the parent path of the files to sync
 	 * @throws IllegalAccessException
 	 */
-	void syncNewlyAddedRemovableDir(String path)throws IllegalAccessException
-	{
-		try {
-			if(Syncrop.isInstanceOfCloud())
-				throw new IllegalAccessException("Cloud cannot new removable dirs");
-			if(logger.isDebugging())
-				logger.log("Syncing removable dir"+path+"; active removable dirs= "+activeRemovaleDirs);
-			if(!isNotWindows())
-				path=SyncROPDir.toLinuxPath(path);
-			
-			logger.log("Syncing newly added removable dirs");
-			
-			((SyncropClientDaemon) fileWatcher.daemon).syncFilesToCloud(path, path);
-		} catch (Error e) {
-			logger.logError(e);
-		}
+	void syncNewlyAddedRemovableDir(String path)throws IOException,IllegalAccessException
+	{	
+		if(Syncrop.isInstanceOfCloud())
+			throw new IllegalAccessException("Cloud cannot new removable dirs");
+		if(logger.isDebugging())
+			logger.log("Syncing removable dir"+path+"; active removable dirs= "+activeRemovaleDirs);
+		if(!isNotWindows())
+			path=SyncROPDir.toLinuxPath(path);
+		
+		logger.log("Syncing newly added removable dirs");
+		
+		((SyncropClientDaemon) fileWatcher.daemon).syncFilesToCloud(path, path);
+	
 	}
 }

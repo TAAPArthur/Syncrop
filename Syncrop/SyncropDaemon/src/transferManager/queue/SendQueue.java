@@ -1,16 +1,16 @@
 package transferManager.queue;
 
-import java.util.TreeSet;
+import java.util.PriorityQueue;
 
-import daemon.SyncDaemon;
 import file.SyncROPItem;
 
 public class SendQueue {
 	
-	TreeSet<QueueMember>queue=new TreeSet<QueueMember>();
+	PriorityQueue<QueueMember>queue=new PriorityQueue<QueueMember>();
 	public boolean add(SyncROPItem fileToAddToQueue,String target){
-		QueueMember queueMember=new QueueMember(fileToAddToQueue.getPath(),fileToAddToQueue.getOwner(), target,fileToAddToQueue.getSize()<=SyncDaemon.TRANSFER_SIZE);
-		
+		return add(new QueueMember(fileToAddToQueue, target));
+	}
+	public boolean add(QueueMember queueMember){
 		if(queue.contains(queueMember))
 			queue.remove(queueMember);
 		queue.add(queueMember);
@@ -21,7 +21,7 @@ public class SendQueue {
 	 * @return the first element, or null if this set is empty
 	 */
 	public QueueMember poll(){
-		return queue.pollFirst();
+		return queue.poll();
 	}
 	/**
 	 * Returns the first (lowest) element currently in this set.
@@ -29,7 +29,7 @@ public class SendQueue {
 	 * 	the first (lowest) element currently in this set.
 	 */
 	public QueueMember peek(){
-		return queue.first();
+		return queue.peek();
 	}
 	/**
 	 * Returns true if this set contains no elements.

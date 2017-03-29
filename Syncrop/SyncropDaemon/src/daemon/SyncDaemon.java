@@ -1,29 +1,24 @@
 package daemon;
 
-import static file.SyncROPItem.INDEX_DATE_MODIFIED;
-import static file.SyncROPItem.INDEX_KEY;
-import static file.SyncROPItem.INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE;
-import static file.SyncROPItem.INDEX_OWNER;
-import static file.SyncROPItem.INDEX_PATH;
 import static notification.Notification.displayNotification;
-import static transferManager.FileTransferManager.HEADER_DELETE_MANY_FILES;
 import static transferManager.FileTransferManager.HEADER_FILE_SUCCESSFULLY_UPLOADED;
-import static transferManager.FileTransferManager.HEADER_FILE_UPLOAD_NEXT_PACKET;
 import static transferManager.FileTransferManager.HEADER_REQUEST_SMALL_FILE_DOWNLOAD;
 import static transferManager.FileTransferManager.HEADER_REQUEST_SYMBOLIC_LINK_DOWNLOAD;
-import static transferManager.FileTransferManager.HEADER_UPDATE_KEYS;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
-import java.security.DigestInputStream;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 
+import daemon.client.SyncropClientDaemon;
+import daemon.client.SyncropCommunication;
+import daemon.cloud.SyncropCloud;
+import daemon.cloud.SyncropUser;
+import file.SyncROPDir;
+import file.SyncROPFile;
+import file.SyncROPItem;
+import file.SyncROPSymbolicLink;
 import listener.FileWatcher;
 import message.Message;
 import message.Messenger;
@@ -33,13 +28,6 @@ import settings.Settings;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
 import transferManager.FileTransferManager;
-import daemon.client.SyncropClientDaemon;
-import daemon.client.SyncropCommunication;
-import daemon.cloud.SyncropCloud;
-import file.SyncROPDir;
-import file.SyncROPFile;
-import file.SyncROPItem;
-import file.SyncROPSymbolicLink;
 
 public abstract class SyncDaemon extends Syncrop{
 	
@@ -54,10 +42,8 @@ public abstract class SyncDaemon extends Syncrop{
 	 * the maximum package size of a file being transfered. If the file size is less
 	 * than this value, {@value #TRANSFER_SIZE}, the entire file will be sent at once.
 	 */
-	public static final int TRANSFER_SIZE=500*KILOBYTE;
+	public static final int TRANSFER_SIZE=32*KILOBYTE;
 
-	
-	
 	/**
 	 * Checks to see if files have been modified every few seconds; The exact time
 	 * can vary based on preferences
@@ -72,9 +58,7 @@ public abstract class SyncDaemon extends Syncrop{
 	 * Handles connection between Client and Server
 	 */
 	MainSocketListener mainSocketListener=new MainSocketListener(this);
-	
-	
-		
+			
 	/**
 	 * Communication between SyncropDaemon and Cloud
 	 */
@@ -92,6 +76,9 @@ public abstract class SyncDaemon extends Syncrop{
 	public final static String HEADER_AUTHENTICATION="have cloud AUTHENTICATE the user";
 	public final static String HEADER_AUTHENTICATION_RESPONSE="the AUTHENTICATED accounts";
 	
+	public final static String HEADER_USER_SETTINGS_CONFLICT_RESOLUTION="CONFLICT_RESOLUTION";
+	public final static String HEADER_USER_SETTINGS_DELETING_FILES_NOT_ON_CLIENT="DELETING_FILES_NOT_ON_CLIENT";
+	
 	public final static String HEADER_REQUEST_FILE_RENAME="rename file";
 	
 	public final static String HEADER_SYNC_FILES="sync files to cloud";
@@ -102,6 +89,7 @@ public abstract class SyncDaemon extends Syncrop{
 	 * @see #syncDirsToCloud(String, String...)
 	 */
 	public final static String HEADER_SYNC_GET_CLOUD_FILES="sync cloud's files";
+	public final static String HEADER_SET_ENABLED_PATHS="set enabled paths";
 	
 	public final static String HEADER_CLEAN_CLOUD_FILES="clean cloud's files";
 	/**
@@ -115,6 +103,8 @@ public abstract class SyncDaemon extends Syncrop{
 	public final static String HEADER_REQUEST_ACCESS_TO_SHARED_FILE="REQUEST SHARED FILE";
 	public final static String HEADER_REQUEST_ACCESS_TO_SHARED_FILE_RESPONSE="REQUEST SHARED FILE RESPONSE";
 	public final static String HEADER_STOP_SHARING_FILE="STOP SHARING FILE";
+	
+	UploadLargeFileThread uploadLargeFileThread;
 	
 	public SyncDaemon(String instance) throws IOException{
 		super(instance);
@@ -156,33 +146,34 @@ public abstract class SyncDaemon extends Syncrop{
 	    	{
 	        	Syncrop.shutdown();
 	    		
-	    		
 	    		try {
-	    			//closes connection with server
-		    		if(mainClient!=null)
-		    			mainClient.closeConnection("shutting down",true);
-		    		
-		    		
+	    			logger.log("received kill signal");
 	    			//wakes all threads; they know to end since shuttingDown is true
 	    			fileWatcher.interrupt();
 	    			mainSocketListener.interrupt();
+	    			fileTransferManager.shutDown();
+	    			uploadLargeFileThread.interrupt();
+	    			int timeToLive=100+getExptectedFileTransferTime()*fileTransferManager.getOutstandingFiles();
+	    			
+	    			logger.log("Allowing "+timeToLive+"s for remaining files("+fileTransferManager.getOutstandingFiles()+") to finish transferring");
+	    			if(timeToLive>12000){
+	    				timeToLive=12000;
+	    				logger.log("time to live truncated to"+12000);
+	    			}
+	    			//wait for threads to die;
+	    			Thread.sleep(timeToLive);
+    				if(mainSocketListener.isAlive())
+    				{
+    					//ignoring waiting threads and proceeding with shutdown;
+    					logger.logWarning("main socket isAlive"+mainSocketListener.isAlive()+
+    							"FileWatcher isAlive:"+fileWatcher.isAlive()+
+    							"; ignoring and shutting down; "+
+    							fileTransferManager.getOutstandingFiles()+" files left outstanding");
+    				}
+	    			
 	    			if(SyncropCommunication.serverSocket!=null)
 	    				SyncropCommunication.serverSocket.close();
-	    			long startTime=System.currentTimeMillis();
-	    			//wait for threads to die;
-	    			while(mainSocketListener.isAlive()||fileWatcher.isAlive())
-	    			{
-	    				sleepShort();
-	    				if((System.currentTimeMillis()-startTime)/1000>7)
-	    				{
-	    					//ignoring waiting threads and proceeding with shutdown;
-	    					logger.logWarning("main socket isAlive"+mainSocketListener.isAlive()+
-	    							"FileWatcher isAlive:"+fileWatcher.isAlive()+
-	    							"; ignoring and shutting down");
-	    					break;
-	    				}
-	    			}
-	    			ResourceManager.getTemporaryFile().delete();
+	    			ResourceManager.deleteTemporaryFile(null);
     			} 
     			catch (NullPointerException e) 
     			{
@@ -190,12 +181,20 @@ public abstract class SyncDaemon extends Syncrop{
     					" "+fileWatcher+" equals null");
     			}
     			catch (Exception|Error e)
-    			{logger.logError(e,"occured while trying to shutdown");}
+    			{
+    				logger.logError(e,"occured while trying to shutdown");
+    			}
 	    		finally
 	    		{
-	    			mainClient=null;//will cause any remaining processes to exit via exception
-	    			//closes the notification; only needed for Windows
+	    			if(mainClient!=null){
+	    				mainClient.closeConnection("Shutting down", true);
+	    				mainClient=null;//will cause any remaining processes to exit via exception
+	    				if(mainSocketListener.isAlive())
+	    					mainSocketListener.interrupt();
+	    			}
+	    			
 	    			displayNotification("SYNCROP is shutting down");
+	    			//closes the notification; only needed for Windows
 	    			Notification.close();
 	    			logger.log("Shutting down");
 	    			ResourceManager.shutDown();
@@ -226,7 +225,7 @@ public abstract class SyncDaemon extends Syncrop{
 			logger.logFatalError(e, "occured when initializing Syncrop");
 		}
 	}
-	protected void checkFiles(){
+	protected void checkFiles ()throws IOException{
 		logger.logTrace("Checking files");
 		
 		if(Settings.allowScripts())
@@ -253,11 +252,12 @@ public abstract class SyncDaemon extends Syncrop{
 	 * @param username the user to remove; can be null if not run from Cloud
 	 * @param reason the reason the user should be removed
 	 */
-	public static void removeUser(String username,String reason)
+	public void removeUser(String username,String reason)
 	{
-		if(isInstanceOfCloud())
+		if(isInstanceOfCloud()){
 			mainClient.printMessage(new String[]{username,reason},
 					Message.TYPE_MESSAGE_TO_SERVER,Message.HEADER_REMOVE_USER);
+		}
 		else mainClient.closeConnection(reason,true);
 	}
 	
@@ -266,7 +266,7 @@ public abstract class SyncDaemon extends Syncrop{
 	 * Sets teh Permisions on the specifed file
 	 * @param item the file to set permissions for
 	 */
-	protected void setPropperPermissions(SyncROPItem item,String filePermissions){
+	public void setPropperPermissions(SyncROPItem item,String filePermissions){
 		try {
 			Files.setPosixFilePermissions(item.getFile().toPath(),
 					SyncROPItem.getPosixFilePermissions(filePermissions));
@@ -274,7 +274,26 @@ public abstract class SyncDaemon extends Syncrop{
 				logger.logError(e, " occured while trying to change the write/execute permissions of "+item.getAbsPath());
 			}
 	}
+	public void startDownloadOfLargeFile(String id,String path,String owner, long dateModified, long key,boolean modifiedSinceLastUpdate,String filePermissions,boolean exists, byte[]bytes,long size){
 		
+		try {
+			SyncROPItem localFile=ResourceManager.getFile(path, owner);
+			if(localFile!=null&&localFile.exists()){
+				byte[]b=FileTransferManager.getFileHash(localFile.getFile());
+				if(b==bytes){//same file
+					fileTransferManager.cancelDownload(id, path, true);
+					return;
+				}
+			}
+			File tempFile=ResourceManager.getTemporaryFile(id);
+			tempFile.delete();
+			tempFile.createNewFile();
+			System.out.println(tempFile+""+tempFile.exists());
+			
+		} catch (IOException e) {
+			logger.logError(e, "download of large file failed.");
+		}
+	}
 	/**
 	 * 
 	 * @param sender 
@@ -286,38 +305,32 @@ public abstract class SyncDaemon extends Syncrop{
 	 * @param size the size of the file
 	 * @param end if these are the last bytes to download
 	 */
-	public void downloadLargeFile(String id,String path,String owner, long dateModified, long key,boolean modifiedSinceLastUpdate,String filePermissions,boolean exists, byte[]bytes,long size,boolean end)
+	public void downloadLargeFile(String id,String path,String owner, long dateModified, long key,boolean modifiedSinceLastUpdate,String filePermissions,boolean exists, byte[]bytes,long size)
 	{
 		SyncROPItem localFile=ResourceManager.getFile(path, owner);
-		if(!fileTransferManager.canDownloadPacket(localFile, id, path, owner, dateModified, key, bytes,size)){
-			fileTransferManager.cancelDownload(path,true, true);
-			return;
-		}
-		fileTransferManager.updateTimeReceiving();
-		try {
-			if(!ResourceManager.getTemporaryFile().exists())
-				ResourceManager.getTemporaryFile().createNewFile();
-			Files.write(ResourceManager.getTemporaryFile().toPath(), bytes,StandardOpenOption.APPEND);
-			if(ResourceManager.getTemporaryFile().length()>MAX_FILE_SIZE)
-			{
-				logger.log("Download failed because tempFile is too large; deleting");
-				fileTransferManager.cancelDownload(path,true, true);
-				removeUser(id,"Hacking attempt");
-				return;
-			}
-			//sleepShort();
-			logger.logAll("Adding "+bytes.length+" bytes to temp file");
-			if(end)
-				downloadFile(id,path,owner,dateModified,key,modifiedSinceLastUpdate,filePermissions,exists,bytes,size,true,true);
-			else
-				mainClient.printMessage(path,HEADER_FILE_UPLOAD_NEXT_PACKET,id);
+		if(fileTransferManager.canDownloadPacket(localFile, id, path, owner, dateModified, key, bytes,size))
+			
+			try {
+				if(!ResourceManager.getTemporaryFile(id).exists()){
+					logger.log("Error not receiving begining of file first");
+					fileTransferManager.cancelDownload(id,path,true);
+					return;
+				}
+				Files.write(ResourceManager.getTemporaryFile(id).toPath(), bytes,StandardOpenOption.APPEND);
+				if(ResourceManager.getTemporaryFile(id).length()>MAX_FILE_SIZE){
+					logger.log("Download failed because tempFile is too large; deleting");
+					fileTransferManager.cancelDownload(id,path,true);
+					removeUser(id,"Hacking attempt");
+					return;
+				}
+				//sleepShort();
+				logger.logAll("Adding "+bytes.length+" bytes to temp file");
 			
 				return;
 			} catch (IOException e) {
 				logger.logError(e, "download of large file failed.");
-			}	
-		
-		fileTransferManager.cancelDownload(path,true, true);
+			}			
+		fileTransferManager.cancelDownload(id,path,true);
 	}
 	public void downloadFile(String id,String path,String owner,long dateModified,long key,boolean modifiedSinceLastUpdate,String filePermissions,boolean exists,byte[] bytes,long length,boolean copyFromFile){
 		downloadFile(id, path, owner, dateModified, key,modifiedSinceLastUpdate,filePermissions, exists, bytes, length,null, copyFromFile,true);
@@ -327,10 +340,11 @@ public abstract class SyncDaemon extends Syncrop{
 	}
 	public void downloadFile(String id,String path,String owner,long dateModified,long key,boolean modifiedSinceLastUpdate,String filePermissions,boolean exists,byte[] bytes,long length,String linkTarget,boolean copyFromFile,boolean echo){
 		SyncROPItem localFile=ResourceManager.getFile(path, owner);
-		logger.log("downloading file "+path);
+		if(exists)
+			logger.log("downloading file "+path);
 		if(!fileTransferManager.canDownloadPacket(localFile, id, path, owner, dateModified, key, bytes,length)){
 			logger.logDebug("Cannot download file "+path);
-			fileTransferManager.cancelDownload(path,true, true);
+			fileTransferManager.cancelDownload(id,path,true);
 			return;
 		}
 		
@@ -339,12 +353,13 @@ public abstract class SyncDaemon extends Syncrop{
 				||localFile!=null&&localFile.isDir())&&linkTarget!=null){
 			
 			mainClient.printMessage(new Object[]{path,key}, HEADER_FILE_SUCCESSFULLY_UPLOADED);
-			fileTransferManager.receivedFile();
+			fileTransferManager.updateDownloadFileTransferStatistics(path);
 			return;
 		}
 		ResourceManager.lockFile(path,owner);
+		
 		//if client file is directory and local file is directory
-		if(key==-1&&(localFile==null||localFile.getKey()==-1)){
+		if(key==-1&&(localFile==null||localFile instanceof SyncROPDir)){
 			logger.logTrace("downloading dir info");
 			if(localFile==null)
 				localFile=new SyncROPDir(path,owner,dateModified);
@@ -366,46 +381,57 @@ public abstract class SyncDaemon extends Syncrop{
 				//are initially synced when connection is made
 				//so any any subsequent transfer have to be newer
 				//also handeles the case of trying to download a dir when local file is not a dir
-				if(localFile!=null&&
-						((SyncROPFile)localFile).shouldMakeConflict(dateModified,key,modifiedSinceLastUpdate, length, 
-								linkTarget))//if conflict should be made 
-				{
-					
-					boolean areFilesTheSame=false;
-					try {
+				//if(localFile instanceof SyncROPDir && exists)
+				//TODO FIX conflicts
+				if(localFile!=null)
+					if(localFile instanceof SyncROPDir){
+						fileTransferManager.cancelDownload(id,path,true);
+						fileTransferManager.addToSendQueue(localFile,id);
+						break DOWNLOAD_FILE;
+					}
+					else if(key==-1){//client file is directory
+						((SyncROPFile) localFile).makeConflict();
+						addToSendQueue(localFile);
+					}
+					else if (((SyncROPFile)localFile).shouldMakeConflict(dateModified,key,modifiedSinceLastUpdate, length, 
+								linkTarget))//if conflict should be made
+					if(allowConflicts(id)&&localFile.exists()){
+						boolean areFilesTheSame=false;
 						if(copyFromFile){
-							MessageDigest md = MessageDigest.getInstance("MD5");
-							byte[]b=md.digest(bytes);
-							if(b!=null&&b.equals(getFileHash(ResourceManager.getTemporaryFile())))
+							
+							byte[]b=FileTransferManager.getHash(bytes);
+						
+							if(b!=null&&b.equals(FileTransferManager.getFileHash(ResourceManager.getTemporaryFile(id))))
 								areFilesTheSame=true;
 						}
 						else {
-							byte[]b=getFileHash(localFile.getFile());
-							if(b!=null&&b.equals(getFileHash(ResourceManager.getTemporaryFile())))
+							if(bytes.equals(FileTransferManager.getFileHash(ResourceManager.getTemporaryFile(id))))
 								areFilesTheSame=true;
 						}
-					} catch (NoSuchAlgorithmException e) {}
-					if(areFilesTheSame){
-						logger.log(localFile.getPath()+"  is out of sync but both versions are the same");
-						break DOWNLOAD_FILE;
+						
+						if(areFilesTheSame){
+							logger.log(localFile.getPath()+"  is out of sync but both versions are the same; updating modification date to match sent file");
+							//sync the modification date of the files
+							localFile.setDateModified(dateModified);
+							localFile.save();
+							//TODO move to own method
+							break DOWNLOAD_FILE;
+						}
+						logger.log("Conflict occured while trying to download file;"
+								+ " local file is being renamed");
+						logger.log(localFile.toString());
+						((SyncROPFile) localFile).makeConflict();
+						addToSendQueue(localFile);
+						localFile=null;
 					}
-					logger.log("Conflict occured while trying to download file;"
-							+ " local file is being renamed");
-					logger.log(localFile.toString());
-					((SyncROPFile) localFile).makeConflict();
-					localFile.save();
-					addToSendQueue(localFile);
 					
-					localFile=null;
-				}
-				
 				if(localFile==null)
 					localFile=(linkTarget==null)?
-							new SyncROPFile(path,owner,dateModified, key,false,length,false,""):
-								new SyncROPSymbolicLink(path,owner,dateModified, key,false,linkTarget,length,false,"");
-				
+							new SyncROPFile(path,owner,dateModified, key,false,length,""):
+								new SyncROPSymbolicLink(path,owner,dateModified, key,false,linkTarget,length,"");
+	
 				if(!exists){
-					localFile.delete(dateModified);
+					localFile.delete(dateModified);			
 					Syncrop.sleepVeryShort();
 				}
 				else if(linkTarget!=null){
@@ -419,20 +445,19 @@ public abstract class SyncDaemon extends Syncrop{
 					
 					if(copyFromFile)
 					{
-						if(ResourceManager.getAccount(owner).willBeFull(length))
-						{
-							fileTransferManager.cancelDownload(path,true, true);
+						if(ResourceManager.getAccount(owner).willBeFull(length)){
+							fileTransferManager.cancelDownload(id,path,true);
 								removeUser(id, "Unexpected: No space left in account");
 							throw new IllegalArgumentException("No space left in account");
 						}
-						if(length==ResourceManager.getTemporaryFile().length())
-							Files.copy(ResourceManager.getTemporaryFile().toPath(), file.toPath(),StandardCopyOption.REPLACE_EXISTING);
+						if(length==ResourceManager.getTemporaryFile(id).length())
+							Files.copy(ResourceManager.getTemporaryFile(id).toPath(), file.toPath(),StandardCopyOption.REPLACE_EXISTING);
 						else {
 							logger.log("Error downloading large file:"+path+" the length of bytes " +
-								"does not equal bytes obtained. "+length+" != "+ResourceManager.getTemporaryFile().length());
+								"does not equal bytes obtained. "+length+" != "+ResourceManager.getTemporaryFile(id).length());
 							return;
 						}
-						ResourceManager.deleteTemporaryFile();
+						ResourceManager.deleteTemporaryFile(id);
 					}
 					else Files.write(file.toPath(), bytes,
 							StandardOpenOption.CREATE,StandardOpenOption.TRUNCATE_EXISTING,StandardOpenOption.WRITE,
@@ -442,7 +467,7 @@ public abstract class SyncDaemon extends Syncrop{
 			catch (SecurityException|IOException e){
 				logger.logFatalError(e, "occured while to trying to download file; Download has failed. path="+path);
 				ResourceManager.unlockFile(path,owner);
-				fileTransferManager.cancelDownload(path,true, true);
+				fileTransferManager.cancelDownload(id,path,true);
 				return;
 			}
 			
@@ -462,8 +487,9 @@ public abstract class SyncDaemon extends Syncrop{
 			
 			if(localFile instanceof SyncROPFile){
 				//long newKey=isInstanceOfCloud()?Math.max(localFile.getKey(), key)+1:key;
-				long newKey=isInstanceOfCloud()?localFile.getDateModified():key;
-				((SyncROPFile) localFile).setKey(newKey);
+				if(isInstanceOfCloud())
+					((SyncROPFile)localFile).updateKey();
+				else ((SyncROPFile)localFile).setKey(key);
 			}
 			
 			localFile.save();
@@ -471,14 +497,11 @@ public abstract class SyncDaemon extends Syncrop{
 			
 			if(key!=-1&&exists&&localFile.getDateModified()!=dateModified)
 				logger.logWarning("The modification date of file "+localFile.getFile()+" was not set correctly");
-			
-			if(path.equals(fileTransferManager.getFileReceiveing())){
-				logger.logTrace("Sending confirmation message");
-				fileTransferManager.receivedFile();
-				mainClient.printMessage(new Object[]{path,localFile.getKey()}, HEADER_FILE_SUCCESSFULLY_UPLOADED,id);
-			}
-			else logger.logTrace("Skipping confirmation message for"+path);
-			
+				
+			logger.logTrace("Sending confirmation message");
+			fileTransferManager.updateDownloadFileTransferStatistics(path);
+			mainClient.printMessage(localFile.formatFileIntoSyncData(), HEADER_FILE_SUCCESSFULLY_UPLOADED,id);
+					
 			if(echo&&isInstanceOfCloud())
 				((SyncropCloud)(this)).updateAllClients(localFile,id);
 			
@@ -493,43 +516,57 @@ public abstract class SyncDaemon extends Syncrop{
 		}*/
 	}
 	
-	public String deleteManyFiles(String userId,Object[][] files){
-		logger.log("Deleting many files");
-		String owner=null;
-		for(Object syncData[]:files){
-			String path=(String)syncData[INDEX_PATH];
-			owner=(String)syncData[INDEX_OWNER];
-			long dateModified=(long)syncData[INDEX_DATE_MODIFIED];
-			long key=(long)syncData[INDEX_KEY];
-			boolean updatedSinceLastUpdate=(boolean)syncData[INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE];
-			downloadFile(userId, path,owner, dateModified, key,updatedSinceLastUpdate,"", false, null, -1, false,false);
-		}
-		return owner;
+	public boolean allowConflicts(String id){
+		return Settings.isConflictsAllowed();
+	}
+	public boolean isLocalFileNewerVersion(String id,SyncROPItem localFile,long dateMod,long key,boolean modifiedSinceLastUpdate,String targetOfLink){
+		
+		if(localFile==null)return false;
+		//TODO file specific settigns
+		if(Settings.getConflictResolution()==Settings.LOCAL_FILE_ALWAYS_WINS)return true;
+		if(Settings.getConflictResolution()==Settings.LOCAL_FILE_ALWAYS_LOSES)return false;
+		if(isInstanceOfCloud()){
+			SyncropUser user=SyncropCloud.getSyncropUser(id);
+			if(user.getConflictResolution()==Settings.LOCAL_FILE_ALWAYS_WINS)return false;
+			if(user.getConflictResolution()==Settings.LOCAL_FILE_ALWAYS_LOSES)return true;
+		}		
+		if(!localFile.isEmpty()&&key!=-1)//localFile is non-empty dir and client file is file 
+			return true;
+		return localFile.isNewerThan(dateMod);
 	}
 	
-	private byte[]getFileHash(File file){
-		try {
-			MessageDigest md = MessageDigest.getInstance("MD5");
-			InputStream is = new FileInputStream(file);
-			DigestInputStream dis = new DigestInputStream(is, md);
-			while(dis.available()>0)
-				dis.read();
-			dis.close();
-			return md.digest();
-		} catch (NoSuchAlgorithmException | IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+	public boolean isLocalFileOlderVersion(String id,SyncROPItem localFile,long dateMod,long key,boolean modifiedSinceLastUpdate,String targetOfLink){
+		
+		if(localFile==null)return true;
+		//TODO file specific settigns
+		if(Settings.getConflictResolution()==Settings.LOCAL_FILE_ALWAYS_WINS)return false;
+		if(Settings.getConflictResolution()==Settings.LOCAL_FILE_ALWAYS_LOSES)return true;
+		
+		if(isInstanceOfCloud()){
+			SyncropUser user=SyncropCloud.getSyncropUser(id);
+			if(user.getConflictResolution()==Settings.LOCAL_FILE_ALWAYS_WINS)return true;
+			if(user.getConflictResolution()==Settings.LOCAL_FILE_ALWAYS_LOSES)return false;
 		}
-		return null;
+		
+		
+		if(!localFile.isEmpty()&&key!=-1)//localFile is non-empty dir and client file is file
+			return false;
+		return localFile.isOlderThan(dateMod);
 	}
+		
+	
 	/**
 	 * tells the reciepent to download a file
 	 * @param owners
 	 * @param path
 	 */
-	public void uploadFile(String path,String owner,String target)
+	public void uploadFile(String path,String owner,String target){
+		uploadFile(ResourceManager.getFile(path, owner), target);
+	}
+	public void uploadFile(SyncROPItem file,String target)
 	{
-		
+		logger.log("uploading "+file);
+		String path=file.getPath();
 		if(!isConnectionActive())
 		{
 			logger.log("file path="+path+" cannot be sent because connection is not active");
@@ -539,44 +576,22 @@ public abstract class SyncDaemon extends Syncrop{
 			" init connection="+initializingConnection);
 			return;
 		}
-		
-		SyncROPItem file=ResourceManager.getFile(path, owner);
-		
-		logger.log("uploading "+file);
-		
-		if(file==null)
-		{
-			logger.log("upload failed; file not found; file:"+file+" owner"+owner);
-			
-			//upload failed
-			fileTransferManager.cancelUpload(path,true, true);
+		if(!file.isEnabled()){
+			logger.log("upload failed; file is not enabled; file:"+file);
 			return;
 		}
-		else if(!file.isEnabled()){
-			logger.log("upload failed; file is not enabled; file:"+file+" owner"+owner);
-			//upload failed
-			fileTransferManager.cancelUpload(path,true, true);
-			return;
-		}
-		/*
-		else if(!file.exists()){
-			//fileTransferManager.cancelUpload(path,true, true);
-			mainClient.printMessage(file.getPath(),HEADER_ADD_TO_SEND_QUEUE,target);
-			return;
-		}*/
+		
 		//a dir is trying to be uploaded which means there is a file on the client with the same name that is not synced
 		else if(file.isDir()){
 			if(!((SyncROPDir) file).isEmpty()){
-				logger.logTrace("upload failed; file is a non empty dir; file:"+file+" owner"+owner);
-				file.remove();
-				//upload failed
-				fileTransferManager.cancelUpload(path,true, true);
+				logger.logTrace("upload failed; file is a non empty dir; file:"+file);
+				file.deleteMetadata();
 			}
 			else 
 				mainClient.printMessage(
-						file.formatFileIntoSyncData(null)
-						,HEADER_REQUEST_SMALL_FILE_DOWNLOAD,
-						target);
+					file.formatFileIntoSyncData(null)
+					,HEADER_REQUEST_SMALL_FILE_DOWNLOAD,
+					target);
 			return;
 		}
 		
@@ -602,16 +617,12 @@ public abstract class SyncDaemon extends Syncrop{
 					target);		
 			}
 			else if(file.getSize()<=MAX_FILE_SIZE)
-				new UploadLargeFileThread((SyncROPFile) file, path, target, fileTransferManager).start();
+				(uploadLargeFileThread= new UploadLargeFileThread((SyncROPFile) file, target, fileTransferManager)).start();
 			else
-			{
 				logger.log("Files is too big to upload; path="+path);
-				fileTransferManager.cancelUpload(path,true, true);
-			}
 		}
 		catch (Exception e)
 		{
-			fileTransferManager.cancelUpload(path,true, true);
 			logger.logFatalError(e,"occured while trying to upload file="+file);
 		}
 	}
@@ -628,6 +639,7 @@ public abstract class SyncDaemon extends Syncrop{
 	}
 	
 	public void addToSendQueue(SyncROPItem item){
+	
 		if(SyncropClientDaemon.isInstanceOfCloud())
 			((SyncropCloud)(this)).updateAllClients(item, null);
 		else fileTransferManager.addToSendQueue(item, CLOUD_USERNAME);
@@ -641,21 +653,25 @@ public abstract class SyncDaemon extends Syncrop{
 	public abstract boolean verifyUser(String id,String accountName);
 	
 	protected boolean handleResponse(Message message){
-		if(!isInstanceOfCloud() && message.getHeader().equals(HEADER_UPDATE_KEYS))
-			fileTransferManager.updateKeys((Object[][])message.getMessage());
-		else if(message.getHeader().contains("queue"))
+		if(message.getHeader().contains("queue"))
 			fileTransferManager.addToQueueRequest(message);
+		
 		else if(message.getHeader().contains("upload"))
 			fileTransferManager.uploadRequest(message);
-		else if(message.getHeader().contains("download"))
-			fileTransferManager.downloadRequest(message);
-		else if(message.getHeader().equals(HEADER_DELETE_MANY_FILES))
-			fileTransferManager.deleteManyRequest(message);
+		else if(!Syncrop.isShuttingDown()) 
+			if(message.getHeader().contains("download"))
+				fileTransferManager.downloadRequest(message);
 		/*else if(message.getHeader().equals(HEADER_REQUEST_FILE_RENAME)){
 			tryToRenameFile();
 		}*/		
 		else return false;
 		return true;
+	}
+	public int getExptectedFileTransferTime(){
+		return Math.max(mainClient.getTimeout(),50);
+	}
+	public boolean isSendingLargeFile(){
+		return uploadLargeFileThread!=null&&uploadLargeFileThread.isAlive();
 	}
 	public FileTransferManager getFileTransferManager(){return fileTransferManager;}
 	public boolean isConnectionAccepted(){return mainClient==null||mainClient.isConnectionAccepted();}

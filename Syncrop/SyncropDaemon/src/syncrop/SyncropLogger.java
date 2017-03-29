@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
@@ -62,9 +63,10 @@ public class SyncropLogger implements logger.Logger{
 	 * @see #setLogLevel
 	 */
 	public SyncropLogger(int level,String logFileName) throws IOException {
+		
 		setLogLevel(level);
 		logFile=new File(getConfigFilesHome(),logFileName);
-		
+		System.out.println("logFile: "+logFile);
 		if(!logFile.exists()){
 			logFile.getParentFile().mkdirs();
 			logFile.createNewFile();
@@ -161,6 +163,7 @@ public class SyncropLogger implements logger.Logger{
 		log(message,LOG_LEVEL_TRACE,null);
 	}
 	public void logAll(String message){
+		
 		log(message,LOG_LEVEL_ALL,null);
 	}
 	
@@ -182,21 +185,13 @@ public class SyncropLogger implements logger.Logger{
 		
         String dateText= dateTimeFormat.format(new Date());
         
-        /*
-         * switch(type) {
-            case SimpleLog.LOG_LEVEL_TRACE: buf.append("[TRACE] "); break;
-            case SimpleLog.LOG_LEVEL_DEBUG: buf.append("[DEBUG] "); break;
-            case SimpleLog.LOG_LEVEL_INFO:  buf.append("[INFO] ");  break;
-            case SimpleLog.LOG_LEVEL_WARN:  buf.append("[WARN] ");  break;
-            case SimpleLog.LOG_LEVEL_ERROR: buf.append("[ERROR] "); break;
-            case SimpleLog.LOG_LEVEL_FATAL: buf.append("[FATAL] "); break;
-        }
-         */
+        
 
         String logSting=dateText+": "+
         		(isLogging(LOG_LEVEL_TRACE)?"("+Thread.currentThread().getName()+") ":"")
         		+(t==null?"":t.toString())+message;
-        
+        if(isLogging(LOG_LEVEL_ALL)&&logLevel<=LOG_LEVEL_TRACE)
+        	logSting+="thread dump"+Arrays.asList(Thread.currentThread().getStackTrace());
         LogRecord record=new LogRecord(Level.parse(logLevel+""), logSting);
         
         record.setThrown(t);

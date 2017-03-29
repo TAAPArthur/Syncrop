@@ -58,8 +58,23 @@ public class Settings {
 	static private boolean autoStart=false;
 	
 	static final String settingsFileName="syncrop.settings";
+	static final String cloudSettingsFileName="syncrop-cloud.settings";
 	
 	
+	
+	public static final int DEFAULT=0;
+	public static final int LOCAL_FILE_ALWAYS_WINS=1;
+	public static final int LOCAL_FILE_ALWAYS_LOSES=-1;
+	static int conflictResolution=0;
+	public static int getConflictResolution(){return conflictResolution;}
+	public static void setConflictResolution(int conflictResolution){Settings.conflictResolution=conflictResolution;}
+	static boolean allowConflicts=true;
+	public static boolean isConflictsAllowed(){return allowConflicts;}
+	public static void setConflictsAllowed(boolean conflictsAllowed){allowConflicts=conflictsAllowed;}
+	
+	static boolean deletingFilesNotOnClient=false;
+	public static boolean isDeletingFilesNotOnClient(){return deletingFilesNotOnClient;}
+	public static void setDeletingFilesNotOnClient(boolean b){deletingFilesNotOnClient=b;}
 	
 
 	/**
@@ -129,9 +144,7 @@ public class Settings {
 			startSyncrop.delete();
 	}
 	public static void createAutoStartFile(boolean create) throws IOException{
-		if(isNotWindows()&&isNotMac())
-		{
-			
+		if(isNotWindows()&&isNotMac()){
 			if(!isInstanceOfCloud())
 			{
 				File autoStartSyncrop=new File(HOME,".config/autostart/startSyncrop"+Syncrop.getInstance()+".desktop");
@@ -194,6 +207,13 @@ public class Settings {
 	}
 	public static void setAllowEncription(boolean allowEncription) {
 		Settings.allowEncription = allowEncription;
+	}
+	
+	public static void setUniversalRestrictions(String s){
+		Account.addUniversalRestriction(s.split("\t"));
+	}
+	public static String getUniversalRestrictions(){
+		return Account.getUniversalRestrictions();
 	}
 	
 }

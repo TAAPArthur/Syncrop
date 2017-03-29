@@ -29,15 +29,14 @@ import org.json.simple.JSONArray;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import daemon.cloud.filesharing.SharedFile;
-
-import settings.Settings;
 import account.Account;
+import daemon.cloud.filesharing.SharedFile;
 import file.Directory;
 import file.SyncROPDir;
 import file.SyncROPFile;
 import file.SyncROPItem;
 import file.SyncROPSymbolicLink;
+import settings.Settings;
 
 /** 
  * 
@@ -56,7 +55,7 @@ public class ResourceManager
 	
 	/**
 	 * This file stores the user configuration like ID, Account names and passwords<br/>
-	 * Modifying this file while Syncrop is running will cause it to reload the info 
+	 //*Modifying this file while Syncrop is running will cause it to reload the info 
 	 */
 	static File configFile;
 	
@@ -67,6 +66,8 @@ public class ResourceManager
 	 */
 	static File metaDataFile;
 	static File metaDataVersionFile;
+	static final String REMOVABLE_DIR_NAME="removable";
+	static final String REGULAR_DIR_NAME="regular";
 	
 	/**
 	 * The home folder for the user<br/> 
@@ -79,7 +80,7 @@ public class ResourceManager
 	 * The name of the directory that holds configuration files
 	 */
 	public static String configFilesDirName="syncrop";
-	private static File temporaryFile;
+	
 	private static File temp;
 	
 	
@@ -184,12 +185,17 @@ public class ResourceManager
 		return relativePath;
 	}
 	public static String getSyncropCloudHome(){return SYNCROP_CLOUD_HOME;}
+	
+	public static String getOwner(String absPath){
+		String temp=absPath.substring(SYNCROP_CLOUD_HOME.length());
+		return temp.substring(0, temp.indexOf(File.separatorChar));
+	}
 	public static String getHome(String accountName,boolean removable)
 	{
 		//TODO make path settings
 		if(Syncrop.isInstanceOfCloud())
-			return SYNCROP_CLOUD_HOME+
-				(removable?"removable"+File.separatorChar+accountName:accountName+File.separatorChar);
+			return SYNCROP_CLOUD_HOME+accountName+File.separatorChar+
+				(removable?REMOVABLE_DIR_NAME:REGULAR_DIR_NAME)+File.separatorChar;
 		else 
 			return removable?"":HOME+File.separatorChar;
 	}
@@ -238,7 +244,7 @@ public class ResourceManager
 	{
 		return lastRecordedModificationDateOfConfigFile!=configFile.lastModified();
 	}
-	private static String formatCollection(HashSet<? extends Directory>collection)
+	public static String formatCollection(HashSet<? extends Directory>collection)
 	{
 		String dirs="";
 		if(collection.isEmpty())return dirs;
@@ -249,13 +255,6 @@ public class ResourceManager
 	}
 	
 	public static File getConfigFile(){return configFile;}
-	public static File getTemporaryFile(){return temporaryFile;}
-	
-	public static File createTemporaryFile(File file){
-		File tempFile=new File(temp,(""+Math.random()).substring(2)+file.getName());
-		tempFile.deleteOnExit();
-		return tempFile;
-	}
 	
 	/**
 	 * Reads the {@link #configFile} and constructs accounts based on its data. 
@@ -346,14 +345,17 @@ public class ResourceManager
 					System.exit(0);
 				}
 			}
+			logger.logDebug("Accounts: "+accounts.toString());
 			in.close();
 			boolean sameMetaDataVersion=false;
 			if(metaDataVersionFile.exists()){
 				in=new BufferedReader(new InputStreamReader(new FileInputStream(metaDataVersionFile)));
 				sameMetaDataVersion=in.readLine().equals(Syncrop.getMetaDataVersion());
 			}
-			if(!sameMetaDataVersion&&metaDataFile.exists())
+			if(!sameMetaDataVersion&&metaDataFile.exists()){
+				logger.log("Metadata version is not the same; current version is"+Syncrop.getMetaDataVersion());
 				deleteMetadata();	
+			}
 		}
 		catch (IOException|SecurityException e){
 			logger.logFatalError(e,"tyring to read from config file");
@@ -364,6 +366,7 @@ public class ResourceManager
 	}
 	private static void deleteMetadata() throws IOException{
 		logger.log("deleting metadata");
+		
 		Files.walkFileTree(metaDataFile.toPath(), new RecursiveDeletionFileVisitor());
 		metaDataFile.mkdirs();
 		metaDataVersionFile.createNewFile();
@@ -376,6 +379,7 @@ public class ResourceManager
 		return readFile(getMetadataFile(relativePath,owner));
 	}	
 	
+	
 	/**
 	 * Converts the path of a file to be synced to a metadata file that stores its meta data for syncing
 	 * @param syncedPath the path of the file
@@ -384,7 +388,7 @@ public class ResourceManager
 	 */
 	public static File getMetadataFile(String syncedPath,String owner){		
 		boolean removable=isFileRemovable(syncedPath);
-		String prefix=removable?"removable":"regular";
+		String prefix=removable?REMOVABLE_DIR_NAME:REGULAR_DIR_NAME;
 					
 		if(isInstanceOfCloud())
 			prefix=owner+File.separator+prefix;
@@ -392,7 +396,7 @@ public class ResourceManager
 	}
 	public static File getMetadataHome(String owner,boolean removable){		
 		
-		String prefix=removable?"removable":"regular";
+		String prefix=removable?REMOVABLE_DIR_NAME:REGULAR_DIR_NAME;
 					
 		if(isInstanceOfCloud())
 			prefix=owner+File.separator+prefix;
@@ -421,8 +425,7 @@ public class ResourceManager
 	}
 	public static void writeFile(SyncROPItem file){
 		try {
-			if(file.exists()&&file.isDir()&&!((SyncROPDir) file).isEmpty())
-				return;
+			//if(file.exists()&&file.isDir()&&!((SyncROPDir) file).isEmpty())return;
 			File metaDataFile=getMetadataFile(file.getPath(), file.getOwner());
 			if(!metaDataFile.exists()){
 				metaDataFile.getParentFile().mkdirs();
@@ -437,9 +440,9 @@ public class ResourceManager
 			out.write(file.getOwner());out.newLine();
 			out.write(file.getDateModified()+"");out.newLine();
 			out.write(file.getKey()+"");out.newLine();
+			
 			out.write(file.modifiedSinceLastKeyUpdate()+"");out.newLine();
 			out.write(file.getSize()+"");out.newLine();
-			out.write(file.isDeletionRecorded()+"");out.newLine();
 			out.write(file.getFilePermissions());out.newLine();
 			
 			out.close();
@@ -464,10 +467,10 @@ public class ResourceManager
 				if(!isInstanceOfCloud())owner=getAccount().getName();
 				long dateModified=Long.parseLong(in.readLine());
 				long key=Long.parseLong(in.readLine());
-				boolean modifedSinceLastKeyUpdate=Boolean.parseBoolean(in.readLine());
-				long size=Long.parseLong(in.readLine());
 				boolean isDir=key==-1;
-				boolean deletionRecorded=Boolean.parseBoolean(in.readLine());
+				boolean modifedSinceLastKeyUpdate=Boolean.parseBoolean(in.readLine());
+				long lastRecordedSize=Long.parseLong(in.readLine());
+				
 				String filePermissions=	in.readLine();
 				//TODO String shared;
 				
@@ -489,28 +492,26 @@ public class ResourceManager
 							target=targetOfLink;
 					} catch (IOException e) {logger.logError(e);}
 				
-					file = new SyncROPSymbolicLink(path,owner,dateModified,key,modifedSinceLastKeyUpdate,target,size,deletionRecorded,filePermissions);
+					file = new SyncROPSymbolicLink(path,owner,dateModified,key,modifedSinceLastKeyUpdate,target,lastRecordedSize,filePermissions);
 				}
 				else if(isDir)
-					file = new SyncROPDir(path, owner,dateModified,deletionRecorded,filePermissions);
+					file = new SyncROPDir(path, owner,dateModified,lastRecordedSize,filePermissions);
 				else 
-					file=new SyncROPFile(path, owner,dateModified,key,modifedSinceLastKeyUpdate,size,deletionRecorded,filePermissions);
+					file=new SyncROPFile(path, owner,dateModified,key,modifedSinceLastKeyUpdate,lastRecordedSize,filePermissions);
 	
 				//if(file.isEnabled())
 					return file;
 				//break;
 			}
-			if(Syncrop.isShuttingDown())
-				throw new SyncropCloseException();
 		} 
 		catch (FileNotFoundException e){
-			logger.log(e.toString(),SyncropLogger.LOG_LEVEL_ALL);
+			logger.logTrace(e.toString()+" cannot read metadata "+metaDataFile);
 			return null;
 		}
 		catch (IllegalArgumentException e){
 			logger.logWarning(e.toString()+" metadata file is being deleted file:"+metaDataFile);
 			metaDataFile.delete();
-			throw e;
+			//throw e;
 			//return null;
 		}
 		
@@ -534,25 +535,24 @@ public class ResourceManager
 	 */
 	public static void initializeConfigurationFiles()
 	{
-		configFilesDirName=configFilesDirName+Syncrop.getInstance();
+		configFilesDirName+=Syncrop.getInstance();
 		if(!new File(getConfigFilesHome()).exists())
 			new File(getConfigFilesHome()).mkdirs();
 		configFile=new File(getConfigFilesHome(),"syncrop.ini");
 		metaDataFile=new File(getConfigFilesHome(),".metadata");
 		metaDataVersionFile=new File(metaDataFile,"METADATA_VERSION");
 		temp=new File(getConfigFilesHome(),".temp");
-		temporaryFile=new File(temp,"~.temporaryfile.temp");
 		
-		deleteTemporaryFile();
 		try {
 			if(!temp.exists())temp.mkdir();
 			if(!configFile.exists())configFile.createNewFile();
-			
 			if(!metaDataFile.exists())metaDataFile.mkdir();
+			deleteTemporaryFile(null);
 		}
 		catch (IOException e) 
 		{
-			logger.logError(e,"trying to create one of the Syncrop configuration files");
+			System.err.println("trying to create one of the Syncrop configuration files");
+			e.printStackTrace();
 		}
 	}
 	
@@ -561,11 +561,32 @@ public class ResourceManager
 	 * Deletes the temporary file if it already exists
 	 * @return true if the temporaryFile was deleted successfully
 	 */
-	public static boolean deleteTemporaryFile(){
-		if(temporaryFile.exists())
-			return temporaryFile.delete();
-		return false;
+	public static void deleteTemporaryFile(String user){
+		try {
+			if(user==null)
+				for(File f:temp.listFiles())
+					if(f.getName().endsWith(".temp"))
+						Files.deleteIfExists(f.toPath());
+			else
+				Files.deleteIfExists(getTemporaryFile(user).toPath());
+		} catch (IOException e) {
+			logger.logError(e,"temp file failed to be deleted: "+getTemporaryFile(user));
+		}
 	}
+	public static String getTemporaryFilename(String user){
+		return "~"+user+".temp";
+	}
+	public static File getTemporaryFile(String user){
+		return new File(temp,getTemporaryFilename(user));
+	}
+	
+	
+	public static File createTemporaryFile(File file){
+		File tempFile=new File(temp,(""+Math.random()).substring(2)+file.getName());
+		tempFile.deleteOnExit();
+		return tempFile;
+	}
+	
 	
 	/**
 	 * 
@@ -575,7 +596,7 @@ public class ResourceManager
 	{
 		if(notWindows)
 			if(Syncrop.notMac)//linux support
-				return Syncrop.isInstanceOfCloud()?File.separatorChar+configFilesDirName+File.separatorChar:
+				return //Syncrop.isInstanceOfCloud()?File.separatorChar+configFilesDirName+File.separatorChar:
 					HOME+File.separatorChar+"."+configFilesDirName;
 			else //mac support 
 				return HOME+"/Library/Application Support/."+configFilesDirName+"/";
@@ -613,8 +634,7 @@ public class ResourceManager
 	public static boolean canReadAndWriteSyncropConfigurationFiles()
 	{
 		return canReadAndWriteFile(configFile)&&canReadAndWriteFile(metaDataFile)&&
-				canReadAndWriteFile(logger.getLogFile())&&
-				(temporaryFile.exists()?canReadAndWriteFile(temporaryFile):true);
+				canReadAndWriteFile(logger.getLogFile());
 	}
 	/**
 	 * 
@@ -681,7 +701,8 @@ public class ResourceManager
 		try {
 			JSONParser parser=new JSONParser();
 			File commandFile=new File(getConfigFilesHome(),"commands.json");
-			return (JSONArray)parser.parse(new FileReader(commandFile));
+			if(commandFile.exists())
+				return (JSONArray)parser.parse(new FileReader(commandFile));
 		} catch (IOException | ParseException e) {
 			Settings.setAllowScripts(false);
 			logger.logError(e, "while trying to load commands");

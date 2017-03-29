@@ -72,11 +72,7 @@ public class Message implements Serializable
 	public static final byte TYPE_MESSAGE_TO_SERVER=4;
 	
 
-	/**
-	 * Used to tell recipient that the connection is still active<br/>
-	 * Use with header {@link #TYPE_MESSAGE_TO_CLIENT} or {@link #TYPE_MESSAGE_TO_SERVER}
-	 */
-	public static final String MESSAGE_PING="PING";
+	
 	/**
 	 * A message from the Server to Primary Client 
 	 * indicating that their are no Secondary Clients<br/>
@@ -111,8 +107,13 @@ public class Message implements Serializable
 	public static final String HEADER_CLOSE_CONNECTION="CLOSE_CONNECTION";
 	public static final String HEADER_REMOVE_USER="REMOVE USER";
 	public static final String HEADER_NEW_USER="NEW USER";
-	public static final String HEADER_SET_MILLISECONDS_TILL_PING="HEADER_SET_MILLISECONDS_TO_PING";
-	public static final String HEADER_IGNORE="IGNORE";
+	/**
+	 * Used to tell recipient that the connection is still active<br/>
+	 * Use with header {@link #TYPE_MESSAGE_TO_CLIENT} or {@link #TYPE_MESSAGE_TO_SERVER}
+	 */
+	
+	public static final String HEADER_PING="PING";
+	public static final String HEADER_PONG="PONG";
 	
 	private Object message;
 	private String userID;
@@ -171,10 +172,7 @@ public class Message implements Serializable
 	{
 		this(message.message,message.userID,message.type,message.header);
 	}
-	public Message(Message message,String username)
-	{
-		this(message.message,message.userID,message.type,message.header);
-	}
+	
 	/**
 	 * Adds names to send this message to
 	 * @param targetsToInclude a list of Messengers to send this message to

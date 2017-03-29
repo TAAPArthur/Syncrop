@@ -17,9 +17,21 @@ import static syncrop.Syncrop.isInstanceOfCloud;
 import static syncrop.Syncrop.isNotWindows;
 import static syncrop.Syncrop.logger;
 
-import java.util.LinkedList;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
 
-import listener.FileWatcher;
+import daemon.SyncDaemon;
+import daemon.client.SyncropClientDaemon;
+import daemon.cloud.SyncropCloud;
+import file.SyncROPFile;
+import file.SyncROPItem;
+import logger.Logger;
 import message.Message;
 import settings.Settings;
 import syncrop.ResourceManager;
@@ -27,11 +39,6 @@ import syncrop.Syncrop;
 import syncrop.SyncropLogger;
 import transferManager.queue.QueueMember;
 import transferManager.queue.SendQueue;
-import daemon.SyncDaemon;
-import daemon.client.SyncropClientDaemon;
-import daemon.cloud.SyncropCloud;
-import file.SyncROPFile;
-import file.SyncROPItem;
 /**
  * This class has a queue for sent and receive files. File transfer requests will be
  * sent in the order in which they appear. Only file can be transfered at a time and 
@@ -43,10 +50,6 @@ public class FileTransferManager extends Thread{
 	
 
 	/**
-	 * used to add a file to the recipient receive queue
-	 */
-	public final static String HEADER_ADD_TO_RECEIVE_QUEUE="add to receive queue";
-	/**
 	 * Used to add a file to the recipient send queue; Should only be used 
 	 * in Cloud 
 	 */
@@ -57,12 +60,6 @@ public class FileTransferManager extends Thread{
 	 */
 	public final static String HEADER_ADD_MANY_TO_SEND_QUEUE="add many to send queue";
 	
-	public final static String HEADER_UPDATE_KEYS="UPDATE_KEYS";
-	
-	/**
-	 * Used to delete many files
-	 */
-	public final static String HEADER_DELETE_MANY_FILES="delete many files";
 	
 	/**
 	 * This String is used as a header for a {@link Message}
@@ -79,51 +76,7 @@ public class FileTransferManager extends Thread{
 	 */
 	public final static String HEADER_FILE_SUCCESSFULLY_UPLOADED="file uploaded success";
 	
-	/**
-	 * This String is used as a header for a {@link Message}
-	 * to indicate that the next packet of a large file should be uploaded.<br/>
-	 * This message that should be sent should contain a Sting with the path of large file.
-	 * Upon receiving this message, the next packet of the large file should be sent.
-	 *  
-	 * <br/>
-	 * <b>Note that if the recipient is not expecting a file with the designated path, the 
-	 * notification will fail.</b> To upload properly, use one of {@link FileTransferManager}'s 
-	 * addToSendQueue methods like
-	 *  {@link FileTransferManager#addToSendQueue(String, String, String...)}
-	 * @see Message
-	 */
-	public final static String HEADER_FILE_UPLOAD_NEXT_PACKET="upload next packet";
 	
-	/**
-	 * When true, this variable indicates that the next packet of a large file should be 
-	 * sent. When false, the {@link #uploadLargeFileThread}  is slept until the value is 
-	 * changed to true
-	 */
-	private static boolean canSendNextPacket;
-	
-	/**
-	 * This String is used as a header for a {@link Message}
-	 * to tell the recipient that the upload failed and cannot be continued. The recipient
-	 * should stop trying to receive the file.<br/>
-	 * The file should not be resent until an attempt has been made to fix the issue. And
-	 * if an attempt has been made, the file should be re-added to the end of the send queue<br/>
-	 * This message that should be sent should contain a Sting with the path of file that failed to be uploaded 
-	 * <br/>
-	 * <b>Note that if the recipient is not expecting a file with the designated path, the 
-	 * notification will fail.</b> To upload properly, use one of {@link FileTransferManager}'s 
-	 * addToSendQueue methods like
-	 *  {@link FileTransferManager#addToSendQueue(String, String, String...)}
-	 * @see Message
-	 */
-	public final static String HEADER_UPLOAD_FAILED="upload failed";
-	
-	/**
-	 * Tells recipient that the download failed and cannot be continued. The recipient
-	 * should stop trying to send the file.<br/>
-	 * The file will not not be resent until an attempt has been made to fix the issue. And
-	 * if an attempt has been made the file will be re-added to the end of the send queue 
-	 */
-	public final static String HEADER_DOWNLOAD_FAILED="download failed";
 	
 	/**
 	 * This String is used as a header for a {@link Message}
@@ -173,6 +126,8 @@ public class FileTransferManager extends Thread{
 	 */
 	public final static String HEADER_REQUEST_LARGE_FILE_DOWNLOAD="request large file download";
 	
+	public final static String HEADER_REQUEST_LARGE_FILE_DOWNLOAD_START="request to start large file download";
+	
 	/**
 	 * tells the recipient that the a large download file has completed and that the 
 	 * temp file should be copied to the real file<br/>
@@ -206,7 +161,6 @@ public class FileTransferManager extends Thread{
 	String downloadNameOfFirstFile,uploadNameOfFirstFile;
 	
 	private volatile long timeOfLastCompletedFileTransfer;
-	private boolean hasMetadataBeenCleaned=false;
 	/**
 	 * a record of files to send with a 2D array of targets to include(0) and targets
 	 * to excluded
@@ -214,38 +168,40 @@ public class FileTransferManager extends Thread{
 	 *  gareenteed to have a non null value that has a size that is greater than 0
 	 */
 	private volatile SendQueue sendQueue=new SendQueue();
-	/**
-	 * a list of files to receive. The key is the absolute path 
-	 * and the value an array of the path, owners and sender
-	 */
-	private volatile LinkedList<String[]>receiveQueue=new LinkedList<String[]>();
-	/**
-	 * if a file is being sent. No two files will be sent simultaneously 
-	 */
-	private volatile boolean sending=false;
+	
+	private volatile int outStandingFiles=0;
+	private long timeLastFileWasSent;
+	private HashMap<String, String>pathsOfLargeFilesBeingSent=null;
+	private String pathOfLargeFilesBeingSent=null;
+	
+	
 	/**
 	 * if a file is being received. No two files will be received simultaneously 
 	 */
-	private volatile boolean receiveing=false;
-	private volatile String userSendingTo,userReceivingFrom;
-	private volatile String fileSending, fileReceiveing;
-	private volatile long fileSendingDate;
-	private String fileSendingOwner;
+	//private volatile boolean receiveing=false;
+	//private volatile String userSendingTo,userReceivingFrom;
+	//private volatile String fileSending, fileReceiveing;
+	//private volatile long fileSendingDate;
+	//private String fileSendingOwner;
 	
-	private volatile long timeStartReceiving=0;
-	private volatile long timeStartSending=0;
-	private volatile boolean paused;
-	private volatile int timeOutSending=60,timeOutReceiving=120;
 	
-	private volatile int failCount=0;
+	private volatile boolean paused=false;
 	
-	final SyncDaemon daemon;
-	
+	private final SyncDaemon daemon;
+	public SyncDaemon getDaemon(){return daemon;} 
+		
 	public FileTransferManager(SyncDaemon daemon)
 	{
 		super("file transfer manager");
 		this.daemon=daemon;
+		if(Syncrop.isInstanceOfCloud())
+			pathsOfLargeFilesBeingSent=new HashMap<>();
 		
+	}
+	public void shutDown(){
+		unsetLargeFileTransferInfo(null);
+		sendQueue.clear();
+		this.interrupt();
 	}
 	
 	/**
@@ -254,16 +210,23 @@ public class FileTransferManager extends Thread{
 	 */
 	public void reset()
 	{
-		ResourceManager.deleteTemporaryFile();
-		sendQueue.clear();
-		receiveQueue.clear();
-		resetSendInfo();
-		resetReceiveInfo();
-		failCount=0;
-		timeOfLastCompletedFileTransfer=0;
-		hasMetadataBeenCleaned=false;
+		logger.log("File transfer manager reseting");
+		ResourceManager.deleteTemporaryFile(null);
+		if(Syncrop.isInstanceOfCloud())
+			pathsOfLargeFilesBeingSent.clear();
+		else pathOfLargeFilesBeingSent=null;
 		
+		sendQueue.clear();
+		
+		timeOfLastCompletedFileTransfer=0;
+		outStandingFiles=0;
+		resetRecord();
 	}
+	public void resetRecord(){
+		uploadCount=downloadCount=0;
+		uploadNameOfFirstFile=downloadNameOfFirstFile=null;
+	}
+	
 	
 	/**
 	 * receive 
@@ -271,11 +234,19 @@ public class FileTransferManager extends Thread{
 	 */
 	public boolean isEmpty()
 	{
-		return sendQueue.isEmpty()&&receiveQueue.isEmpty();
+		return sendQueue.isEmpty();
 	}
-	public int getSendQueueSize()
-	{
-		return sendQueue.size();
+	public void setLargeFileTransferInfo(String id,String path){
+		if(Syncrop.isInstanceOfCloud())
+			pathsOfLargeFilesBeingSent.put(id,path);
+		else pathOfLargeFilesBeingSent=path;
+	}
+	private void unsetLargeFileTransferInfo(String id) {
+		if(Syncrop.isInstanceOfCloud())
+			if(id==null)
+				pathsOfLargeFilesBeingSent.clear();
+			else pathsOfLargeFilesBeingSent.remove(id);
+		else pathOfLargeFilesBeingSent=null;		
 	}
 
 	public void addToSendQueue(String[] paths,String owner,String target)
@@ -288,8 +259,9 @@ public class FileTransferManager extends Thread{
 		if(!isNotWindows())
 			path=SyncROPFile.toWindowsPath(path);
 		SyncROPItem file=getFile(path, owner);
-		
-		addToSendQueue(file,target);
+		if(file==null)
+			logger.log(path +"cannot be added to send queue because there is no corrosponding file");
+		else addToSendQueue(file,target);
 	}
 	/**
 	 * adds a file to the send que
@@ -298,6 +270,10 @@ public class FileTransferManager extends Thread{
 	 */
 	public void addToSendQueue(SyncROPItem file,String target)
 	{
+		if(Syncrop.isShuttingDown()){
+			logger.log("Cannot add"+file.getPath()+" to queue because shutting down");
+			return;
+		}
 		if(file==null){
 			throw new NullPointerException("Cannont add a null file to send queue");
 		}
@@ -330,31 +306,7 @@ public class FileTransferManager extends Thread{
 		}
 	}
 	
-	public void addToReceiveQueue(String path,String owner,String sender)
-	{	
-		if(!isNotWindows())
-			path=SyncROPFile.toWindowsPath(path);
-				
-		SyncROPItem file=getFile(path, owner);
-		
-		if((file!=null&&!file.isEnabled())||
-				!ResourceManager.getAccount(owner).isPathEnabled(path))
-		{
-			System.out.println(file+" "+ResourceManager.getAccount(owner).isPathEnabled(path));
-			if(logger.isDebugging())
-				logger.log("Stopping upload of "+path+" because file is not enabled or is " +
-						"restricted");
-			
-			daemon.printMessage(path,HEADER_UPLOAD_FAILED,sender);
-			//SyncropDaemon.mainClient.printMessage(new Object[]{path,new String[]{owner}},SyncropDaemon.HEADER_REMOVE_FILE,sender);
-		}
-		else {
-			logger.logDebug("Adding "+path+" to receive queue");
-			receiveQueue.add(new String[]{path,owner,sender});
-		}
-	}
 	
-	public boolean isReceiving(){return receiveing;}
 	/**
 	 * Pauses or unpauses this file transfer manager; When it is paused, no files are sent
 	 * or downloaded; Timeout are also paused
@@ -368,68 +320,71 @@ public class FileTransferManager extends Thread{
 	}
 	public boolean isPaused(){return paused;}
 	
-	public boolean isSending(){return sending;}
 	
-	private void sendFile()
-	{
+	
+	private void sendFile(QueueMember member){
 		
-		QueueMember member=sendQueue.poll();
 		SyncROPItem file=ResourceManager.getFile(member.getPath(),member.getOwner());
-		userSendingTo=member.getTarget();
-		if(isInstanceOfCloud()&&!SyncropCloud.hasUser(userSendingTo))
-			return;
-
+		String userSendingTo=member.getTarget();
+		
 		if(file==null)logger.log("file "+file+" was not sent because it is null",SyncropLogger.LOG_LEVEL_DEBUG);
-		else if(file.isDir()&&!file.isEmpty())
+		else if(!file.isSyncable())
 			logger.log("file "+file+" was not sent because it is a non empty dir",SyncropLogger.LOG_LEVEL_DEBUG);
 		else if(file.isEnabled())
 		{
-			daemon.printMessage(
-					new String[]{
-							isNotWindows()?
-									file.getPath():
-									SyncROPFile.toLinuxPath(file.getPath())
-								,file.getOwner()},
-					HEADER_ADD_TO_RECEIVE_QUEUE,userSendingTo);
-			sending=true;
-			
-			fileSendingDate=file.getDateModified();
-			fileSending=file.getPath();
+			daemon.uploadFile(file, userSendingTo);
+			timeLastFileWasSent=System.currentTimeMillis();
+			outStandingFiles++;
 			logger.log("Sending: "+file.getPath()+" "+userSendingTo);
-			fileSendingOwner=file.getOwner();
 		}
 		else logger.log("file "+file+" was not sent because it is not" +
 					"enabled",SyncropLogger.LOG_LEVEL_DEBUG);
 	}
 	
-	private void receiveFile()
-	{
-		String values[]=receiveQueue.pop();
-		
-		String path=values[0];
-		if(!isNotWindows())
-			path=SyncROPFile.toLinuxPath(path);
-		if(isInstanceOfCloud()&&!SyncropCloud.hasUser(values[2]))
-			return;
-		userReceivingFrom=values[2];
-		
-		daemon.printMessage(new String[]{path,values[1]},
-				HEADER_REQUEST_FILE_UPLOAD,userReceivingFrom);
-		fileReceiveing=path;
 	
-		receiveing=true;
-		
-	}
-	public void receivedFile()
+	public void updateDownloadFileTransferStatistics(String path)
 	{
 		timeOfLastCompletedFileTransfer=System.currentTimeMillis();
 		if(isKeepingRecord()){
 			if(downloadCount==0)
-				downloadNameOfFirstFile=fileReceiveing;
+				if(downloadNameOfFirstFile==null)
+					downloadNameOfFirstFile=path;
 			downloadCount++;
 		}
-		resetReceiveInfo();
-		failCount=0;
+	}
+	public void onSuccessfulFileUpload(Message message){
+		Object []o=(Object[]) message.getMessage();
+		SyncROPItem fileSent=ResourceManager.getFile((String)o[INDEX_PATH],(String) o[INDEX_OWNER]);
+		if(!SyncDaemon.isInstanceOfCloud()&& fileSent instanceof SyncROPFile){
+			
+			logger.log(fileSent.getPath()+" Changing key from "+fileSent.getKey()+" to "+o[INDEX_KEY]);
+			((SyncROPFile)fileSent).setKey((long) o[INDEX_KEY]);
+			if((long)o[INDEX_DATE_MODIFIED]!=fileSent.getDateModified())
+				fileSent.setModifiedSinceLastKeyUpdate(true);
+			fileSent.save();
+			
+			//if(fileSent.getDateModified()!=dateMod)addToSendQueue(fileSent, userSendingTo);
+		}
+		if(fileSent==null);//metadata does not exists
+		else if(!Syncrop.isInstanceOfCloud()&&!fileSent.exists())
+			fileSent.deleteMetadata();
+		else if(fileSent.getPath().equals(getPathOfLargeFileBeingSent(message.getUserID())))
+			unsetLargeFileTransferInfo(message.getUserID());
+		logger.log("fileSent "+o[INDEX_PATH]);
+		updateUploadFileTransferStatistics((String)o[INDEX_PATH]);
+	}
+	private void updateUploadFileTransferStatistics(String path)
+	{
+		timeOfLastCompletedFileTransfer=System.currentTimeMillis();
+		if(isKeepingRecord())
+		{
+			if(uploadCount==0)
+				uploadNameOfFirstFile=path;
+			uploadCount++;
+		}
+		logger.log("File upload success:"+path);
+		
+		outStandingFiles--;
 	}
 	public boolean isKeepingRecord(){
 		return keepRecord;
@@ -437,107 +392,46 @@ public class FileTransferManager extends Thread{
 	public void keepRecord(boolean b){
 		keepRecord=b;
 	}
-	public void resetRecord(){
-		uploadCount=downloadCount=0;
-		uploadNameOfFirstFile=downloadNameOfFirstFile=null;
-	}
-	public void sentFile(long newKey)
-	{
-		SyncROPItem fileSent=ResourceManager.getFile(fileSending, fileSendingOwner);
-		if(!SyncDaemon.isInstanceOfCloud()&& fileSent instanceof SyncROPFile&&fileSent.exists()){
-			((SyncROPFile)fileSent).setKey(newKey);
-			if(fileSendingDate!=fileSent.getDateModified())
-				fileSent.setModifiedSinceLastKeyUpdate(true);
-			fileSent.save();
-			//if(fileSent.getDateModified()!=dateMod)addToSendQueue(fileSent, userSendingTo);
-		}
-		timeOfLastCompletedFileTransfer=System.currentTimeMillis();
-		
-		
-		if(isKeepingRecord())
-		{
-			if(uploadCount==0)
-				uploadNameOfFirstFile=fileSending;
-			uploadCount++;
-		}
-		logger.log("File upload success"+fileSent);
-		resetSendInfo();
-		failCount=0;
-	}
-	public void stopUpload()
-	{
-		resetSendInfo();
-	}
-	public void resetReceiveInfo()
-	{
-		if(ResourceManager.getTemporaryFile().exists())
-			ResourceManager.getTemporaryFile().delete();
-		userReceivingFrom=null;
-		fileReceiveing=null;
-		receiveing=false;
-	}
-	public void resetSendInfo()
-	{
-		userSendingTo=null;
-		fileSending=null;
-		fileSendingOwner=null;
-		sending=false;
-		fileSendingDate=-1;
-	}
-
 	
-	public void cancelUpload(String fileThatCouldNotBeUploaded,boolean localCommand,boolean failed)
+	
+
+	public void cancelUpload(String id,String path,boolean localCommand)
 	{
+		outStandingFiles--;
 		if(localCommand)
 			//tells recipient to stop downloading the file that this client was uploading
-			cancel(fileThatCouldNotBeUploaded,
-					failed?
-							HEADER_DOWNLOAD_FAILED:
-							HEADER_CANCEL_DOWNLOAD,
-					userSendingTo);
-		if(isSending()&&fileSending.equals(fileThatCouldNotBeUploaded)){
-			if(!localCommand)
-				logger.log("Remote cancel upload;");
-			
-			if(!failed)
-			{
-				logger.log("Re-adding file to send queue");
-				addToSendQueue(fileSending,fileSendingOwner, userSendingTo);
-				logger.log("Stopped sending file "+fileThatCouldNotBeUploaded);
-			}
-			else logger.log("file failed to be sent "+fileThatCouldNotBeUploaded);
-					
-				resetSendInfo();
-		}
+			cancel(path,HEADER_CANCEL_DOWNLOAD,id);
+		else 
+			logger.log("Remote cancel upload;");
+	
+		logger.log("Upload failed: "+path);
+		if(path.equals(getPathOfLargeFileBeingSent(id)))
+			unsetLargeFileTransferInfo(id);
 	}
-	public void cancelDownload(String fileThatCouldNotBeDownloaded,boolean localCommand,boolean failed)
+	
+
+	public String getPathOfLargeFileBeingSent(String id){
+		return Syncrop.isInstanceOfCloud()?pathsOfLargeFilesBeingSent.get(id):pathOfLargeFilesBeingSent;
+	}
+	
+	public boolean isLargeFileUploadOngoing(String id,String path){
+		return path.equals(getPathOfLargeFileBeingSent(id));
+	}
+	public void cancelDownload(String id,String path,boolean localCommand)
 	{	
 		if(localCommand)
 			//tells recipient to stop uploading the file that this client was downloading
-			cancel(fileThatCouldNotBeDownloaded,
-					failed?
-							HEADER_UPLOAD_FAILED:
-							HEADER_CANCEL_UPLOAD,
-						userReceivingFrom);
+			cancel(path,	HEADER_CANCEL_UPLOAD,id);
 		
-		if(isReceiving()&&fileReceiveing.equals(fileThatCouldNotBeDownloaded)){
-			if(!localCommand)logger.log("Remote cancel download");
-			if(!failed)
-				logger.log("Stopped downloading file "+fileThatCouldNotBeDownloaded);
-			else logger.log("failed to download file:"+fileThatCouldNotBeDownloaded);
+		if(!localCommand)logger.log("Remote cancel download");
 
-			resetReceiveInfo();
-		}
+		logger.log("Cancled download of file "+path);
+		if(path.equals(getPathOfLargeFileBeingSent(id)))
+			ResourceManager.deleteTemporaryFile(id);
 	}
 		
 	private void cancel(String path,String header,String target)
 	{
-		if(failCount==4)
-		{
-			SyncropClientDaemon.removeUser(target, "Out of sync with Cloud");
-			return;
-		}
-		else failCount++;
 		
 		logger.log("Telling "+target+
 				(header.contains("failed")?" that ":" to ")+
@@ -553,107 +447,53 @@ public class FileTransferManager extends Thread{
 		{
 			try
 			{
-				SyncropClientDaemon.sleepShort();
-				if(paused){
-					Syncrop.sleep();
-					continue;
-				}
-				if(isEmpty()){
-					if(!Syncrop.isInstanceOfCloud()&&daemon.isConnectionAccepted()&&timeOfLastCompletedFileTransfer!=0&&!hasMetadataBeenCleaned){
-						FileWatcher.checkAllMetadataFiles(false);
-						hasMetadataBeenCleaned=true;
-					}
-					SyncropClientDaemon.sleep();
-					continue;
-				}
-				//if(isSending()||isReceiving())continue;
-				if(daemon.isConnectionAccepted())	
+				if(!paused&&outStandingFiles<=12&&daemon.isConnectionAccepted()&&!isEmpty()
+					&&System.currentTimeMillis()-timeLastFileWasSent>Math.min(12000, daemon.getExptectedFileTransferTime()/4))	
 				{
-					if(!isSending()&&!sendQueue.isEmpty())
-					{
-						if(System.currentTimeMillis()-sendQueue.peek().getTimeStamp()>1000){
-							sendFile();
-							updateTimeSending();
+					QueueMember m=sendQueue.peek();
+					if(m==null)continue;
+					if(m.getTimeInQueue()>Math.min(12000,daemon.getExptectedFileTransferTime()))
+						if(m.isLargeFile()&&daemon.isSendingLargeFile()){
+							Syncrop.sleep();
 						}
-					}
-					if(!isReceiving()&&!receiveQueue.isEmpty())
-					{
-						receiveFile();
-						updateTimeReceiving();
-					}
-					if(receiveing&&(System.currentTimeMillis()-timeStartReceiving)/1000>timeOutReceiving)
-					{
-						logger.log("Timeout receiving file:"+fileReceiveing);
-						cancelDownload(fileReceiveing,true, false);
-					}
-					if(sending&&(System.currentTimeMillis()-timeStartSending)/1000>timeOutSending)
-					{
-						logger.log("Timeout sending file:"+fileSending);
-						cancelUpload(fileSending, true, false);
-					}
+						else {
+							sendFile(sendQueue.poll());
+							if(daemon.getExptectedFileTransferTime()>10000)
+								logger.logTrace("File transfer time is high: "+daemon.getExptectedFileTransferTime());
+							if(logger.isLogging(Logger.LOG_LEVEL_TRACE))
+								logger.logTrace("totalMem = "+Runtime.getRuntime().totalMemory()+
+										"  freeMem = "+Runtime.getRuntime().freeMemory());
+						}
+					else Syncrop.sleep();
 				}
-			} 
+				else Syncrop.sleep();
+			}
 			catch (Throwable e) {
 				logger.logFatalError(e, "");
 				System.exit(0);
+				break;
 			}
 		}
 	}
-	public void updateTimeReceiving()
-	{
-		timeStartReceiving=System.currentTimeMillis();
-	}
-	public void updateTimeSending()
-	{
-		timeStartSending=System.currentTimeMillis();
-	}
 	public String toString()
 	{
-		return "sendQueue size="+sendQueue.size()+" receiveQueuesize="+receiveQueue.size()+" " +
-				"fileSending="+isSending()+" file being sent="+fileSending+" " +
-						"fileRevieing="+isReceiving()+" file being received="+fileReceiveing;				
-	}
-	
-	public String getUserReceivingFrom() {
-		return userReceivingFrom;
-	}
-	public String getUserSendingTo() {
-		return userSendingTo;
-	}
-	public boolean isUserReceivingFrom(String user){
-		if(!isInstanceOfCloud())
-			return true;
-		return isReceiving()&&user.equals(userReceivingFrom);
-	}
-	public boolean isUserSendingTo(String user){
-		if(!isInstanceOfCloud())
-			return true;
-		return isSending()&&user.equals(userSendingTo);
+		return "sendQueue size="+sendQueue.size();				
 	}
 	
 	
-	public String getFileSending() {
-		return fileSending;
-	}
-	public String getFileReceiveing() {
-		return fileReceiveing;
-	}
-	public void setTimeOutSending(int i)
-	{
-		timeOutSending=i;
-	}
+	
 	public long getTimeFromLastCompletedFileTransfer() {
 		return System.currentTimeMillis()-timeOfLastCompletedFileTransfer;
 	}
 	
 	public boolean haveAllFilesFinishedTranferring(){
-		return isEmpty()&&!isSending()&&!isReceiving();
+		return isEmpty()&&getOutstandingFiles()==0;
 	}
-	
+	public int getOutstandingFiles(){return outStandingFiles;}
 	
 	public boolean canDownloadPacket(SyncROPItem localFile, String id,String path,String owner, long dateModified, long key, byte[]bytes,long size){
 		return isFileEnabled(localFile,path,owner)&&!isFileSizeToLarge(bytes,path)
-				&&isRoomLeftInAccountAfterTransfer(path,owner, size)
+				&&isRoomLeftInAccountAfterTransfer(id,path,owner, size)
 				&&!convertFileToDir(localFile, id,key)
 				&&!shouldConflictBeMadeForFileBeingSent(localFile, key, dateModified, id)
 				&&isValidOwner(localFile, owner);
@@ -691,11 +531,11 @@ public class FileTransferManager extends Thread{
 		}
 		return false;
 	}
-	private boolean isRoomLeftInAccountAfterTransfer(String path,String owner,long size){
+	private boolean isRoomLeftInAccountAfterTransfer(String id,String path,String owner,long size){
 		if(ResourceManager.getAccount(owner).willBeFull(size))
 		{
 			logger.logDebug("No space left in account, so file cannot be synced");
-			cancelDownload(path,true, true);
+			cancelDownload(id,path,true);
 			return false;
 		}
 		return true;
@@ -707,7 +547,7 @@ public class FileTransferManager extends Thread{
 				//if conflict should be made for the file being sent
 			{
 				logger.log("Download failed because local file is newer");
-				cancelDownload(localFile.getPath(),true, true);
+				cancelDownload(id,localFile.getPath(),true);
 				//send local file to sender so that they can make a conflict
 				addToSendQueue(localFile, id);
 				return true;
@@ -726,7 +566,7 @@ public class FileTransferManager extends Thread{
 				addToSendQueue(localFile, id);
 				return true;
 			}
-			else localFile.remove();
+			else localFile.deleteMetadata();
 		return false;
 	}
 	
@@ -771,173 +611,103 @@ public class FileTransferManager extends Thread{
 		uploadNameOfFirstFile=downloadNameOfFirstFile=null;			
 	}
 	
-	public boolean canSendNextPacket(){return canSendNextPacket;}
-	public void sentPacket(){canSendNextPacket=false;}
 	public void uploadRequest(Message message){
-
 		final String header=message.getHeader();
-		String originalPath=
-				header.equals(HEADER_REQUEST_FILE_UPLOAD)||header.equals(HEADER_FILE_SUCCESSFULLY_UPLOADED)?
-						(String)((Object[])message.getMessage())[0]:
+		String originalPath=header.equals(HEADER_FILE_SUCCESSFULLY_UPLOADED)?
+						(String)((Object[])message.getMessage())[INDEX_PATH]:
 						(String)message.getMessage();
 						
 		String path=isNotWindows()?
 				originalPath:
 				SyncROPItem.toWindowsPath(originalPath);
-			
-		if(header.equals(HEADER_CANCEL_UPLOAD)||header.equals(HEADER_UPLOAD_FAILED)){
-			if(path.equals(getFileSending()))
-				if(!isUserSendingTo(message.getUserID())||
-						!daemon.verifyUser(message.getUserID(), fileSendingOwner)){
-					logger.log("Received signal to cancel upload but user:"+message.getUserID()+
-							"did not have permission to stop it");
-					return;
-				}
-			if(message.getHeader().equals(HEADER_CANCEL_UPLOAD)){
-				logger.log("Received signal to cancel upload");
-				cancelUpload(path,false, false);
-			}
-			else {
-				logger.log("Received signal to cancel upload");
-				cancelUpload(path,false, true);
-			}
-			
-		}
-		else if(isUserSendingTo(message.getUserID())&&
-				path.equals(getFileSending())&&
-				daemon.verifyUser(message.getUserID(), fileSendingOwner))
-			switch (header)
-			{
-				case HEADER_REQUEST_FILE_UPLOAD:
-					String owner=((String[])message.getMessage())[1];
-					if(owner.equals(fileSendingOwner))
-						daemon.uploadFile(path,owner,message.getUserID());
-					break;
-				case HEADER_FILE_UPLOAD_NEXT_PACKET:
-					canSendNextPacket=true;
-					break;
-				case HEADER_FILE_SUCCESSFULLY_UPLOADED:
-					long newKey=(long)((Object[])message.getMessage())[1];
-					sentFile(newKey);
-					break;
-				
-				default:
-					logger.log("Unknown header:"+ header);
-			}
-		else
-		{
-			String s="405 Error! message "+message.getHeader()+" has been ignored because ";
-			if(!isSending()) s+="fileTransferManager is not sending";
-			else if(!isUserSendingTo(message.getUserID()))
-				s+=message.getUserID()+"!="+getUserSendingTo();
-			else if(!path.equals(getFileSending()))
-				s+=path+"!="+getFileSending();
-			else 
-				s+=message.getUserID()+" does not have access to "+fileSendingOwner;
-			logger.log(s);
-			cancelUpload(originalPath, true, false);
-		}
-	}
-	public void deleteManyFiles(Object []array){
 		
-		daemon.printMessage(array, HEADER_DELETE_MANY_FILES);
+		if(message.getHeader().equals(HEADER_FILE_SUCCESSFULLY_UPLOADED)){
+			Object[]syncropMetadata=(Object[]) message.getMessage();
+			if(!daemon.verifyUser(message.getUserID(),(String)syncropMetadata[INDEX_OWNER])){
+				logger.log("Received header:"+HEADER_FILE_SUCCESSFULLY_UPLOADED+" but user:"+message.getUserID()+
+						"did not have permission");
+				return;
+			}
+			onSuccessfulFileUpload(message);
+		}
+		else if(message.getHeader().equals(HEADER_CANCEL_UPLOAD)){
+			if(path!=null&&path.equals(getPathOfLargeFileBeingSent(message.getUserID()))){
+				logger.log("Large upload of"+path+" is being canceled");
+				cancelUpload(message.getUserID(),path,false);
+				return; 
+			}
+			else logger.log("Cancel request ignored becaues there is nothing to do:"+path);
+		}
+		else logger.log("Unknown header:"+ header);
+		
 	}
-	public void deleteManyRequest(Message message){
-		daemon.deleteManyFiles(message.getUserID(), (Object[][])message.getMessage());
-		//((SyncropCloud)daemon).updateAllClients(message,owner,message.getUserID());
-	}
+	
 	public void downloadRequest(Message message){
-
 		String originalPath=(String)(message.getMessage() instanceof Object[]?
 				((Object[])message.getMessage())[INDEX_PATH]:message.getMessage());
 		String path=isNotWindows()?originalPath:
 			SyncROPItem.toWindowsPath(originalPath);
+		String sender=message.getUserID();
+		if(message.getHeader().equals(HEADER_CANCEL_DOWNLOAD))
+			if(path!=null&&path.equals(getPathOfLargeFileBeingSent(message.getUserID()))){
+				cancelDownload(sender,path,false);
+				return;
+			}
 		
-		if(isUserReceivingFrom(message.getUserID())&&
-				path.equals(getFileReceiveing()))
-		{
-			if(message.getHeader().equals(HEADER_CANCEL_DOWNLOAD))
-			{
-				cancelDownload(path,false, false);
-				return;
-			}
-			else if(message.getHeader().equals(HEADER_DOWNLOAD_FAILED))
-			{
-				cancelDownload(path,false, true);
-				return;
-			}
-			
-			Object syncData[]=(Object[])message.getMessage();
-			String sender=message.getUserID();
-			String owner=(String)syncData[INDEX_OWNER];
-			
-			if(!ResourceManager.getAccount(owner).isPathEnabled(path))
-				cancelDownload(path,true, true);
-			
-			long dateModified=(long)syncData[INDEX_DATE_MODIFIED];
-			long key=(long)syncData[INDEX_KEY];
-			String filePermissions=(String) syncData[INDEX_FILE_PERMISSIONS];
-			boolean exists=(boolean)syncData[INDEX_EXISTS];
-			boolean updatedSinceLastUpdate=(boolean)syncData[INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE];
-			if(message.getHeader().equals(HEADER_REQUEST_SYMBOLIC_LINK_DOWNLOAD)){
-				String target=(String)syncData[INDEX_SYMBOLIC_LINK_TARGET];
-				daemon.downloadFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists,null, 0,target, false,true);
-				return;
-			}
-			
-			byte[] bytes=null;
-			long size=-1;
-			//String pathOfTarget=null;
-			if(syncData.length>5)
-			{
-					bytes=(byte[])syncData[INDEX_BYTES];
-					size=(long)syncData[INDEX_SIZE];						
-			}
-			
-			switch (message.getHeader()) 
-			{
-				case HEADER_REQUEST_SMALL_FILE_DOWNLOAD:
-					if(bytes!=null&&bytes.length!=size)
-						throw new IllegalArgumentException(
-								"length of bytes needs to equal size when syncing small file");
-					daemon.downloadFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists,bytes, size, false);
-					break;
-				case HEADER_REQUEST_LARGE_FILE_DOWNLOAD:
-					daemon.downloadLargeFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists,bytes, size, false);
-					break;
-				case HEADER_REQUEST_END_LARGE_FILE_DOWNLOAD:
-					daemon.downloadLargeFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists,bytes, size, true);
-					break;
-			}
+		Object syncData[]=(Object[])message.getMessage();
+		
+		String owner=(String)syncData[INDEX_OWNER];
+		
+		if(!ResourceManager.getAccount(owner).isPathEnabled(path))
+			cancelDownload(sender,path,true);
+		if(!daemon.verifyUser(message.getUserID(),owner))
+			return;
+		
+		long dateModified=(long)syncData[INDEX_DATE_MODIFIED];
+		long key=(long)syncData[INDEX_KEY];
+		String filePermissions=(String) syncData[INDEX_FILE_PERMISSIONS];
+		boolean exists=(boolean)syncData[INDEX_EXISTS];
+		boolean updatedSinceLastUpdate=(boolean)syncData[INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE];
+		if(message.getHeader().equals(HEADER_REQUEST_SYMBOLIC_LINK_DOWNLOAD)){
+			String target=(String)syncData[INDEX_SYMBOLIC_LINK_TARGET];
+			daemon.downloadFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists,null, 0,target, false,true);
+			return;
 		}
-		else 
+		
+		byte[] bytes=null;
+		long size=-1;
+		//String pathOfTarget=null;
+		if(syncData.length>5)
 		{
-			String s="406 Error! message "+message.getHeader()+" has been ignored because ";
-			if(!isReceiving())
-				s+="fileTransferManager is not receiving";
-			else if(!path.equals(getFileReceiveing()))
-				s+=path+"!="+getFileReceiveing();
-			else if(!isUserReceivingFrom(message.getUserID()))
-					s+=message.getUserID()+"!="+getUserReceivingFrom();
-			logger.log(s);
-					
-			cancel(originalPath, HEADER_CANCEL_UPLOAD, message.getUserID());
+				bytes=(byte[])syncData[INDEX_BYTES];
+				size=(long)syncData[INDEX_SIZE];						
 		}
-
-	
+		
+		switch (message.getHeader()) 
+		{
+			case HEADER_REQUEST_SMALL_FILE_DOWNLOAD:
+				if(bytes!=null&&bytes.length!=size)
+					throw new IllegalArgumentException(
+							"length of bytes needs to equal size when syncing small file");
+				daemon.downloadFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists,bytes, size, false);
+				break;
+			case HEADER_REQUEST_LARGE_FILE_DOWNLOAD_START:
+				daemon.startDownloadOfLargeFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists,bytes, size);
+				break;
+			case HEADER_REQUEST_LARGE_FILE_DOWNLOAD:
+				daemon.downloadLargeFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists,bytes, size);
+				break;
+			case HEADER_REQUEST_END_LARGE_FILE_DOWNLOAD:
+				daemon.downloadFile(sender, path, owner, dateModified, key, updatedSinceLastUpdate, filePermissions, exists, bytes, size, true, true);
+				break;
+		}
+		
 	}
 	public void addToQueueRequest(Message message){
 
 		String sender=message.getUserID();
 		switch (message.getHeader()) 
 		{
-			case HEADER_ADD_TO_RECEIVE_QUEUE:
-				String s[]=(String[])message.getMessage();
-				String path=s[0];
-				String owner=s[1];
-				if(daemon.verifyUser(message.getUserID(), owner))
-					addToReceiveQueue(path, owner, sender);
-				break;
 			case HEADER_ADD_TO_SEND_QUEUE:
 				addToSendQueue(
 						(String)message.getMessage(),sender, message.getUserID());
@@ -951,19 +721,33 @@ public class FileTransferManager extends Thread{
 	public int getDownloadCount(){return downloadCount;}
 	public int getUploadCount(){return uploadCount;}
 	
-	public void  updateKeys(Object[][]array){
-		for(Object[] fileInfo:array){
-			SyncROPItem file=ResourceManager.getFile((String)fileInfo[0], null);
-			if(file instanceof SyncROPFile){
-				((SyncROPFile)file).setKey((long)fileInfo[1]);
-				file.save();
-			}
+	public static byte[]getFileHash(File file){
+		try {
+			MessageDigest md = MessageDigest.getInstance("MD5");
+			InputStream is = new FileInputStream(file);
+			DigestInputStream dis = new DigestInputStream(is, md);
+			while(dis.available()>0)
+				dis.read();
+			dis.close();
+			return md.digest();
+		} catch (NoSuchAlgorithmException | IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
-		
+		return null;
 	}
+	public static byte[]getHash(byte[]bytes){
+		try {
+			MessageDigest md = MessageDigest.getInstance("MD5");
+				return md.digest(bytes);
+		} catch (NoSuchAlgorithmException  e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+
 }
-
-
 
 /*
  * 

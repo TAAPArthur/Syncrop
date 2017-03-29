@@ -79,7 +79,6 @@ public class SecondaryConnectionThread extends GenericConnectionThread{
 				{
 					printMessage(new Message(Message.MESSAGE_CONNECTION_MADE,Server.username,Message.TYPE_CONNECTION_INFO));
 					c.clients.put(username,this);
-					printMessage(new Message(c.milliSecondsPerPing,Server.username,Message.TYPE_MESSAGE_TO_CLIENT,Message.HEADER_SET_MILLISECONDS_TILL_PING));
 					primaryClient=c;
 					c.printMessage(new Message(username,Server.username,Message.TYPE_NOTIFICATION,Message.HEADER_NEW_USER));
 					

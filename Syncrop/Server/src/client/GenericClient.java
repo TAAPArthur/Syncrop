@@ -11,18 +11,20 @@ import java.util.ArrayList;
 
 import message.Message;
 import message.Messenger;
+import message.TimeoutCalculator;
 
 /**
  * class used to communicate with Server
  * 
  */
 public class GenericClient implements Messenger{
-	
+	TimeoutCalculator timeoutCalculator=new TimeoutCalculator();
 	private static boolean unshared=true;
+	
 	/**
 	 * the host name, or null for the loopback address.
 	 */
-	public static final String DEFAULT_HOST="taaparthur.no-ip.org";
+	public static final String DEFAULT_HOST="https://taaparthur.no-ip.org";
 	/**
 	 * The port to connect to
 	 */
@@ -32,11 +34,6 @@ public class GenericClient implements Messenger{
 	 * The reason the client closed  
 	 */
 	private String reasonToClose;
-	/**
-	 * How often the Client should ping the client and how often the Server should ping the client;
-	 * If the ping is not recieved within the time interval, the connection will be closed 
-	 */
-	private volatile long milliSecondsPerPing=120000;
 	
 	/**
 	 * the time internal in miliseconds that read methods will check to see if there is 
@@ -73,7 +70,8 @@ public class GenericClient implements Messenger{
 	 * The name of this Messenger. All Messages sent from this Messenger will have this 
 	 * userID 
 	 */
-	private final String userID;
+	private final String USER_ID;
+	
 	
 	/**
 	 * connection status
@@ -98,11 +96,6 @@ public class GenericClient implements Messenger{
 	 * The last recored time of the last sent message
 	 */
 	volatile long timeLastMessageWasSent;
-	/**
-	 * The last time a ping was received
-	 * @see GenericClient#timeLastMessageWasSent 
-	 */
-	volatile long timeLastPingRecieved;
 	
 		
 	ReadMessageThread readMessageThread=new ReadMessageThread();
@@ -110,33 +103,19 @@ public class GenericClient implements Messenger{
 	 * Sleeps half of {@link #milliSecondsPerPing} and checks to see if a message has been
 	 * sent to Cloud. If not, a ping is sent.
 	 */
-	Thread pingThread=new Thread("ping thread"){
+	Thread pingThread=new Thread("Ping thread"){
 		public void run(){
 			do{
 				try{
-					Thread.sleep(milliSecondsPerPing/2);
-					
-					if(isConnectionAccepted()&&System.currentTimeMillis()-timeLastPingRecieved>milliSecondsPerPing*2)
-						closeConnection("No Ping from Server");
-					
-					if(System.currentTimeMillis()-timeLastMessageWasSent<milliSecondsPerPing/4)
-						continue;
-					
+					Thread.sleep(timeoutCalculator.getPingDelay());
 					if(isConnectedToServer())
-						ping();
-					
+						printMessage(System.currentTimeMillis(),Message.TYPE_MESSAGE_TO_SERVER,Message.HEADER_PING);					
 				} catch (InterruptedException e) {}
 			}while(isConnectedToServer());
 		}
 	};
 	
-	/**
-	 * Sends a ping message. A ping is used to ensure the recipient that the connection is
-	 * still active
-	 */
-	void ping(){
-		printMessage(Message.MESSAGE_PING,Message.TYPE_MESSAGE_TO_SERVER,Message.HEADER_IGNORE);
-	}
+	public int getTimeout(){return timeoutCalculator.getTimeout();}
 	
 	/**
 	 * 
@@ -146,7 +125,8 @@ public class GenericClient implements Messenger{
 	 * @throws IOException
 	 */
 	public GenericClient(String userID, String host, int port) throws IOException{
-		this.userID=userID;
+		this.USER_ID=userID;
+		
 		connect(host,port);
 		pingThread.start();
 		readMessageThread.start();
@@ -179,7 +159,7 @@ public class GenericClient implements Messenger{
 		{
 			wait(list);
 			if(!isConnectedToServer())
-				throw new IOException("no data left to read");
+				throw new IOException("No data can be read because connection closed");
 		}
 		Message message=list.remove(0);
 		return message;
@@ -218,36 +198,36 @@ public class GenericClient implements Messenger{
 	public void printMessage(Object o){printMessage(o, Message.TYPE_DEFAULT);}
 	public void printMessage(Object o,int type)
 	{
-		printMessage(new Message(o,userID,type));
+		printMessage(new Message(o,USER_ID,type));
 	}
 	public void printMessage(Object o,String header)
 	{
-		printMessage(new Message(o,userID,Message.TYPE_DEFAULT,header));
+		printMessage(new Message(o,USER_ID,Message.TYPE_DEFAULT,header));
 	}
 	public void printMessage(Object o,int type,String header)
 	{
-		printMessage(new Message(o,userID,type,header));
+		printMessage(new Message(o,USER_ID,type,header));
 	}
 	public void printMessage(Object o,String[]target)
 	{
-		printMessage(new Message(o,userID, Message.TYPE_DEFAULT,null,target));
+		printMessage(new Message(o,USER_ID, Message.TYPE_DEFAULT,null,target));
 	}
 	public void printMessage(Object o,String header,String... target)
 	{
-		printMessage(new Message(o,userID, Message.TYPE_DEFAULT,header,target));
+		printMessage(new Message(o,USER_ID, Message.TYPE_DEFAULT,header,target));
 	}
 	public void printMessage(Object o,String header,String[]targetsToInclude,String... targetsToExclude)
 	{
-		printMessage(new Message(o,userID, Message.TYPE_DEFAULT,header,targetsToInclude,targetsToExclude));
+		printMessage(new Message(o,USER_ID, Message.TYPE_DEFAULT,header,targetsToInclude,targetsToExclude));
 	}
 	
 	public void printMessage(Object o,int type,String header,String... targetsToInclude)
 	{
-		printMessage(new Message(o,userID,type,header,targetsToInclude));
+		printMessage(new Message(o,USER_ID,type,header,targetsToInclude));
 	}
 	public void printMessage(Object o,int type,String header,String[] targetsToInclude,String... targetsToExclude)
 	{
-		printMessage(new Message(o,userID,type,header,targetsToInclude,targetsToExclude));
+		printMessage(new Message(o,USER_ID,type,header,targetsToInclude,targetsToExclude));
 	}
 	
 	/**
@@ -259,7 +239,6 @@ public class GenericClient implements Messenger{
 			else out.writeObject(messageToPrint);
 			out.flush();
 			count++;
-
 			if(count>maxCount){
 				out.reset();
 				count=0;
@@ -304,6 +283,8 @@ public class GenericClient implements Messenger{
 	private void connect(String host,int port) throws IOException
 	{	
 		socket = new Socket(host, port);
+		socket.setSoTimeout(60*4*1000);
+		System.out.println(socket.getSoTimeout());
     	out = new ObjectOutputStream(new BufferedOutputStream(socket.getOutputStream()));
     	out.flush();
     	in = new ObjectInputStream(new BufferedInputStream(socket.getInputStream()));
@@ -342,6 +323,7 @@ public class GenericClient implements Messenger{
 		connectionAccepted=false;
 		
 		pingThread.interrupt();
+		System.out.println("Closing connection");
 		if(socket.isClosed())return;
 		try 
 		{
@@ -368,22 +350,10 @@ public class GenericClient implements Messenger{
 	}
 	
 	/**
-	 * Sets the time that at least at least one ping will be sent to/from the server.
-	 *  
-	 * @param milliSecondsPerPing the time that if no ping from/to the server was received,
-	 *  the connection will be closed
-	 */
-	void setMilliSecondsPerPing(long milliSecondsPerPing){
-		this.milliSecondsPerPing=milliSecondsPerPing;
-		pingThread.interrupt();
-	}
-	
-	/**
 	 * opens a new thread and continually reads input and saves it into main or notification
 	 */
 	class ReadMessageThread extends Thread
 	{
-
 		public ReadMessageThread() 
 		{
 			super("Read Message Thread");
@@ -395,15 +365,14 @@ public class GenericClient implements Messenger{
 				Message message = null;
 				try 
 				{
-					message=(Message)(unshared?in.readUnshared():in.readObject());	
-					if(message.isMessageToClient())
-					{
+					message=(Message)in.readObject();	
+					if(message.isMessageToClient()){
 						if(message.getHeader().equals(Message.HEADER_CLOSE_CONNECTION))
 							closeConnection("Closed by server:"+message.getMessage());
-						else if(message.getMessage().equals(Message.MESSAGE_PING));
-						else if(message.getHeader().equals(Message.HEADER_SET_MILLISECONDS_TILL_PING)){
-							setMilliSecondsPerPing((long)message.getMessage());
-						}
+						else if(message.getHeader().equals(Message.HEADER_PING))
+							printMessage(message.getMessage(),Message.TYPE_MESSAGE_TO_SERVER,Message.HEADER_PONG);
+						else if(message.getHeader().equals(Message.HEADER_PONG))
+							timeoutCalculator.calcualteTimeout((int)(System.currentTimeMillis()-(long)message.getMessage()));
 					}
 					else if(message.isNotification())
 					{
@@ -413,11 +382,10 @@ public class GenericClient implements Messenger{
 					}
 					else if(message.isDefault())main.add(message);
 					else connectionInfo.add(message);
-					timeLastPingRecieved=System.currentTimeMillis();
 				}
 				catch (EOFException e)
 				{	
-					closeConnection(e.toString()+"; no data left to read");
+					closeConnection(e.toString());
 				}
 				catch (SocketException e)
 				{

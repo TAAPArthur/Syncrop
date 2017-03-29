@@ -16,6 +16,7 @@ public class WatchedDir{
 	String path;
 	boolean removable;
 	Account account;
+	WatchKey key;
 	public WatchedDir(Path dir,String path,Account account, boolean removable){
 		this.dir=dir;
 		this.path=path;
@@ -27,7 +28,8 @@ public class WatchedDir{
 	Account getAccount(){return account;}
 	String getAccountName(){return account.getName();}
 	boolean isRemovable(){return removable;}
+	public WatchKey getKey(){return key;}
 	WatchKey registerDir(WatchService watcher) throws IOException{
-		return dir.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
+		return key=dir.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
 	}
 }

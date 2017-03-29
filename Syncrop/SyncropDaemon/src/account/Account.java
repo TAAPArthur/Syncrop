@@ -95,12 +95,14 @@ public class Account
 	 * no directories should include System.getProperty("user.home"); 
 	 * This is implied and will be added dynamically
 	 */
-	HashSet<Directory> directories = new HashSet<Directory>();
+	private HashSet<Directory> directories = new HashSet<Directory>();
 	/**
 	 * Dirs that should not be included in {@link #directories}. 
 	 * The path given should be the absolute path
 	 */
-	HashSet<Restriction> restrictions = new HashSet<Restriction>();
+	private HashSet<Restriction> restrictions = new HashSet<Restriction>();
+	
+	private static HashSet<Restriction>universalRestrictions= new HashSet<Restriction>();
 	
 	/**
 	 * A tab separated list of the default restrictions. The default resticts aren't
@@ -126,9 +128,11 @@ public class Account
 		this.name=username;
 		this.email=email;
 		setEnabled(enabled);
-		addDirs((String)null);
-		
-		addRemoveableDirs((String)null);
+		if(isInstanceOfCloud()){
+			directories.add(new Directory("*"));
+			removableDirectories.add(new RemovableDirectory(
+					ResourceManager.getHome(getName(), true),this));
+		}
 		
 		for(String restriction:defaultRestrictions.split("\t"))
 			addRestrictions(restriction);
@@ -209,8 +213,6 @@ public class Account
 			}
 		}
 		while(removable);
-		
-		
 	}
 	
 	@Override
@@ -241,14 +243,8 @@ public class Account
 	{
 		for(int i=0;i<dirsToAdd.length;i++)
 			if(dirsToAdd[i]==null||dirsToAdd[i].isEmpty())continue;
-			else if(Directory.containsMatchingChars(dirsToAdd[i]))
-				restrictions.add(new Restriction(dirsToAdd[i], false));
-			else if(!SyncROPItem.isValidFileName(dirsToAdd[i]))
-			{
-				dirsToAdd[i]=removeIllegalChars(dirsToAdd[i], "Restriction");
-				i--;
-			}
-			else restrictions.add(new Restriction(dirsToAdd[i], true));
+			else restrictions.add(new Restriction(dirsToAdd[i]));
+			
 	}
 	/**
 	 * Adds a non-removable directory.
@@ -256,19 +252,12 @@ public class Account
 	 */
 	public void addDirs(String... dirsToAdd)
 	{
-		if(isInstanceOfCloud())
-			directories.add(new Directory("*",false));
-		else 
-			for(int i=0;i<dirsToAdd.length;i++)
-				if(dirsToAdd[i]==null||dirsToAdd[i].isEmpty())continue;
-				else if(Directory.containsMatchingChars(dirsToAdd[i]))
-					directories.add(new Directory(dirsToAdd[i], false));
-				else if(!SyncROPItem.isValidFileName(dirsToAdd[i]))
-				{
-					dirsToAdd[i]=removeIllegalChars(dirsToAdd[i], "Directory");
-					i--;
-				}
-				else directories.add(new Directory(dirsToAdd[i], true));
+	 
+		for(int i=0;i<dirsToAdd.length;i++)
+			if(dirsToAdd[i]==null||dirsToAdd[i].isEmpty())
+				continue;
+			else 
+				directories.add(new Directory(dirsToAdd[i]));
 	}
 	
 	/**
@@ -277,24 +266,21 @@ public class Account
 	 */
 	public void addRemoveableDirs(String... dirsToAdd)
 	{
-		if(isInstanceOfCloud())
-			removableDirectories.add(new RemovableDirectory(
-					ResourceManager.getHome(getName(), true),this));
-		else
-			for(int i=0;i<dirsToAdd.length;i++)
-				if(dirsToAdd[i]==null||dirsToAdd[i].isEmpty())continue;
-				else if(Directory.containsMatchingChars(dirsToAdd[i]))
-				{
-					dirsToAdd[i]=removeIllegalChars(dirsToAdd[i], "Removable Directory");
-					i--;
-					//removableDirectories.add(new Directory(dirsToAdd[i], false));
-				}
-				else if(!SyncROPItem.isValidFileName(dirsToAdd[i]))
-				{
-					dirsToAdd[i]=removeIllegalChars(dirsToAdd[i], "Removable Directory");
-					i--;
-				}
-				else removableDirectories.add(new RemovableDirectory(dirsToAdd[i],this));
+	
+		for(int i=0;i<dirsToAdd.length;i++)
+			if(dirsToAdd[i]==null||dirsToAdd[i].isEmpty())continue;
+			else if(Directory.containsMatchingChars(dirsToAdd[i]))
+			{
+				dirsToAdd[i]=removeIllegalChars(dirsToAdd[i], "Removable Directory");
+				i--;
+				//removableDirectories.add(new Directory(dirsToAdd[i], false));
+			}
+			else if(!SyncROPItem.isValidFileName(dirsToAdd[i]))
+			{
+				dirsToAdd[i]=removeIllegalChars(dirsToAdd[i], "Removable Directory");
+				i--;
+			}
+			else removableDirectories.add(new RemovableDirectory(dirsToAdd[i],this));
 	}
 	/**
 	 * Prompts the user to change the name of dir to make it legal. 
@@ -343,9 +329,8 @@ public class Account
 		else for(Directory dir:removableDirectories){
 			if(dir.isPathContainedInDirectory(path))
 				if(new File(ResourceManager.getHome(getName(),removable),dir.getDir()).exists())
-				{
 					return true;
-				}
+				
 		}
 		return false;
 	}
@@ -361,22 +346,24 @@ public class Account
 	public boolean isPathEnabled(final String path)
 	{
 		boolean removable=ResourceManager.isFileRemovable(path);
+		/*TODO
 		if(!isEnabled())
 		{
 			logger.logDebug("path "+path+
 				" is not considered enabled by Account"+getName()+" because the account is not enabled");
 			return false;
-		}
+		}*/
 		boolean dirIsOwned=isPathContainedInDirectory(path,removable);
 		
 		if(!dirIsOwned)
-		{	
-			//logger.logDebug(directories.toString()+" "+removableDirectories.toString());
-			logger.logDebug("file "+path+" is not enabled because it is not included in " +
-					(!removable?"dir":"removable dir or the " +
-				"removable dir it is contained in does not exists"));
 			return false;
-		}
+		
+		
+		
+		for(Directory dir:Account.universalRestrictions)
+			if(dir.isPathContainedInDirectory(ResourceManager.getAbsolutePath(path, getName())))
+				return false;
+		
 		
 		if(!Syncrop.isInstanceOfCloud())//cloud does not have restrictions
 			for(Directory dir:this.restrictions){
@@ -560,7 +547,7 @@ public class Account
 	}
 	public void setEnabled(boolean enabled) {
 		if(!enabled)
-			logger.logTrace("Disabling account"+getName());
+			logger.log("Disabling account"+getName());
 		this.enabled = enabled;
 	}
 	public boolean isAuthenticated() {
@@ -615,5 +602,15 @@ public class Account
 				return isPathContainedInDirectory(absPath.substring(getHome(true).length()),true)||
 					isPathContainedInDirectory(absPath.substring(getHome(false).length()),false);
 			} catch (StringIndexOutOfBoundsException e) {return false;}
+	}
+
+	public static String getUniversalRestrictions() {
+		return ResourceManager.formatCollection(universalRestrictions);
+	}
+	public static void addUniversalRestriction(String... universalRestrictions) {
+		
+		for(String universalRestriction:universalRestrictions)
+			if(!universalRestriction.isEmpty())
+				Account.universalRestrictions.add(new Restriction(universalRestriction));
 	}
 }

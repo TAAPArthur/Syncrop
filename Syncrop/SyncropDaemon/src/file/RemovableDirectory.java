@@ -10,7 +10,7 @@ public class RemovableDirectory extends Directory{
 	private final File removableDir;
 	Account account;
 	public RemovableDirectory(String dir,Account a) {
-		super(dir, true);
+		super(dir);
 		account=a;
 		removableDir=new File(ResourceManager.getHome(a.getName(), true),getDir());
 	}

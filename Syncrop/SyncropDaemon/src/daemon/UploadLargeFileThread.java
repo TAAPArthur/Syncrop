@@ -4,15 +4,16 @@ import static daemon.SyncDaemon.TRANSFER_SIZE;
 import static daemon.SyncDaemon.mainClient;
 import static syncrop.Syncrop.isShuttingDown;
 import static syncrop.Syncrop.logger;
-import static syncrop.Syncrop.sleepShort;
 import static transferManager.FileTransferManager.HEADER_REQUEST_END_LARGE_FILE_DOWNLOAD;
 import static transferManager.FileTransferManager.HEADER_REQUEST_LARGE_FILE_DOWNLOAD;
+import static transferManager.FileTransferManager.HEADER_REQUEST_LARGE_FILE_DOWNLOAD_START;
 
 import java.io.IOException;
 import java.nio.MappedByteBuffer;
 
-import transferManager.FileTransferManager;
 import file.SyncROPFile;
+import syncrop.Syncrop;
+import transferManager.FileTransferManager;
 
 public class UploadLargeFileThread extends Thread
 {
@@ -22,13 +23,14 @@ public class UploadLargeFileThread extends Thread
 	int totalTimeOfTransfer;
 	FileTransferManager fileTransferManager;
 	
-	public UploadLargeFileThread(SyncROPFile file,String path,String target,FileTransferManager fileTransferManager)
+	public UploadLargeFileThread(SyncROPFile file,String target,FileTransferManager fileTransferManager)
 	{
 		super("upload large file thread");
 		this.file=file; 
-		this.path=path;
+		this.path=file.getPath();
 		this.target=target;
 		this.fileTransferManager=fileTransferManager;
+		fileTransferManager.setLargeFileTransferInfo(target, path);
 	}
 	
 	public void run()
@@ -40,6 +42,7 @@ public class UploadLargeFileThread extends Thread
 			System.exit(0);
 		}
 	}
+	
 	public void uploadFile(FileTransferManager fileTransferManager)
 	{
 		try 
@@ -53,71 +56,54 @@ public class UploadLargeFileThread extends Thread
 			logger.log("uploading large file; size="+size);
 			//mainClient.pausePrinting(true);
 			//mainClient.logs();
-			for(int i=0;i<size;i+=offset)
-			{	
-				if(!fileTransferManager.isSending())
-					throw new IOException("Upload of "+path+" was aborted");
-				if(i!=0){
-					//waits for approval to send next packet
-					while(!fileTransferManager.canSendNextPacket()&&!isShuttingDown()){
-						
-
-						//checks to make sure that the file being sent is still the file 
-						//that should be sent and that the connection has not closed
-						if(!mainClient.isConnectionAccepted())
-							throw new IOException("connection lost with server");
-						else if(!fileTransferManager.isSending()||!path.equals(fileTransferManager.getFileSending()))
-							throw new IllegalAccessException("path "+path+" does not match "+
-								fileTransferManager.getFileSending());
-						else if(!file.exists())
-							break;//handled outside of loop
-						sleepShort();
-					}
-					
-				}
+			byte[]hash=FileTransferManager.getFileHash(file.getFile());
+			
+			mainClient.printMessage(file.formatFileIntoSyncData(hash,size),HEADER_REQUEST_LARGE_FILE_DOWNLOAD_START,target);
+			for(int i=0;i<size;i+=offset){	
+			
+				try {
+					Thread.sleep(fileTransferManager.getDaemon().getExptectedFileTransferTime()/2+20);
+				} catch (InterruptedException e) {}
 				if(isShuttingDown()){
 					logger.log("Large file upload aborted; shutting down");
 					return;
 				}
-				if(!file.exists()){
-					fileTransferManager.cancelUpload(path, true, true);
+				//checks to make sure that the file being sent is still the file 
+				//that should be sent and that the connection has not closed
+				else if(!mainClient.isConnectionAccepted())
+					throw new IOException("connection lost with server");
+				else if(!file.exists()){
+					fileTransferManager.cancelUpload(target,path, true);
 					logger.log("file was deleted so it was not sent "+file.getPath());
-					
-					fileTransferManager.resetSendInfo();
 					return;
 				}
-				byte[]bytes=new byte[(int)Math.min(offset, size-i)];
-				
-				//Quickly load all bytes; This method has the benefit of memorizing 
-				//memory usage and is not affected by concurrent changes in the file
-				map.get(bytes, 0, bytes.length);
-				
-				//This will be sent to true by MainClient when the receivers responds
-				//that they received the packet
-				fileTransferManager.sentPacket();
-				
-				//sends the packet or sends the packet with a signal that the upload is finished
-				mainClient.printMessage(
-						file.formatFileIntoSyncData(bytes,size),
-						(i+offset<size)?HEADER_REQUEST_LARGE_FILE_DOWNLOAD:HEADER_REQUEST_END_LARGE_FILE_DOWNLOAD,
-						target
-						);
-				fileTransferManager.updateTimeSending();
+				else if(!fileTransferManager.isLargeFileUploadOngoing(target,path)){
+					logger.log("Large file upload of "+path+" has been canceled"+fileTransferManager.getPathOfLargeFileBeingSent(target));
+					return;
+				}
+				else {
+					byte[]bytes=new byte[(int)Math.min(offset, size-i)];
+					
+					//Quickly load all bytes; This method has the benefit of memorizing 
+					//memory usage and is not affected by concurrent changes in the file
+					map.get(bytes, 0, bytes.length);
+									
+					//sends the packet or sends the packet with a signal that the upload is finished
+					mainClient.printMessage(file.formatFileIntoSyncData(bytes,size),HEADER_REQUEST_LARGE_FILE_DOWNLOAD,target);
+					
+				}
 			}
-			
+			mainClient.printMessage(file.formatFileIntoSyncData(hash,size),HEADER_REQUEST_END_LARGE_FILE_DOWNLOAD,target);
 			logger.log("done total time:"+(System.currentTimeMillis()-startTime)/1000.0+"s");
+			Syncrop.sleep();
 			map.clear();
 			map=null;
-		}
-		catch (IllegalAccessException e)
-		{
-			logger.log(e.toString());
 		}
 		catch (OutOfMemoryError | SecurityException | IOException e)
 		{
 			logger.logError(e,"occured while trying to upload large file path="+path) ;
-			if(fileTransferManager.isSending()&&mainClient.isConnectionAccepted())
-				fileTransferManager.cancelUpload(path,true, !(e instanceof IOException));
+			if(mainClient.isConnectionAccepted())
+				fileTransferManager.cancelUpload(target,path,true);
 		}
 	}	
 }

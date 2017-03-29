@@ -14,7 +14,7 @@ public class PrimaryConnectionThread extends GenericConnectionThread{
 	
 	CheckThreadsThread checkThreadsThread=null;
 		
-	public PrimaryConnectionThread(Socket s,ObjectInputStream in,ObjectOutputStream out,String username,String application,int maxConnections,long milliSecondsPerPing) throws IOException {
+	public PrimaryConnectionThread(Socket s,ObjectInputStream in,ObjectOutputStream out,String username,String application,int maxConnections) throws IOException {
 		super(s,in,out);
 		if(username==null||username.isEmpty())
 			username=System.currentTimeMillis()+"";
@@ -22,7 +22,7 @@ public class PrimaryConnectionThread extends GenericConnectionThread{
 		this.username=username;
 		//id=username+"_"+application+System.currentTimeMillis();
 		this.maxConnections=maxConnections;
-		this.milliSecondsPerPing=milliSecondsPerPing;
+		
 		this.clientSocket=s;
 		
 		Server.connections.put(username, this);
@@ -31,7 +31,7 @@ public class PrimaryConnectionThread extends GenericConnectionThread{
 		else
 			clients=new HashMap<>(maxConnections);
 		
-		log("new primary. ID="+username+" milliSecondsPerPing="+milliSecondsPerPing);
+		log("new primary. ID="+username);
 	}
 	@Override
 	public synchronized void printMessage(Message m){
@@ -160,35 +160,15 @@ public class PrimaryConnectionThread extends GenericConnectionThread{
 		@Override
 		public void run()
 		{
-			final Message ping=new Message(
-					Message.MESSAGE_PING, username, Message.TYPE_MESSAGE_TO_CLIENT,Message.HEADER_IGNORE);
 			while(isConnectedToClient()){
 				try{
 					for(String key:clients.keySet())
-					{
-						SecondaryConnectionThread c=clients.get(key);
-						
-						if(c.isActive())
-						{
-							clients.get(key).printMessage(ping);
-							clients.get(key).active=false;
-						}
-						else 
-							remove(key,"no ping",true);	
-					}
-					if(clientSocket!=null){
-						if(isActive())
-						{
-							printMessage(ping);
-							active=false;
-						}
-						else 
-						{
-							closeAllConnections("no ping from primary",true);
-							return;
-						}
-					}
-					Thread.sleep(milliSecondsPerPing);
+						clients.get(key).printMessage(new Message(
+								System.currentTimeMillis(), Server.username, Message.TYPE_MESSAGE_TO_CLIENT,Message.HEADER_PING));
+					if(clientSocket!=null)	
+						printMessage(new Message(
+								System.currentTimeMillis(), Server.username, Message.TYPE_MESSAGE_TO_CLIENT,Message.HEADER_PING));
+					Thread.sleep(timeoutCalculator.getPingDelay());
 				} 
 				catch (InterruptedException e){log("Check threads threads has been interrupted");}
 				catch (ConcurrentModificationException e) {log(e.toString());}

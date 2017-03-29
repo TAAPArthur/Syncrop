@@ -19,7 +19,7 @@ public abstract class Syncrop {
 	 * The version number of Syncrop.<br/>
 	 * This value is the value version of the Syncrop DEB.
 	 */
-	static final private String VERSION_ID="1.4.2";
+	static final private String VERSION_ID="2.2.0";
 	/**
 	 * The version of the metadata. This value is stored in the metadata dir.
 	 * When this value differs from the stored value, the metadata is cleared.
@@ -27,7 +27,7 @@ public abstract class Syncrop {
 	 * is not compatible. Clearing the metadata directory is prone to cause conflicts
 	 * @see {@link ResourceManager#getMetadataDirectory()}
 	 */
-	static final private String METADATA_VERSION="6";
+	static final private String METADATA_VERSION="4";
 	
 	/**
 	 * 2^10 bytes
@@ -150,6 +150,7 @@ public abstract class Syncrop {
 		//sets the start time 
 		startTime=System.currentTimeMillis();
 		//define the logger
+		ResourceManager.initializeConfigurationFiles();
 		logger=new SyncropLogger((this instanceof SyncDaemon?"syncrop":"syncropGUI")+".log");
 		
 		//Loads settings
@@ -158,10 +159,9 @@ public abstract class Syncrop {
 		//initilize Notification; only needed for Windows
 		Notification.initilize(getClass());
 
-		ResourceManager.initializeConfigurationFiles();
 		
 		//logs basic config info
-		logger.log("Version: "+VERSION_ID+"; Encoding: "+System.getProperty("file.encoding")+
+		logger.log("Version: "+VERSION_ID+":"+METADATA_VERSION+"; Encoding: "+System.getProperty("file.encoding")+
 				"; OS: "+System.getProperty("os.name")+"; host "+Settings.getHost()+":"+Settings.getPort()+" log level "+logger.getLogLevel());
 		
 		//if config files cannot be read, quit

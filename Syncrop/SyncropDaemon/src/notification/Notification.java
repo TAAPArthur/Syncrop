@@ -55,13 +55,13 @@ public class Notification {
 	public static void displayNotification(String message)
 	{
 		if(!Settings.showNotifications())return;
+		logger.log("Notification: "+message);
 		if(isNotWindows())
 			try {
 				Runtime.getRuntime().exec(new String []{"notify-send","-i",pathToImage,"Syncrop "+getInstance(),message});
 			} catch (IOException|NullPointerException e) {
 				Settings.setShowNotifications(false);
-				logger.logError(e, 
-						"occured while trying to notify user of message '"+message+
+				logger.log("can't notify user of message: '"+message+
 						"'. Notifications will now be turned off");				
 			}
 		else 

@@ -27,18 +27,18 @@ public class SyncROPFile extends SyncROPItem
 		
 	public SyncROPFile(String path, String owner,long key)
 	{
-		this(path,owner,0, key,false,-1,false,"");
+		this(path,owner,0, key,false,-1,"");
 	}
 	
 	public SyncROPFile(String path,String owner,long modificicationDate,long key,long lastRecordedSize){
-		this(path, owner, modificicationDate, key,false,lastRecordedSize, false,"");
+		this(path, owner, modificicationDate, key,false,lastRecordedSize,"");
 	}
-	public SyncROPFile(String path,String owner,long modificicationDate,long key,boolean modifedSinceLastKeyUpdate,long lastRecordedSize,boolean knownToExists,String filePermisions)
+	public SyncROPFile(String path,String owner,long modificicationDate,long key,boolean modifedSinceLastKeyUpdate,long lastRecordedSize,String filePermisions)
 	{
-		super(path, owner, modificicationDate,modifedSinceLastKeyUpdate,knownToExists,filePermisions);
+		super(path, owner, modificicationDate,modifedSinceLastKeyUpdate,lastRecordedSize,filePermisions);
 		
 		if(key<=0)
-			key=dateModified;
+			key=0;
 		this.key=key;
 		if(exists()&&Files.isDirectory(file.toPath(),LinkOption.NOFOLLOW_LINKS)){
 			throw new IllegalArgumentException("path "+path+" denotes a directory so "
@@ -94,20 +94,10 @@ public class SyncROPFile extends SyncROPItem
 		return false;
 	}
 	
-	/**
-	 * Changes the key and the date modified and, if on cloud, updates all parallel files
-	 * @param key the new key of the file
-	 * @param dateModified the new dteModified date
-	 */
-	public void updateFile(long key,long dateModified)
-	{
-		setKey(key);
-		setDateModified(dateModified);
-	}
+	
 	public void updateKey(){
 		setKey(key+1);//UPDATE KEY
 	}
-	//public void updateKey(){setKey(dateModified);}
 	public void setKey(long key)
 	{		
 		logger.logTrace("key "+this.key+" is being changed to "+key+" path="+path);
@@ -116,10 +106,6 @@ public class SyncROPFile extends SyncROPItem
 		
 	}
 	
-	/**
-	 * Returns the length of the file denoted by path.
-	 */
-	public long getSize(){return file.length();}
 	
 	@Override
 	public long getKey()

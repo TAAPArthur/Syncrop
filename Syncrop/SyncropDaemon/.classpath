@@ -2,9 +2,9 @@
 <classpath>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="src" path="Resources"/>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/java-7-openjdk-amd64"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/Server"/>
 	<classpathentry kind="lib" path="/home/taaparthur/Documents/Syncrop/Jars/jna.jar"/>
 	<classpathentry kind="lib" path="/home/taaparthur/Documents/Syncrop/Jars/json-simple-1.1.1.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

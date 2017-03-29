@@ -14,10 +14,10 @@ public class InternalServer extends Server implements Messenger {
 	 */
 	private String reasonToClose;
 	
-	public InternalServer(int maxConnections, int port,Logger logger,String username,String application,long milliSecondsPerPing) throws IOException{
+	public InternalServer(int maxConnections, int port,Logger logger,String username,String application) throws IOException{
 		super(maxConnections, port, logger);
 		Server.username=username;
-		primary=new PrimaryConnectionThread(null,null,null,username,application, maxConnections, milliSecondsPerPing);
+		primary=new PrimaryConnectionThread(null,null,null,username,application, maxConnections);
 		primary.start();
 	}
 	
@@ -103,5 +103,10 @@ public class InternalServer extends Server implements Messenger {
 	@Override
 	public Message readNotification() {
 		return primary.readNotification();
+	}
+
+	@Override
+	public int getTimeout() {
+		return primary.getTimeout();		
 	}	
 }

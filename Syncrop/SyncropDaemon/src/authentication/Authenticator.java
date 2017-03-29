@@ -24,8 +24,8 @@ public class Authenticator {
 	 * @return true if the user has been authenticated
 	 */
 	public static boolean authenticateUser(String username,String email,String refreshToken){
-		logger.logTrace("Authenticating User");
-		String file="syncrop/authenticateUser.php";
+		logger.logTrace("Authenticating User:"+username);
+		String file="Syncrop/authenticateUser.php";
 		String parameters="?username="+username+"&email="+email+"&token="+refreshToken;
 		String protocal="http://";
 		try {
@@ -46,5 +46,4 @@ public class Authenticator {
 	    }
 		return false;	
 	}
-
 }

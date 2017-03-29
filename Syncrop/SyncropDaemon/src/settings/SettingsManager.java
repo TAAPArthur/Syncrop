@@ -21,36 +21,48 @@ import client.GenericClient;
 
 public class SettingsManager {
 	
-	
+	private static final int TYPE_SIMPLE=0;
+	private static final int TYPE_ADVANCED=1;
+	private static final int TYPE_CLOUD=2;
 	public enum Options{
-		HOST("Host",String.class,"getHost","setHost",true),
-		PORT("Port",int.class,"getPort","setPort",true),
-		LOG_LEVEL("Log Level",int.class,"getLogLevel","setLogLevel",true),
-		MAX_ACCOUNT_SIZE("Max Account Size (MB)",double.class,"getMaxAccountSize","setMaxAccountSize",true),
-		MULTIPLE_INSTANCES("Multiple Instances",boolean.class,"allowMultipleInstances","setMultipleInstances",true),
-		AUTO_QUIT("Auto Quit",boolean.class,"autoQuit","setAutoQuit",true),
-		WINDOWS_COMPATIBLE("Windows Compatible",boolean.class,"isWindowsCompatible","setWindowsCompatible",true),
-		ALLOW_SCRIPTS("Allow Scripts",boolean.class,"allowScripts","setAllowScripts",true),
-		ALLOW_ENCRYPTION("Allow Encryption",boolean.class,"getAllowEncription","setAllowEncription",true),
 		
-		SHOW_NOTIFICATIONS("Show Notifications",boolean.class,"showNotifications","setShowNotifications",false),
-		SYNC_HIDDEN_FILES("Sync Hidden Files",boolean.class,"canSyncHiddenFiles","setSyncHiddenFiles",false),
-		AUTO_START("Auto Start",boolean.class,"autoStart","setAutoStart",false);
+		HOST("Host",String.class,"getHost","setHost",TYPE_ADVANCED),
+		PORT("Port",int.class,"getPort","setPort",TYPE_ADVANCED),
+		LOG_LEVEL("Log Level",int.class,"getLogLevel","setLogLevel",TYPE_ADVANCED),
+		MAX_ACCOUNT_SIZE("Max Account Size (MB)",double.class,"getMaxAccountSize","setMaxAccountSize",TYPE_ADVANCED),
+		MULTIPLE_INSTANCES("Multiple Instances",boolean.class,"allowMultipleInstances","setMultipleInstances",TYPE_ADVANCED),
+		AUTO_QUIT("Auto Quit",boolean.class,"autoQuit","setAutoQuit",TYPE_ADVANCED),
+		WINDOWS_COMPATIBLE("Windows Compatible",boolean.class,"isWindowsCompatible","setWindowsCompatible",TYPE_ADVANCED),
+		ALLOW_SCRIPTS("Allow Scripts",boolean.class,"allowScripts","setAllowScripts",TYPE_ADVANCED),
+		ALLOW_ENCRYPTION("Allow Encryption",boolean.class,"getAllowEncription","setAllowEncription",TYPE_ADVANCED),
+		
+		SHOW_NOTIFICATIONS("Show Notifications",boolean.class,"showNotifications","setShowNotifications",TYPE_SIMPLE),
+		SYNC_HIDDEN_FILES("Sync Hidden Files",boolean.class,"canSyncHiddenFiles","setSyncHiddenFiles",TYPE_SIMPLE),
+		AUTO_START("Auto Start",boolean.class,"autoStart","setAutoStart",TYPE_SIMPLE),
+		ALLOW_CONFLICTS("Allow Conflicts",boolean.class,"isConflictsAllowed","setConflictsAllowed",TYPE_ADVANCED),
+		CONFLICT_RESOLUTION("Conflict Resolution",int.class,"getConflictResolution","setConflictResolution",TYPE_ADVANCED),
+		DELETING_FILES_NOT_ON_CLIENT("Conflict Resolution",boolean.class,"isDeletingFilesNotOnClient","setDeletingFilesNotOnClient",TYPE_ADVANCED),
+		
+		UNIVERSAL_RESTRICTIONS("universal Restrictions",String.class,"getUniversalRestrictions","setUniversalRestrictions",TYPE_CLOUD);
+		
+		int type;
 		String title;
 		Class<?> clazz;
 		String getterName,setterName;
-		boolean advancedOption=false;
-		Options(String title,Class<?> clazz,String getterName,String setterName,boolean advancedOption){
+		
+		
+		Options(String title,Class<?> clazz,String getterName,String setterName,int type){
 			this.title=title;
 			this.clazz=clazz;
 			this.getterName=getterName;
 			this.setterName=setterName;
-			this.advancedOption=advancedOption;
+			this.type=type;
 		}
 		
 		public String getName(){return name();}
 		public String getTitle(){return title;}
-		public Class<?> getType(){return clazz;}
+		public Class<?> getDataType(){return clazz;}
+		public int getOptionType(){return type;}
 		
 		public void setValue(Object value){ 
 			try {
@@ -107,10 +119,10 @@ public class SettingsManager {
 	{
 		loadDefaultSettings();
 		
-		File settings=getSettingsFile();
+		File settingsFile=getSettingsFile();
 		createSettingsFile();
 		try {
-			BufferedReader in=new BufferedReader(new InputStreamReader(new FileInputStream(settings)));
+			BufferedReader in=new BufferedReader(new InputStreamReader(new FileInputStream(settingsFile)));
 			
 			while(in.ready())
 				interpretSettings(in.readLine());
@@ -120,6 +132,7 @@ public class SettingsManager {
 			Syncrop.logger.log("file preference file does not exist but file.exists()==true", 
 					SyncropLogger.LOG_LEVEL_ERROR,e);
 		}
+		
 	}
 	/**
 	 * Translates the settings into code
@@ -142,13 +155,14 @@ public class SettingsManager {
 		try {
 			option=Options.valueOf(name);
 		} catch (IllegalArgumentException e) {
+			logger.logWarning(e.toString());
 		}
 		if(option!=null){
-			if(option.getType().equals(double.class))
+			if(option.getDataType().equals(double.class))
 				value=Double.parseDouble((String) value);
-			else if(option.getType().equals(int.class))
+			else if(option.getDataType().equals(int.class))
 				value=Integer.parseInt((String) value);
-			else if(option.getType().equals(boolean.class))
+			else if(option.getDataType().equals(boolean.class))
 				value=Boolean.parseBoolean((String) value);
 				option.setValue(value);
 		}
@@ -159,10 +173,11 @@ public class SettingsManager {
 		saveSettings(false);
 	}
 	public void saveSettings(boolean comment) throws FileNotFoundException{
-		File settings=getSettingsFile();
-		PrintWriter out=new PrintWriter(settings);
+		
+		PrintWriter out=new PrintWriter(getSettingsFile());
 		for(Options option:Options.values())
-			out.println((comment?"#":"")+option.name()+":"+option.getValue());
+			if(option.getOptionType()!=TYPE_CLOUD)
+				out.println((comment?"#":"")+option.name()+":"+option.getValue());
 		out.close();
 	}
 	

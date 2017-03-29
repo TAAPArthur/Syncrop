@@ -1,20 +1,29 @@
 package transferManager.queue;
 
 import daemon.SyncDaemon;
+import file.SyncROPItem;
 
 public class QueueMember implements Comparable<QueueMember>{
 	private String path;
 	private String owner;
 	String target;
 	final long timeStamp;
-	boolean smallFile;
-	boolean wasConnectionActiveAtQueueEntry=SyncDaemon.isConnectionActive();
-	public QueueMember(String path,String owner,String target,boolean smallFile){
+	long dateModified;
+	int fileSizeTier;
+	
+	public QueueMember(SyncROPItem fileToAddToQueue,String target){
+		this(fileToAddToQueue.getPath(),fileToAddToQueue.getOwner(),fileToAddToQueue.getDateModified(), target,fileToAddToQueue.getSize());
+	}
+	public QueueMember(String path,String owner,long dateModifed,String target,long size){
 		this.path=path;
 		this.owner=owner;
 		this.target=target;
-		this.smallFile=smallFile;
 		timeStamp=System.currentTimeMillis();
+		fileSizeTier=(int) (size/SyncDaemon.TRANSFER_SIZE);
+		this.dateModified=dateModifed;
+	}
+	public boolean isLargeFile(){
+		return fileSizeTier>0;
 	}
 	@Override
 	public boolean equals(Object o){
@@ -33,21 +42,21 @@ public class QueueMember implements Comparable<QueueMember>{
 		return target;
 	}
 	public long getTimeStamp(){return timeStamp;}
+	public long getTimeInQueue(){
+		return System.currentTimeMillis()-timeStamp;
+	}
+	
 	@Override
 	public String toString(){
 		return "path:"+path+"; owner:"+owner+"; target:"+target;
 	}
 	@Override
-	public int compareTo(QueueMember o) {
-		if(wasConnectionActiveAtQueueEntry^o.wasConnectionActiveAtQueueEntry)
-			if(smallFile^o.smallFile)
+	public int compareTo(QueueMember o) {	
+		if(fileSizeTier==o.fileSizeTier)
+			if(dateModified==o.dateModified)
 				return (int)(timeStamp-o.timeStamp);
-			else if(smallFile)
-				return -1;
-			else return 1;
-		else if(wasConnectionActiveAtQueueEntry)
-			return -1;
-		else return 1;
+			else return (int)(dateModified-o.dateModified);
+		else return fileSizeTier-o.fileSizeTier;
 		
 	}
 }

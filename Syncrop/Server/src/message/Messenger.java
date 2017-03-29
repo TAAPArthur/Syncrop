@@ -51,5 +51,6 @@ public interface Messenger {
 	public void printMessage(Object o,String header,String... target);
 	public void printMessage(Object o,String header,String[] targetsToInclude,String... targetsToExclude);
 	
+	public int getTimeout();
 
 }

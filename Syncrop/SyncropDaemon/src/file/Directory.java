@@ -6,30 +6,23 @@ import syncrop.ResourceManager;
 
 public class Directory 
 {
-	protected String dir;
-	private String literalDir;
+	final protected String dir;
+	final private String literalDir;
 	/**
 	 * If true, then the Directory should be taken literally else it should be treated as pattern 
 	 */
 	protected boolean literal=true;
-	public Directory(String dir,boolean literal)
+	public Directory(String literalDir)
 	{
-		literalDir=dir;
-		if(!literal)
-		{
-			dir=ResourceManager.convertToPattern(dir);
-		}
-		
-		this.dir=dir;
-		this.literal=literal;
+		this.literalDir=literalDir;
+		literal=!containsMatchingChars(literalDir);
+		if(literal)
+			dir=literalDir;
+		else dir=ResourceManager.convertToPattern(literalDir);		
 	}
 	public String getDir(){return dir;}
 	public String getLiteralDir(){return literalDir;}
-	public static boolean isPathContainedInDirectory(String path,String dir)
-	{
-		return dir.equals(path)||dir.isEmpty()||
-					path.startsWith(dir+File.separatorChar);
-	}
+	
 	public boolean isPathContainedInDirectory(String path)
 	{
 		if(literal)
@@ -41,7 +34,9 @@ public class Directory
 	
 	public boolean equals(Directory dir){return dir.equals(dir.dir);}
 	
-	public String toString(){return literalDir;}
+	public String toString(){
+		return "dir:"+literalDir;
+	}
 	/**
 	 * @return if the dir should be taken literally or as a pattern
 	 */
@@ -64,4 +59,5 @@ public class Directory
 	{
 		return s.contains("*")||s.contains("?");
 	}
+	
 }

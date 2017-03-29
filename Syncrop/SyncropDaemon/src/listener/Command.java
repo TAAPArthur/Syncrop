@@ -13,10 +13,9 @@ import syncrop.Syncrop;
 
 public class Command {
 	
-	JSONObject jsonObject;
+	private JSONObject jsonObject;
 	public Command (JSONObject jsonObject){
 		this.jsonObject=jsonObject;
-		
 	}
 	public boolean isCommandFor(String path){
 		JSONArray files=((JSONArray)jsonObject.get("file"));

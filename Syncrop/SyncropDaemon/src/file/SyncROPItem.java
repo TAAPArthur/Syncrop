@@ -37,6 +37,7 @@ import account.Account;
 
 import com.sun.jna.platform.FileUtils;
 
+import daemon.SyncDaemon;
 import daemon.client.SyncropClientDaemon;
 
 public abstract class SyncROPItem 
@@ -75,7 +76,7 @@ public abstract class SyncROPItem
           OTHERS_READ,OTHERS_WRITE,OTHERS_EXECUTE,
 	};
 	
-	public SyncROPItem(String path,String owner,long modificicationDate,boolean modifedSinceLastKeyUpdate,boolean deletionRecorded,String filePermissions) 
+	public SyncROPItem(String path,String owner,long modificicationDate,boolean modifedSinceLastKeyUpdate,long lastRecordedSize,String filePermissions) 
 	{
 		for(String c:illegalChars)
 			if(path.contains(c)&&!File.separator.equals(c))
@@ -91,23 +92,24 @@ public abstract class SyncROPItem
 		
 		this.modifiedSinceLastKeyUpdate=modifedSinceLastKeyUpdate;
 		dateModified=modificicationDate;
-		this.deletionRecorded=deletionRecorded;
+		this.deletionRecorded=lastRecordedSize==-1;
 		
 		if(filePermissions.isEmpty())
 			updateFilePermissions();
 		else this.filePermisions=filePermissions;
 		
-		
 		if(Files.exists(file.toPath(), LinkOption.NOFOLLOW_LINKS)){
 			updateDateModified();
-			if(deletionRecorded){
+			if(deletionRecorded)
 				setHasBeenUpdated();
-			}
 		}
-		else if(!deletionRecorded){//if used to exist and doesn't exist
+		else if(!deletionRecorded)//if used to exist and doesn't currently
+		{
+			//TODO remove
+			logger.log(getSize()+""+file.length()+file.exists());
 			setHasBeenUpdated();
+			
 		}
-		
 		
 		/*else if(Syncrop.isInstanceOfCloud())
 			if(!recordDeletedFile(this))
@@ -212,13 +214,18 @@ public abstract class SyncROPItem
 		return Files.isDirectory(file.toPath(),LinkOption.NOFOLLOW_LINKS);
 		//return file.isDirectory();
 	}
-	
+	public boolean isLargeFile(){
+		return this.getSize()>SyncDaemon.TRANSFER_SIZE;
+	}
+	public boolean isSyncable(){
+		return !exists()||!isDir()||isEmpty();
+	}
 	/**
 	 * Checks to see if the file exists
 	 * @return true if and only if the file denoted by this SyncROPItem exists; false otherwise
 	 */
 	public boolean exists() {
-		return Files.exists(file.toPath());
+		return Files.exists(file.toPath(),LinkOption.NOFOLLOW_LINKS);
 	}
 	/**
 	 * 
@@ -256,9 +263,7 @@ public abstract class SyncROPItem
 	public static boolean isPathEnabled(String path,String owner){
 		return ResourceManager.getAccount(owner).isPathEnabled(path);
 	}
-	
-	
-	
+		
 
 	/**
 	 * Returns an owner of the file
@@ -275,6 +280,8 @@ public abstract class SyncROPItem
 	public boolean isRemovable() {
 		return removable;
 	}
+	
+	
 	public String getName(){return file.getName();}
 	/**
 	 * 
@@ -434,6 +441,7 @@ public abstract class SyncROPItem
 	 */
 	public boolean delete(long dateOfDelection)
 	{
+		dateModified=dateOfDelection;
 		if(exists())
 			logger.log("Deleting file: "+this);
 		else return false;
@@ -441,7 +449,8 @@ public abstract class SyncROPItem
 		dateModified=dateOfDelection;
 		if(exists()&&!
 				((this instanceof SyncROPFile&&file.isFile())||
-				(this instanceof SyncROPDir&&file.isDirectory())))
+				(this instanceof SyncROPDir&&file.isDirectory()))&&
+				!Files.isSymbolicLink(file.toPath()))
 		{
 			logger.logError(new IllegalArgumentException("Type of SyncropItem does not match file type"),"");
 			return false;
@@ -450,7 +459,6 @@ public abstract class SyncROPItem
 			if(Syncrop.isInstanceOfCloud())
 				file.delete();
 			else sendToTrash(file);
-			tryToCreateParentSyncropDir();
 		}
 		
 		if(file.exists()){
@@ -462,18 +470,7 @@ public abstract class SyncROPItem
 				
 		return true;
 	}
-	public boolean tryToCreateParentSyncropDir(){
-		if(!file.getParentFile().exists()||file.getParentFile().list().length==0){
-			if(ResourceManager.getFile(getParentPath(), owner)==null){
-				logger.logTrace(file.getParent()+" is now empty; creating metadata");
-				ResourceManager.writeFile(new SyncROPDir(getParentPath(), owner));
-				return true;
-			}
-			
-		}
-		return false;
-	}
-	private String getParentPath(){return this.path.replace(File.separatorChar+file.getName(), "");}
+	
 	
 	public void rename(File destFile) throws IOException
 	{
@@ -537,17 +534,19 @@ public abstract class SyncROPItem
 	public void setDateModified(Long l)
 	{
 		//l=(l/1000)*1000;
-		dateModified=l;
+		
+		if(Math.abs(dateModified-l)>100){
+			dateModified=l;
+			setHasBeenUpdated();
+		}
 		if(file.exists()){
 			try {
-				//System.out.println(l+" "+FileTime.fromMillis(l));
-				
 				Files.setLastModifiedTime(file.toPath(), FileTime.fromMillis(l));
 			} catch (IOException e) {
 				logger.logError(e, "occured while trying to change the modified time of "+file);
 			}
 		}
-		setHasBeenUpdated();
+		
 	}
 	/**
 	 * updates dateModified to match file.lastModified 
@@ -574,7 +573,13 @@ public abstract class SyncROPItem
 	public long getKey(){return -1;}
 	
 	public long getSize(){
-		return 0;
+		try {
+			
+			return exists()?Files.size(file.toPath()):-1;
+		} catch (IOException e) {
+			logger.logWarning("Cannot get size of file"+path);
+			return -1;
+		}
 	}
 	public long getLastKnownSize(){
 		return 0;
@@ -582,7 +587,7 @@ public abstract class SyncROPItem
 
 	public File getFile() {return file;}
 	
-	public boolean remove(){return ResourceManager.deleteFile(this);}
+	public boolean deleteMetadata(){return ResourceManager.deleteFile(this);}
 	
 	
 	
@@ -637,9 +642,10 @@ public abstract class SyncROPItem
 	public void recordDeletion(){deletionRecorded=true;}
 	public boolean isDeletionRecorded(){return deletionRecorded;}
 	
-	protected void setHasBeenUpdated(){
+	protected void setHasBeenUpdated(){		
 		hasBeenUpdated=true;
 		modifiedSinceLastKeyUpdate=true;
+		
 	}
 	public boolean hasBeenUpdated(){
 		return hasBeenUpdated;

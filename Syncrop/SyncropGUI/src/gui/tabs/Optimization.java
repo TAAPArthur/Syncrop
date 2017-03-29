@@ -8,6 +8,7 @@ import gui.SyncropGUI;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 
 import javax.swing.BoxLayout;
@@ -48,7 +49,11 @@ public class Optimization extends JPanel implements SyncropTab,ActionListener{
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		if(e.getSource().equals(removeFileInfo))
-			FileWatcher.checkAllMetadataFiles(false);
+			try {
+				FileWatcher.checkAllMetadataFiles(false);
+			} catch (IOException e1) {
+				logger.logError(e1);
+			}
 		else if(e.getSource().equals(removeConflicts))
 			checkAllFiles(new RemoveSyncROPConflictsAction());
 		else if(e.getSource().equals(removeDisabledFilesOnCloud))
