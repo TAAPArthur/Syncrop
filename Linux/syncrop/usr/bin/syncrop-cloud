@@ -1,9 +1,11 @@
 #!/bin/bash
 command=$1
 
+AUTO_START_FILE="/etc/init.d/auto_start_syncrop_cloud"
 start()
 {
-	nohup java -Xms20M -Xmx20M -jar /usr/lib/syncrop/SyncropCloud.jar "$@" >/syncrop/cloud.out&
+	echo `whoami` >~/whoami.txt
+	nohup java -Xms20M -Xmx20M -jar /usr/lib/syncrop/SyncropCloud.jar "$@" >/home/Syncrop/cloud.out&
 }
 
 stop()
@@ -20,13 +22,38 @@ version()
 {
 	java -Xmx15M -jar /usr/lib/syncrop/SyncropCloud.jar "-v"
 }
+auto-start(){
+
+	if [ "$1" = "--user" ]; then 
+		user="$2"
+		shift;shift;
+	else 
+		user=`whoami`
+		echo "user not specifed used current user: $user"
+	fi
+	echo "creating auto start file -->$AUTO_START_FILE "	
+	command="#!/bin/sh\ndaemon --user=$user /usr/bin/syncrop-cloud start";
+	sudo printf "$command $@\n" >$AUTO_START_FILE
+	sudo chmod 744 $AUTO_START_FILE
+	sudo update-rc.d auto_start_syncrop_cloud defaults
+	
+}
+remove-auto-start(){
+	echo "removing auto start file"
+	rm $AUTO_START_FILE
+}
+
+
 shift
 case $command in
 	start)
-		start
+		start $@
 		;;
 	stop)
 		stop
+		;;
+	auto-start)
+		auto-start $@
 		;;
 	restart|reload)
 		stop
@@ -36,7 +63,7 @@ case $command in
 		version
 		;;
 	*)
-		echo $"Usage: $0 {start|stop|restart|reload|status}"
+		echo $"Usage: $0 {start|stop|restart|reload|status|auto-start}"
 	        exit 1
 esac
 

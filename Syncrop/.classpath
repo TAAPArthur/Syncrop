@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="Server/src"/>
+	<classpathentry kind="src" path="SyncropDaemon/src"/>
+	<classpathentry kind="src" path="SyncropGUI/src"/>
+	<classpathentry kind="src" path="SyncropHelper/src"/>
+	<classpathentry kind="lib" path="Jar Creation/jna.jar"/>
+	<classpathentry kind="lib" path="Jar Creation/SyncropCompiler.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="/home/arthur/Documents/Syncrop/Jars/json-simple-1.1.1.jar"/>
+	<classpathentry kind="lib" path="/home/arthur/Documents/Syncrop/Jars/jna.jar"/>
+	<classpathentry kind="output" path="Server/bin"/>
+</classpath>

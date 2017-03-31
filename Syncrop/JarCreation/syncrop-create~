@@ -1,0 +1,55 @@
+#!/bin/bash
+cd $HOME/Documents/Syncrop
+echo `pwd`
+git add .
+
+mfHome="$HOME/Documents/Syncrop/Syncrop/Jar Creation"
+
+path="$HOME/Documents/Syncrop/Jars" #$HOME/Documents/Syncrop
+
+linux_path="$HOME/Documents/Syncrop/Linux/syncrop/usr/lib/syncrop"
+windows_path="$HOME/Documents/Syncrop/Windows/Jars"
+
+
+cd $HOME/Documents/Syncrop/Syncrop/SyncropGUI/bin
+jar cfm "$path"/SyncropGUI.jar "$mfHome"/SyncropGUI_MANIFEST.MF *
+
+cd $HOME/Documents/Syncrop/Syncrop/SyncropDaemon/bin
+
+jar cfm "$path"/SyncropDaemon.jar "$mfHome"/SyncropDaemon_MANIFEST.MF * ../Resources
+jar cfm "$path"/SyncropCloud.jar "$mfHome"/Cloud_MANIFEST.MF * ../Resources
+
+cd ../../Server/bin
+jar cf "$path"/Client.jar client/* logger/* message/*
+jar cf "$path"/Server.jar server/* logger/* message/*
+
+cd $HOME/Documents/Syncrop/Syncrop/SyncropHelper/bin
+
+jar cfm "$path"/SyncropHelper.jar "$mfHome"/SyncropHelper_MANIFEST.MF *
+
+
+git commit $HOME/Documents/Syncrop/Syncrop/ -m "Code was updated"
+
+
+#############Linux################
+version=`java -jar "$path"/SyncropDaemon.jar -v`
+file="$HOME/Documents/Syncrop/Linux/syncrop/DEBIAN/control"
+echo $version>"$HOME/Documents/TAAPArthur/html/syncrop_version.html"
+echo "Version: $version" >"$file"
+cat "$mfHome/control_minus_version" >>"$file"
+
+sleep 5s
+dpkg-deb --build "$HOME/Documents/Syncrop/Linux/syncrop" "$HOME/Documents/TAAPArthur/html/debian/pool/main/syncrop_all.deb"
+
+cd $path
+zip $HOME/Documents/TAAPArthur/html/syncrop/SyncropDaemonFiles SyncropGUI.jar SyncropDaemon.jar Client.jar Server.jar json-simple-1.1.1.jar jna.jar
+zip $HOME/Documents/TAAPArthur/html/syncrop/SyncropCloudFiles *
+
+ln -f $path/* $linux_path/
+
+git commit $path -m "Jar was updated"
+git commit $linux_path -m "Jar was updated"
+#############Windows#################
+ln -f $path/* $windows_path/
+
+git commit $windows_path -m "Jar was updated"
