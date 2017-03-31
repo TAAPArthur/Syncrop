@@ -1,6 +1,6 @@
 #!/bin/bash
 echo "$HOME/Documents/Syncrop"
-
+packageName="syncrop"
 mfHome="$HOME/Documents/Syncrop/Syncrop/JarCreation"
 
 path="$HOME/Documents/Syncrop/Jars" #$HOME/Documents/Syncrop
@@ -8,49 +8,76 @@ path="$HOME/Documents/Syncrop/Jars" #$HOME/Documents/Syncrop
 linux_path="$HOME/Documents/Syncrop/Linux/syncrop/usr/lib/syncrop"
 windows_path="$HOME/Documents/Syncrop/Windows/Jars"
 
+function createJars {
+	cd $HOME/Documents/Syncrop/Syncrop/SyncropGUI/bin
+	jar cfm "$path/SyncropGUI.jar" "$mfHome/SyncropGUI_MANIFEST.MF" *
+	
+	cd $HOME/Documents/Syncrop/Syncrop/SyncropDaemon/bin
+	
+	jar cfm "$path/SyncropDaemon.jar" "$mfHome/SyncropDaemon_MANIFEST.MF" * ../Resources
+	jar cfm "$path/SyncropCloud.jar" "$mfHome/Cloud_MANIFEST.MF" * ../Resources
+	
+	cd ../../Server/bin
+	jar cf "$path/Client.jar" client/* logger/* message/*
+	jar cf "$path/Server.jar" server/* logger/* message/*
+	
+	cd $HOME/Documents/Syncrop/Syncrop/SyncropHelper/bin
+	
+	jar cfm "$path"/SyncropHelper.jar "$mfHome"/SyncropHelper_MANIFEST.MF *
+}
 
-cd $HOME/Documents/Syncrop/Syncrop/SyncropGUI/bin
-jar cfm "$path/SyncropGUI.jar" "$mfHome/SyncropGUI_MANIFEST.MF" *
+function createDeb {
+	#############Linux################
+	version=`java -jar "$path/SyncropDaemon.jar" -v`
+	debainPath="$HOME/Documents/Syncrop/Linux/syncrop/debian"
+	cd $debainPath
+	echo "Version: $version"
+	echo $version>"$HOME/Documents/TAAPArthur/html/Syncrop/syncrop_version.html"
+	echo "Standards-Version: $version" >"control"
+	cat "$mfHome/control_minus_version" >>"control"
+	
+	
+	debchange --urgency low --distribution stable --package "$packageName" --newversion $version "$message"
+	
+	cd ..
+	dpkg-buildpackage -us -uc
+}
+function moveDeb {
+	cd "$HOME/Documents/Syncrop/Linux/"
+	packageVersion="$packageName""_$version"
+	
+	echo "$packageVersion*.changes" 
+	mv "$packageVersion"*".changes" "$HOME/Documents/TAAPArthur/html/debian/$packageName"_all.changes
+	mv "$packageVersion"*".dsc" "$HOME/Documents/TAAPArthur/html/debian/$packageName"_all.dsc
+	mv "$packageVersion"*".deb" "$HOME/Documents/TAAPArthur/html/debian/pool/main/$packageName"_all.deb
+	cd  "$HOME/Documents/TAAPArthur/html/debian/"
+	debsign -k99F4C4AD *.changes
+	debsign -k99F4C4AD *.dsc
+}
+function zipResourcesForDownload {
+	cd $path
+	zip -u "$HOME/Documents/TAAPArthur/html/Syncrop/syncrop/SyncropDaemonFiles" SyncropGUI.jar SyncropDaemon.jar Client.jar Server.jar json-simple-1.1.1.jar jna.jar
+	zip -u "$HOME/Documents/TAAPArthur/html/Syncrop/syncrop/SyncropCloudFiles" *
+	
+	ln -f $path/* $linux_path/
+}
+function push {
+	git commit $HOME/Documents/Syncrop/Syncrop/ -m "$message"
+	
+	git commit $path -m "$message"
+	git commit $linux_path -m "$message"
+	git push
+	#############Windows#################
+	ln -f $path/* $windows_path/
+	
+	git commit $windows_path -m "$message"
+	echo "pushing changes to git"
+	#git push
+}
 
-cd $HOME/Documents/Syncrop/Syncrop/SyncropDaemon/bin
-
-jar cfm "$path/SyncropDaemon.jar" "$mfHome/SyncropDaemon_MANIFEST.MF" * ../Resources
-jar cfm "$path/SyncropCloud.jar" "$mfHome/Cloud_MANIFEST.MF" * ../Resources
-
-cd ../../Server/bin
-jar cf "$path/Client.jar" client/* logger/* message/*
-jar cf "$path/Server.jar" server/* logger/* message/*
-
-cd $HOME/Documents/Syncrop/Syncrop/SyncropHelper/bin
-
-jar cfm "$path"/SyncropHelper.jar "$mfHome"/SyncropHelper_MANIFEST.MF *
-
-
-#############Linux################
-version=`java -jar "$path/SyncropDaemon.jar" -v`
-file="$HOME/Documents/Syncrop/Linux/syncrop/DEBIAN/control"
-echo "Version: $version"
-echo $version>"$HOME/Documents/TAAPArthur/html/Syncrop/syncrop_version.html"
-echo "Version: $version" >"$file"
-cat "$mfHome/control_minus_version" >>"$file"
-
-sleep 5s
-dpkg-deb --build "$HOME/Documents/Syncrop/Linux/syncrop" "$HOME/Documents/TAAPArthur/html/debian/pool/main/syncrop_all.deb"
-
-cd $path
-zip -u "$HOME/Documents/TAAPArthur/html/Syncrop/syncrop/SyncropDaemonFiles" SyncropGUI.jar SyncropDaemon.jar Client.jar Server.jar json-simple-1.1.1.jar jna.jar
-zip -u "$HOME/Documents/TAAPArthur/html/Syncrop/syncrop/SyncropCloudFiles" *
-
-ln -f $path/* $linux_path/
+createJars
 message=$(zenity --entry)
-
-git commit $HOME/Documents/Syncrop/Syncrop/ -m "$message"
-
-git commit $path -m "$message"
-git commit $linux_path -m "$message"
-#############Windows#################
-ln -f $path/* $windows_path/
-
-git commit $windows_path -m "$message"
-echo "pushing changes to git"
-#git push
+createDeb
+moveDeb
+zipResourcesForDownload
+push

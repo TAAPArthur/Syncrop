@@ -50,7 +50,7 @@ public class Optimization extends JPanel implements SyncropTab,ActionListener{
 	public void actionPerformed(ActionEvent e) {
 		if(e.getSource().equals(removeFileInfo))
 			try {
-				FileWatcher.checkAllMetadataFiles(false);
+				FileWatcher.checkMetadataForAllFiles(false);
 			} catch (IOException e1) {
 				logger.logError(e1);
 			}

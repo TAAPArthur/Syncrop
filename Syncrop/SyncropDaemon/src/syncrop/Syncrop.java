@@ -92,6 +92,7 @@ public abstract class Syncrop {
 	 * Used by all classes to log data
 	 */
 	public static SyncropLogger logger;
+	protected String logFileName;
 	
 	/**
 	 * The name of the Syncrop logo located within the jar
@@ -119,6 +120,7 @@ public abstract class Syncrop {
 	 * @see {@link #instance}
 	 */
 	public Syncrop(String instance) throws IOException{
+		
 		Syncrop.instance=instance;
 		Syncrop.instanceOfCloud=(this instanceof SyncropCloud);
 		init();
@@ -138,6 +140,7 @@ public abstract class Syncrop {
 		Syncrop.instanceOfCloud=runAsCloud;
 		init();
 	}
+	
 	/**
 	 * Sets whether Syncrop runs as Cloud
 	 * @param runAsCloud if true, Syncrop will run if it was a Cloud
@@ -146,12 +149,15 @@ public abstract class Syncrop {
 	public static void setInstanceOfCloud(boolean runAsCloud){
 		Syncrop.instanceOfCloud=runAsCloud;
 	}
+	protected void initializeLogger() throws IOException{
+		logger=new SyncropLogger((this instanceof SyncDaemon?"syncrop":"syncropGUI")+".log");
+	}
 	private void init()throws IOException{
 		//sets the start time 
 		startTime=System.currentTimeMillis();
 		//define the logger
 		ResourceManager.initializeConfigurationFiles();
-		logger=new SyncropLogger((this instanceof SyncDaemon?"syncrop":"syncropGUI")+".log");
+		initializeLogger();
 		
 		//Loads settings
 		new SettingsManager().loadSettings();
@@ -172,6 +178,7 @@ public abstract class Syncrop {
 		}
 		//file account config files (.ini file)
 		ResourceManager.readFromConfigFile();
+		//enableCustomCertificates();
 	}
 	
 	/**

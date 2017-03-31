@@ -185,10 +185,6 @@ public class Account
 		logger.log("Deleting Account folder for "+getName());
 		do
 		{
-			File metadatahome=ResourceManager.getMetadataHome(getName(), removable);
-			if(metadatahome.exists()){
-				Files.walkFileTree(metadatahome.toPath(), new RecursiveDeletionFileVisitor());
-			}
 			File home=new File(ResourceManager.getHome(getName(), removable=!removable));
 			if(home.exists())
 				Files.walkFileTree(home.toPath(), new RecursiveDeletionFileVisitor());

@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.nio.file.ClosedWatchServiceException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
@@ -36,7 +35,7 @@ import file.SyncROPFile;
 import file.SyncROPItem;
 import file.SyncROPSymbolicLink;
 import settings.Settings;
-import syncrop.MetadataWalker;
+import syncrop.FileMetadataManager;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
 import syncrop.SyncropCloseException;
@@ -77,38 +76,31 @@ public class FileWatcher extends Thread{
     		keys.put(key, dir);
     	}
     }
-    public static void checkAllMetadataFiles() throws IOException{
-    	checkAllMetadataFiles(true);
-    }
-    public static void checkAllMetadataFiles(final boolean perserveMetadataForDeletedFiles) throws IOException{
+    
+    public static void checkMetadataForAllFiles(boolean perserveMetadataForDeletedFiles) throws IOException{
+    	Iterable<SyncROPItem>items=FileMetadataManager.iterateThroughAllFileMetadata(null);
+    	for(SyncROPItem item:items){
+    		checkFileMetadata(item,perserveMetadataForDeletedFiles);
+    	}
     	
-    	logger.logTrace("checking metadata");
-    	new MetadataWalker(){
-
-			@Override
-			public void onMetadataFile(File metaDataFile) {
-				SyncROPItem file=ResourceManager.readFile(metaDataFile);
-				if(file==null)return;
-				if(!file.isEnabled()){
-					file.deleteMetadata();
-				}
-				else if(!file.exists())
-					if(!perserveMetadataForDeletedFiles){
-						file.deleteMetadata();
-					}
-					else if(!file.isDeletionRecorded()){
-						logger.logTrace("File was deleted while server was off path="+file.getPath());
-						file.setDateModified(Syncrop.getStartTime());
-						file.save();
-					}
-				
+    }
+    public static void checkFileMetadata(SyncROPItem file,boolean perserveMetadataForDeletedFiles){
+		if(file==null)return;
+		if(!file.isEnabled()){
+			file.deleteMetadata();
+		}
+		else if(!file.exists())
+			if(!perserveMetadataForDeletedFiles){
+				file.deleteMetadata();
 			}
-    		
-    	}.walk();
-    	
-		logger.logTrace("finished checking metadata");
-
+			else if(!file.isDeletionRecorded()){
+				logger.logTrace("File was deleted while server was off path="+file.getPath());
+				file.setDateModified(Syncrop.getStartTime());
+				file.save();
+			}
+		
     }
+
 
     
 	public void checkAllFiles(){
@@ -142,57 +134,34 @@ public class FileWatcher extends Thread{
 		if(!a.isPathEnabled(path))return 0;
 		long count=0;
 		File file=new File(ResourceManager.getHome(a.getName(),removable),path);
-		SyncROPItem item=null;
+		
+		SyncROPItem item=ResourceManager.getFile(path, a.getName());
 	
 		logger.log("Checking "+path,SyncropLogger.LOG_LEVEL_ALL);
-		File metadataFile=ResourceManager.getMetadataFile(path, a.getName());
 		
-		if(!ResourceManager.isLocked(path,a.getName()))
+		if(!ResourceManager.isLocked(path,a.getName())){
 			if(Files.isSymbolicLink(file.toPath())){
-				if(!metadataFile.exists()){
+				if(item==null){
 					item=tryToCreateSyncropLink(file, path, a,removable);
 					if(!item.isEnabled()){
 						logger.log(item+" is not enabled");
 						return 0;
 					}
 					logger.logTrace("detected new file "+path);
-				}
-				else 
-					item=ResourceManager.getFile(path, a.getName());
-				
+				}				
 				if(Syncrop.isInstanceOfCloud())
 					checkIfFileIsShared(item);
-				if(Files.isDirectory(item.getFile().toPath())&&(!(item instanceof SyncROPSymbolicLink)||
-						!a.isPathEnabled(((SyncROPSymbolicLink) item).getTargetPath())))
-					try {
-						logger.log("Registering symbolic dir "+file,SyncropLogger.LOG_LEVEL_ALL);
-						register(file.toPath(),path,a, removable);
-						for(String f:file.list())
-							count+=checkFiles(a,path+((path.isEmpty()&&!removable)
-								||path.equals(File.separator)?
-								"":
-									File.separator)+f,removable);
-					} catch (IOException e) {
-						logger.logError(e, "occured when trying to register dir: "+file);
-					}
 			}
-			else if(Files.isDirectory(file.toPath(), LinkOption.NOFOLLOW_LINKS)){
+			if(Files.isDirectory(file.toPath())){
 				try {
 					Syncrop.sleepVeryShort();
 					String files[]=file.list();
 					//IF cannot read sub dirs
 					if(files==null)return 0;
-			 		
-					if(metadataFile.exists())
-						item=ResourceManager.getFile(path, a.getName());
+						
 					if(item==null){
-						if(metadataFile.exists())
-							metadataFile.delete();
 						item=new SyncROPDir(path,a.getName(),file.lastModified());
-					}
-				
-					//else daemon.setPropperPermissions(AccountManager.getDirByPath(path, a.getName()));
-					
+					}					
 					register(file.toPath(),path,a, removable);
 					
 					for(String f:file.list())
@@ -204,19 +173,26 @@ public class FileWatcher extends Thread{
 					logger.logError(e, "occured when trying to register dir: "+file);
 				}
 			}
-			else if(!metadataFile.exists()){	
+			else if(item==null){	
 				item=new SyncROPFile(path,a.getName());
 				if(!item.isEnabled())return 0;
 				logger.logTrace("detected new file "+path);
 				
 			}
-			else {
-				item=ResourceManager.getFile(path, a.getName());
-				if(item==null){
-					logger.logWarning("error occured when reading file. path="+path);
-				}
+			
+			if(item!=null&&item.hasBeenUpdated()){
+				onFileChange(item,item.getAbsPath());
+				if(item!=null)
+					if(SyncDaemon.isInstanceOfCloud()&&item instanceof SyncROPFile)
+						((SyncROPFile)item).updateKey();
+				item.save();
 				
+				if(daemon!=null){
+					daemon.addToSendQueue(item);
+				}
 			}
+		}	
+			
 		if(file.exists()){
 			if(item==null||item.hasBeenUpdated())
 				updateAccountSize(a, file, item);
@@ -225,19 +201,7 @@ public class FileWatcher extends Thread{
 			if(Syncrop.isInstanceOfCloud())
 				daemon.setPropperPermissions(item, null);
 		}
-		if(item!=null&&item.hasBeenUpdated()){
-			onFileChange(item,item.getAbsPath());
-			if(item.getMetadataFile().exists())
-				if(SyncDaemon.isInstanceOfCloud()&&item instanceof SyncROPFile)
-					((SyncROPFile)item).updateKey();
-			item.save();
-			
-			if(daemon!=null){
-				daemon.addToSendQueue(item);
-			}
-		}
 		
-		item=null;
 		return count;		
 	}
 	
@@ -481,16 +445,9 @@ public class FileWatcher extends Thread{
 		String owner=dir.getAccountName();
 		
 		if(!item.isDeletionRecorded()){
-			File meatadataDir=new File(ResourceManager.getMetadataFile(relativePath, owner).getParent(),item.getName());
-			if(meatadataDir.exists())
-				new MetadataWalker(file){
-					@Override
-					public void onMetadataFile(File metaDataFile){
-						SyncROPItem item=ResourceManager.readFile(metaDataFile);
-						recordFileDeletion(item, timestamp);
-					}
-				}.walk();
-			//remove file
+			Iterable<SyncROPItem>items=FileMetadataManager.getFilesStartingWith(relativePath, owner);
+			for(SyncROPItem itemKids:items)
+				recordFileDeletion(itemKids, timestamp);
 			recordFileDeletion(item, timestamp);
 						
 			if(item instanceof SyncROPDir)
@@ -507,6 +464,9 @@ public class FileWatcher extends Thread{
 	
 	
 	private void recordFileDeletion(SyncROPItem item,final long timeOfDelete){
+		if(item==null)return;
+		if(item.exists())
+			return;
 		if(!item.isDeletionRecorded()){
 			logger.log("fileListerner deemed this file to not exists "
 					+item.getFile(),SyncropLogger.LOG_LEVEL_DEBUG);

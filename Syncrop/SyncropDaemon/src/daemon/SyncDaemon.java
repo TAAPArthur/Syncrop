@@ -668,7 +668,7 @@ public abstract class SyncDaemon extends Syncrop{
 		return true;
 	}
 	public int getExptectedFileTransferTime(){
-		return Math.max(mainClient.getTimeout(),50);
+		return Math.max(mainClient.getExpectedRoundTripTime(),50);
 	}
 	public boolean isSendingLargeFile(){
 		return uploadLargeFileThread!=null&&uploadLargeFileThread.isAlive();

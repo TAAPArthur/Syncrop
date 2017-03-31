@@ -9,6 +9,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
 
+import javax.net.ssl.SSLServerSocketFactory;
+
 import logger.Logger;
 import message.Message;
 
@@ -20,6 +22,7 @@ import message.Message;
  */
 public abstract class Server 
 {
+    SSLServerSocketFactory ssf = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
 	private ServerSocket serverSocket = null;
 	static HashMap<String, PrimaryConnectionThread> connections=new HashMap<String, PrimaryConnectionThread>(1);
 	private int port;
@@ -126,7 +129,8 @@ public abstract class Server
 	{
 		while(serverSocket==null)
 	        try {
-	            serverSocket = new ServerSocket(port,100);//accept queue size == 100
+	        	serverSocket=ssf.createServerSocket(port,100);
+	            //serverSocket = new ServerSocket();//accept queue size == 100
 	        } catch (IOException e) {
 	        	log("Could not listen on port: "+port);
 	            System.err.println("Could not listen on port: "+port+"; sleeping 10s");

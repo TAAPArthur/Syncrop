@@ -21,6 +21,7 @@ public abstract class GenericConnectionThread extends Thread
 {
 	TimeoutCalculator timeoutCalculator=new TimeoutCalculator();
 	public int getTimeout(){return timeoutCalculator.getTimeout();}
+	public int getExpectedRoundTripTime(){return timeoutCalculator.getExpectedMaxRoundTripTime();}
 	private static boolean unshared=true;
 	private static long waitTime=10;
 	/**

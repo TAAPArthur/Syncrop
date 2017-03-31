@@ -104,12 +104,7 @@ public abstract class SyncROPItem
 				setHasBeenUpdated();
 		}
 		else if(!deletionRecorded)//if used to exist and doesn't currently
-		{
-			//TODO remove
-			logger.log(getSize()+""+file.length()+file.exists());
 			setHasBeenUpdated();
-			
-		}
 		
 		/*else if(Syncrop.isInstanceOfCloud())
 			if(!recordDeletedFile(this))
@@ -635,9 +630,7 @@ public abstract class SyncROPItem
 		return syncData;
 	}
 	
-	public File getMetadataFile(){
-		return ResourceManager.getMetadataFile(path, owner);
-	}
+	
 	public void unrecordDeletion(){deletionRecorded=false;}
 	public void recordDeletion(){deletionRecorded=true;}
 	public boolean isDeletionRecorded(){return deletionRecorded;}

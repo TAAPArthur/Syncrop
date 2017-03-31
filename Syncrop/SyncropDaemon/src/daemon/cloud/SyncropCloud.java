@@ -38,7 +38,7 @@ import message.Message;
 import server.InternalServer;
 import server.Server;
 import settings.Settings;
-import syncrop.MetadataWalker;
+import syncrop.FileMetadataManager;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
 import syncrop.SyncropLogger;
@@ -98,7 +98,7 @@ public final class SyncropCloud extends SyncDaemon
 	}
 	@Override
 	protected void checkFiles() throws IOException{
-		FileWatcher.checkAllMetadataFiles();
+		FileWatcher.checkMetadataForAllFiles(true);
 		super.checkFiles();
 	}
 	
@@ -283,31 +283,20 @@ public final class SyncropCloud extends SyncDaemon
 		
 		boolean removable=false;
 		//change standards; metadata in home"
-		while(removable=!removable)//regular vs removable
-			new MetadataWalker(accountName,removable){
-				public boolean allowedToVisitPath(Path dir){
-					if(dir.equals(getStartingPath()))return true;
-					String path=ResourceManager.getRelativePath(dir.toString(), accountName, isRemovable());
-					return user.isPathEnabled(path);
-				}
-				@Override
-				public void onMetadataFile(File metaDataFile) {
-					syncFilesToClient(message.getUserID(),user,metaDataFile,accountName);
-				}
-			}.walk();
+		while(removable=!removable){//regular vs removable
+			Iterable<SyncROPItem>items=FileMetadataManager.iterateThroughAllFileMetadata(user.getAccountName());
+			for (SyncROPItem item:items)
+				if(item.isEnabled())
+					syncFilesToClient(message.getUserID(),user,item);
+		}
 		this.syncedFiles.get(message.getUserID()).clear();
 		logger.log("files from Cloud have been synced with "+message.getUserID()+"("+accountName+")");
 		
 	}
 		
-	void syncFilesToClient(final String id,SyncropUser user,File metaDataFile,final String accountName){
-		SyncROPItem file=ResourceManager.readFile(metaDataFile);
+	void syncFilesToClient(final String id,SyncropUser user,SyncROPItem file){
 		
-		if(file==null){
-			logger.logWarning("file is null; meatadata:"+metaDataFile+" exists"+metaDataFile.exists());
-			return;
-		}
-		else if(!file.exists()||syncedFiles.get(id).contains(file.getPath())){
+		if(!file.exists()||syncedFiles.get(id).contains(file.getPath())){
 			logger.logTrace("File would have already been synced"+file.getPath());
 			return;
 		}

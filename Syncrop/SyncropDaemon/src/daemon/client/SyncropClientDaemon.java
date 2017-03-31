@@ -2,7 +2,6 @@ package daemon.client;
 
 import static notification.Notification.displayNotification;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.UnknownHostException;
@@ -18,8 +17,8 @@ import file.SyncROPItem;
 import message.Message;
 import notification.Notification;
 import settings.Settings;
+import syncrop.FileMetadataManager;
 import syncrop.LostConnectionWithCloudException;
-import syncrop.MetadataWalker;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
 import syncrop.SyncropCloseException;
@@ -320,54 +319,11 @@ public class SyncropClientDaemon extends SyncDaemon{
 		
 		final ArrayList<Object[]> message=new ArrayList<Object[]>();
 		mainClient.printMessage(pathsToSync, HEADER_SET_ENABLED_PATHS);
-		new MetadataWalker(){
+		Iterable<SyncROPItem>items=FileMetadataManager.iterateThroughAllFileMetadata(null);
+		for (SyncROPItem item:items)
+			syncFilesToCloud(item,message);
+		
 
-			
-			@Override
-			public void onMetadataFile(File metaDataFile) {
-				syncFilesToCloud(metaDataFile, message);
-				
-			}
-			
-			/**
-			 * Recursively goes through directories of the directory corresponding to metaDataFile uploads 
-			 * their metadata to cloud. To increase performance, messages are not sent immediately but instead are sent in a group of {@value Syncrop#KILOBYTE}.
-			 * <br/>
-			 * While recursing through files, the method checks to see if the file has been updated or deleted and updates the metadata.
-			 * Note this method does not check to see if new files have been added.
-			 * @param metaDataFile the metadata directory to recursively check
-			 * @param message the messages in queue to be sent; When messages are sent, this list is cleared
-			 */
-			private void syncFilesToCloud(File metaDataFile,final ArrayList<Object[]> message){
-
-				if(Syncrop.isShuttingDown())
-					throw new SyncropCloseException();
-				else if(!isConnectionAccepted())throw new LostConnectionWithCloudException();
-				final int maxTransferSize=128;
-				
-				SyncROPItem file=ResourceManager.readFile(metaDataFile);
-				
-				if(file==null||!file.isEnabled()||!file.isSyncable())return;
-				
-				if(!file.exists()&&!file.isDeletionRecorded()){
-					logger.logTrace("File was deleted while server was off path="+file);
-					file.setDateModified(Syncrop.getStartTime());	
-				}
-				
-				if(file.hasBeenUpdated())
-					file.save();
-				message.add(file.formatFileIntoSyncData());
-			
-					
-				if(message.size()==maxTransferSize){
-					mainClient.printMessage(message.toArray(new Object[message.size()][5]), HEADER_SYNC_FILES);
-					message.clear();
-					Syncrop.sleep();
-				}
-				
-			}
-			
-		}.walk();
 		if(message.size()!=0)
 			mainClient.printMessage(message.toArray(new Object[message.size()][5]), HEADER_SYNC_FILES);
 		
@@ -375,6 +331,42 @@ public class SyncropClientDaemon extends SyncDaemon{
 		sleepShort();
 		mainClient.printMessage(
 			ResourceManager.getAccount().getRestrictionsList(), HEADER_SYNC_GET_CLOUD_FILES);
+		
+	}
+	/**
+	 * Recursively goes through directories of the directory corresponding to metaDataFile uploads 
+	 * their metadata to cloud. To increase performance, messages are not sent immediately but instead are sent in a group of {@value Syncrop#KILOBYTE}.
+	 * <br/>
+	 * While recursing through files, the method checks to see if the file has been updated or deleted and updates the metadata.
+	 * Note this method does not check to see if new files have been added.
+	 * @param metaDataFile the metadata directory to recursively check
+	 * @param message the messages in queue to be sent; When messages are sent, this list is cleared
+	 */
+	private void syncFilesToCloud(SyncROPItem file,final ArrayList<Object[]> message){
+
+		if(Syncrop.isShuttingDown())
+			throw new SyncropCloseException();
+		else if(!isConnectionAccepted())throw new LostConnectionWithCloudException();
+		final int maxTransferSize=128;
+		
+		
+		if(file==null||!file.isEnabled()||!file.isSyncable())return;
+		
+		if(!file.exists()&&!file.isDeletionRecorded()){
+			logger.logTrace("File was deleted while server was off path="+file);
+			file.setDateModified(Syncrop.getStartTime());	
+		}
+		
+		if(file.hasBeenUpdated())
+			file.save();
+		message.add(file.formatFileIntoSyncData());
+	
+			
+		if(message.size()==maxTransferSize){
+			mainClient.printMessage(message.toArray(new Object[message.size()][5]), HEADER_SYNC_FILES);
+			message.clear();
+			Syncrop.sleep();
+		}
 		
 	}
 	

@@ -9,6 +9,8 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.util.ArrayList;
 
+import javax.net.ssl.SSLSocketFactory;
+
 import message.Message;
 import message.Messenger;
 import message.TimeoutCalculator;
@@ -66,6 +68,8 @@ public class GenericClient implements Messenger{
 	 * the connection socket
 	 */
 	private Socket socket=null;
+    SSLSocketFactory ssf = (SSLSocketFactory) SSLSocketFactory.getDefault();
+
 	/**
 	 * The name of this Messenger. All Messages sent from this Messenger will have this 
 	 * userID 
@@ -116,6 +120,7 @@ public class GenericClient implements Messenger{
 	};
 	
 	public int getTimeout(){return timeoutCalculator.getTimeout();}
+	public int getExpectedRoundTripTime(){return timeoutCalculator.getExpectedMaxRoundTripTime();}
 	
 	/**
 	 * 
@@ -282,9 +287,9 @@ public class GenericClient implements Messenger{
 	 */
 	private void connect(String host,int port) throws IOException
 	{	
-		socket = new Socket(host, port);
+		socket = ssf.createSocket(host, port);
 		socket.setSoTimeout(60*4*1000);
-		System.out.println(socket.getSoTimeout());
+		
     	out = new ObjectOutputStream(new BufferedOutputStream(socket.getOutputStream()));
     	out.flush();
     	in = new ObjectInputStream(new BufferedInputStream(socket.getInputStream()));

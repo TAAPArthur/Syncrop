@@ -3,6 +3,7 @@ package message;
 public class TimeoutCalculator {
 
 	private int timeout;
+	private int expectedRoundTripTimeMax;
 	private float srtt=1000;
 	private float rttdev=0;
 	private float alpha=.25f;
@@ -18,15 +19,16 @@ public class TimeoutCalculator {
 	public  void calcualteTimeout(int rtt){
 		srtt=rtt*alpha+srtt*(1-alpha);
 		rttdev=Math.abs(rtt-srtt)*beta+rttdev*(1-beta);
-		int newTimeout=(int)(srtt+4*rttdev);
-		if(Math.abs(timeout-newTimeout)<.2*timeout)
+		int newExpectedRoundTripTimeMax=(int)(srtt+4*rttdev);
+		
+		if(Math.abs(newExpectedRoundTripTimeMax-expectedRoundTripTimeMax)<.1*expectedRoundTripTimeMax)
 			pingDelay=Math.min(pingDelay*2, MAX_PING_DELAY);
-		else pingDelay=Math.max(newTimeout, MIN_PING_DELAY);
-		timeout=newTimeout;
+		else pingDelay=Math.max(newExpectedRoundTripTimeMax, MIN_PING_DELAY);
+		
+		timeout=expectedRoundTripTimeMax*2;
 	}
+	public int getExpectedMaxRoundTripTime(){return expectedRoundTripTimeMax;}
 	public int getTimeout(){return timeout;}
-	public long getPingDelay(){
-		return pingDelay;
-	}
+	public long getPingDelay(){return pingDelay;}
 	
 }

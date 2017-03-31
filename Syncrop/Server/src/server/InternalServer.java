@@ -109,4 +109,5 @@ public class InternalServer extends Server implements Messenger {
 	public int getTimeout() {
 		return primary.getTimeout();		
 	}	
+	public int getExpectedRoundTripTime(){return primary.getExpectedRoundTripTime();}
 }

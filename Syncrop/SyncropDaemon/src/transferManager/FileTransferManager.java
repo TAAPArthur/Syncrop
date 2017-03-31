@@ -448,7 +448,7 @@ public class FileTransferManager extends Thread{
 			try
 			{
 				if(!paused&&outStandingFiles<=12&&daemon.isConnectionAccepted()&&!isEmpty()
-					&&System.currentTimeMillis()-timeLastFileWasSent>Math.min(12000, daemon.getExptectedFileTransferTime()/4))	
+					&&System.currentTimeMillis()-timeLastFileWasSent>daemon.getExptectedFileTransferTime()/2)	
 				{
 					QueueMember m=sendQueue.peek();
 					if(m==null)continue;

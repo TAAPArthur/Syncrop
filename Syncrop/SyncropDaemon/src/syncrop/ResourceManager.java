@@ -6,18 +6,14 @@ import static syncrop.Syncrop.logger;
 import static syncrop.Syncrop.notWindows;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -32,10 +28,7 @@ import org.json.simple.parser.ParseException;
 import account.Account;
 import daemon.cloud.filesharing.SharedFile;
 import file.Directory;
-import file.SyncROPDir;
-import file.SyncROPFile;
 import file.SyncROPItem;
-import file.SyncROPSymbolicLink;
 import settings.Settings;
 
 /** 
@@ -61,10 +54,6 @@ public class ResourceManager
 	
 	
 	
-	/**
-	 * Directory that holds SYNCROPFile information like key for future sessions
-	 */
-	static File metaDataFile;
 	static File metaDataVersionFile;
 	static final String REMOVABLE_DIR_NAME="removable";
 	static final String REGULAR_DIR_NAME="regular";
@@ -352,7 +341,7 @@ public class ResourceManager
 				in=new BufferedReader(new InputStreamReader(new FileInputStream(metaDataVersionFile)));
 				sameMetaDataVersion=in.readLine().equals(Syncrop.getMetaDataVersion());
 			}
-			if(!sameMetaDataVersion&&metaDataFile.exists()){
+			if(!sameMetaDataVersion){
 				logger.log("Metadata version is not the same; current version is"+Syncrop.getMetaDataVersion());
 				deleteMetadata();	
 			}
@@ -366,46 +355,17 @@ public class ResourceManager
 	}
 	private static void deleteMetadata() throws IOException{
 		logger.log("deleting metadata");
+		FileMetadataManager.deleteDatabase();
 		
-		Files.walkFileTree(metaDataFile.toPath(), new RecursiveDeletionFileVisitor());
-		metaDataFile.mkdirs();
-		metaDataVersionFile.createNewFile();
-		FileWriter writer=new FileWriter(metaDataVersionFile);
-		writer.write(Syncrop.getMetaDataVersion());
-		writer.close();
 	}
 	
 	public static SyncROPItem getFile(String relativePath,String owner){
-		return readFile(getMetadataFile(relativePath,owner));
+		return FileMetadataManager.getFile(relativePath, owner);
 	}	
 	
 	
-	/**
-	 * Converts the path of a file to be synced to a metadata file that stores its meta data for syncing
-	 * @param syncedPath the path of the file
-	 * @param onwer the owner of the file 
-	 * @return the meta data file
-	 */
-	public static File getMetadataFile(String syncedPath,String owner){		
-		boolean removable=isFileRemovable(syncedPath);
-		String prefix=removable?REMOVABLE_DIR_NAME:REGULAR_DIR_NAME;
-					
-		if(isInstanceOfCloud())
-			prefix=owner+File.separator+prefix;
-		return new File(metaDataFile,prefix+File.separator+syncedPath+METADATA_ENDING);
-	}
-	public static File getMetadataHome(String owner,boolean removable){		
-		
-		String prefix=removable?REMOVABLE_DIR_NAME:REGULAR_DIR_NAME;
-					
-		if(isInstanceOfCloud())
-			prefix=owner+File.separator+prefix;
-		return new File(metaDataFile,prefix);
-	}
-	
 	public static  boolean deleteFile(SyncROPItem file){
-		File metaDataFile=getMetadataFile(file.getPath(), file.getOwner());
-		return metaDataFile.delete();
+		return FileMetadataManager.deleteFileMetadata(file);
 	}
 		
 	public static synchronized void lockFile(String path,String owner){
@@ -423,111 +383,9 @@ public class ResourceManager
 	public static boolean isLocked(String path,String owner){
 		return owner.equals(lockedOwner)&&path.equals(lockedPath);
 	}
-	public static void writeFile(SyncROPItem file){
-		try {
-			//if(file.exists()&&file.isDir()&&!((SyncROPDir) file).isEmpty())return;
-			File metaDataFile=getMetadataFile(file.getPath(), file.getOwner());
-			if(!metaDataFile.exists()){
-				metaDataFile.getParentFile().mkdirs();
-				metaDataFile.createNewFile();
-			}
-			if(!file.isDeletionRecorded()&&!file.exists())
-				file.recordDeletion();
-			else file.unrecordDeletion();
-			logger.logTrace("saving file "+file);
-			BufferedWriter out=new BufferedWriter(new FileWriter(metaDataFile));
-			out.write(file.getPath());out.newLine();
-			out.write(file.getOwner());out.newLine();
-			out.write(file.getDateModified()+"");out.newLine();
-			out.write(file.getKey()+"");out.newLine();
-			
-			out.write(file.modifiedSinceLastKeyUpdate()+"");out.newLine();
-			out.write(file.getSize()+"");out.newLine();
-			out.write(file.getFilePermissions());out.newLine();
-			
-			out.close();
-		} catch (Exception e) {
-			logger.logError(e, "occured while trying to write meta data file for "+file);
-		}
+	public static void writeFile(SyncROPItem item){
+		FileMetadataManager.updateFileMetadata(item);
 	}
-	
-	/**
-	 * reads a the file info from the file info file and converts it into a SyncROPFile
-	 * @param syncedFile -the file to whose metadate is to be read; 
-	 * <b>Note: the file denoted by this name will not be read</b>
-	 * @return the SyncROPItem corresponding to the synced path or null if the file is not found or not enabled
-	 */
-	public static synchronized SyncROPItem readFile(File metaDataFile){
-		SyncROPItem file=null;
-		try{
-			while(!Syncrop.isShuttingDown()){
-				BufferedReader in=new BufferedReader(new InputStreamReader(new FileInputStream(metaDataFile)));
-				String path=in.readLine();
-				String owner=in.readLine();
-				if(!isInstanceOfCloud())owner=getAccount().getName();
-				long dateModified=Long.parseLong(in.readLine());
-				long key=Long.parseLong(in.readLine());
-				boolean isDir=key==-1;
-				boolean modifedSinceLastKeyUpdate=Boolean.parseBoolean(in.readLine());
-				long lastRecordedSize=Long.parseLong(in.readLine());
-				
-				String filePermissions=	in.readLine();
-				//TODO String shared;
-				
-				in.close();
-				if(isLocked(path,owner)){
-					Thread.sleep(100);
-					continue;
-				}
-				
-				File f=new File(getAbsolutePath(path, owner));
-				
-				if(Files.isSymbolicLink(f.toPath())){
-					String target=null;
-					try {
-						Path targetPath=Files.readSymbolicLink(f.toPath());
-						String targetOfLink = targetPath.toString().replace(
-								ResourceManager.getHome(owner, isFileRemovable(path)), "");
-						//if(getAccount(owner).isPathEnabled(target))
-							target=targetOfLink;
-					} catch (IOException e) {logger.logError(e);}
-				
-					file = new SyncROPSymbolicLink(path,owner,dateModified,key,modifedSinceLastKeyUpdate,target,lastRecordedSize,filePermissions);
-				}
-				else if(isDir)
-					file = new SyncROPDir(path, owner,dateModified,lastRecordedSize,filePermissions);
-				else 
-					file=new SyncROPFile(path, owner,dateModified,key,modifedSinceLastKeyUpdate,lastRecordedSize,filePermissions);
-	
-				//if(file.isEnabled())
-					return file;
-				//break;
-			}
-		} 
-		catch (FileNotFoundException e){
-			logger.logTrace(e.toString()+" cannot read metadata "+metaDataFile);
-			return null;
-		}
-		catch (IllegalArgumentException e){
-			logger.logWarning(e.toString()+" metadata file is being deleted file:"+metaDataFile);
-			metaDataFile.delete();
-			//throw e;
-			//return null;
-		}
-		
-		catch(ArrayIndexOutOfBoundsException|IOException e){
-			logger.logError(e,metaDataFile+" is corrupt.");
-		}
-		catch(SyncropCloseException e){
-			throw e;
-		}
-		catch(Exception|Error e)
-		{
-			logger.logError(e,"occured when reading file info file, "+metaDataFile);
-		}
-		return null;
-	}
-	
 	
 	
 	/**
@@ -539,14 +397,13 @@ public class ResourceManager
 		if(!new File(getConfigFilesHome()).exists())
 			new File(getConfigFilesHome()).mkdirs();
 		configFile=new File(getConfigFilesHome(),"syncrop.ini");
-		metaDataFile=new File(getConfigFilesHome(),".metadata");
-		metaDataVersionFile=new File(metaDataFile,"METADATA_VERSION");
+		
+		metaDataVersionFile=new File(getConfigFilesHome(),"METADATA_VERSION");
 		temp=new File(getConfigFilesHome(),".temp");
 		
 		try {
 			if(!temp.exists())temp.mkdir();
 			if(!configFile.exists())configFile.createNewFile();
-			if(!metaDataFile.exists())metaDataFile.mkdir();
 			deleteTemporaryFile(null);
 		}
 		catch (IOException e) 
@@ -633,7 +490,7 @@ public class ResourceManager
 	 */
 	public static boolean canReadAndWriteSyncropConfigurationFiles()
 	{
-		return canReadAndWriteFile(configFile)&&canReadAndWriteFile(metaDataFile)&&
+		return canReadAndWriteFile(configFile)&&
 				canReadAndWriteFile(logger.getLogFile());
 	}
 	/**
@@ -656,9 +513,7 @@ public class ResourceManager
 		}
 	}
 
-	public static File getMetadataDirectory() {
-		return metaDataFile;
-	}
+	
 	public static File getMetadataVersionFile() {
 		return metaDataVersionFile;
 	}

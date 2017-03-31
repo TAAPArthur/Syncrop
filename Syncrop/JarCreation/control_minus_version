@@ -1,12 +1,13 @@
-Package: syncrop
-Installed-Size: 490
+Source: syncrop
 Section: java
-Maintainer: Arthur Williams <arthur@taaparthur.no-ip.org>
-Homepage: http://taaparthur.no-ip.org
 Priority: standard
-Architecture: all
+Maintainer: Arthur Williams <arthur@taaparthur.no-ip.org>
+Build-Depends: openjdk-7-jre
+Homepage: taaparthur.no-ip.org
+
+Package: syncrop
+Architecture: any
+Depends: java
 Description: Sync files with SyncROP
- SyncROP syncs your files to a cloud and access them form anywhere.
-
-
+   SyncROP syncs your files to a cloud and access them form anywhere.
 
