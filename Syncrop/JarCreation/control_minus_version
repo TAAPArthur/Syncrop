@@ -1,13 +1,10 @@
+Package: syncrop
 Source: syncrop
 Section: java
 Priority: standard
 Maintainer: Arthur Williams <arthur@taaparthur.no-ip.org>
-Build-Depends: openjdk-7-jre
 Homepage: taaparthur.no-ip.org
-
-Package: syncrop
-Architecture: any
-Depends: java
+Architecture: all
 Description: Sync files with SyncROP
    SyncROP syncs your files to a cloud and access them form anywhere.
 

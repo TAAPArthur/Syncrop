@@ -3,6 +3,7 @@ echo "$HOME/Documents/Syncrop"
 packageName="syncrop"
 mfHome="$HOME/Documents/Syncrop/Syncrop/JarCreation"
 
+
 path="$HOME/Documents/Syncrop/Jars" #$HOME/Documents/Syncrop
 
 linux_path="$HOME/Documents/Syncrop/Linux/syncrop/usr/lib/syncrop"
@@ -29,18 +30,24 @@ function createJars {
 function createDeb {
 	#############Linux################
 	version=`java -jar "$path/SyncropDaemon.jar" -v`
-	debainPath="$HOME/Documents/Syncrop/Linux/syncrop/debian"
-	cd $debainPath
+
+	sourceFiles="$HOME/Documents/Syncrop/Linux/syncrop"	
+	cd $sourceFiles
 	echo "Version: $version"
 	echo $version>"$HOME/Documents/TAAPArthur/html/Syncrop/syncrop_version.html"
-	echo "Standards-Version: $version" >"control"
-	cat "$mfHome/control_minus_version" >>"control"
-	
-	
-	debchange --urgency low --distribution stable --package "$packageName" --newversion $version "$message"
-	
-	cd ..
-	dpkg-buildpackage -us -uc
+	echo "Version: $version" >"DEBIAN/control"
+	cat "$mfHome/control_minus_version" >>"DEBIAN/control"
+	 
+	dpkg-deb --build $sourceFiles "$HOME/Documents/TAAPArthur/html/debian/pool/main/syncrop_all.deb"
+	cd "$HOME/Documents/TAAPArthur/html/debian/pool/main/"
+
+	#dpkg-sig --sign builder syncrop.deb
+	#apt-ftparchive packages . > Packages
+   	#gzip -c Packages > Packages.gz
+	#apt-ftparchive release . > Release
+	#gpg --clearsign -o InRelease Release
+	#gpg -abs -o Release.gpg Release
+
 }
 function moveDeb {
 	cd "$HOME/Documents/Syncrop/Linux/"
@@ -51,8 +58,8 @@ function moveDeb {
 	mv "$packageVersion"*".dsc" "$HOME/Documents/TAAPArthur/html/debian/$packageName"_all.dsc
 	mv "$packageVersion"*".deb" "$HOME/Documents/TAAPArthur/html/debian/pool/main/$packageName"_all.deb
 	cd  "$HOME/Documents/TAAPArthur/html/debian/"
-	debsign -k99F4C4AD *.changes
-	debsign -k99F4C4AD *.dsc
+	debsign --re-sign -k99F4C4AD *.changes
+	debsign --re-sign -k99F4C4AD *.dsc
 }
 function zipResourcesForDownload {
 	cd $path
@@ -78,6 +85,6 @@ function push {
 createJars
 message=$(zenity --entry)
 createDeb
-moveDeb
+#moveDeb
 zipResourcesForDownload
 push
