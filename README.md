@@ -17,5 +17,5 @@ Layout:
 - All the source files are under Syncrop
 
 Installing
-- A [syncrop.deb](https://github.com/TAAPArthur/Syncrop/releases/latest) is available for download
-- To download all the Jars, go [here](https://github.com/TAAPArthur/Syncrop/tree/master/Linux/syncrop/usr/lib/syncrop)
+- [syncrop.deb](https://github.com/TAAPArthur/Syncrop/releases/latest) is available for download
+- To view all the Jars, go [here](https://github.com/TAAPArthur/Syncrop/tree/master/Linux/syncrop/usr/lib/syncrop)
