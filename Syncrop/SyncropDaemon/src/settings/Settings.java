@@ -55,6 +55,7 @@ public class Settings {
 	 * The port to connect on the server
 	 */
 	static private int port;
+	static private int sslPort;
 	static private boolean autoStart=false;
 	
 	static final String settingsFileName="syncrop.settings";
@@ -92,6 +93,8 @@ public class Settings {
 	 */
 	public static int getPort() {return port;}
 	public static void setPort(int port) {Settings.port=port;}
+	public static int getSSLPort() {return sslPort;}
+	public static void setSSLPort(int port) {Settings.sslPort=port;}
 
 	/**
 	 * 
@@ -214,6 +217,27 @@ public class Settings {
 	}
 	public static String getUniversalRestrictions(){
 		return Account.getUniversalRestrictions();
+	}
+	private static String trustStoreFile;
+	public static String getTrustStoreFile(){
+		return trustStoreFile;
+	}
+	public static void setTrustStoreFile(String f){
+		System.setProperty("javax.net.ssl.trustStore",trustStoreFile=f);
+	}
+	private static String trustStorePassword="cacerts";
+	public static String getTrustStorePassord(){
+		return trustStorePassword;
+	}
+	public static void setTrustStorePassword(String f){
+		System.setProperty("javax.net.ssl.trustStorePassword",trustStorePassword=f);
+	}
+	private static boolean sslConnection=false;
+	public static boolean isSSLConnection(){
+		return sslConnection;
+	}
+	public static void setSSLConnection(boolean b){
+		sslConnection=b;
 	}
 	
 }

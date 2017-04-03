@@ -28,6 +28,12 @@ public class SettingsManager {
 		
 		HOST("Host",String.class,"getHost","setHost",TYPE_ADVANCED),
 		PORT("Port",int.class,"getPort","setPort",TYPE_ADVANCED),
+		
+		TRUST_STORE_FILE("Host",String.class,"getTrustStoreFile","setTrustStoreFile",TYPE_ADVANCED),
+		TRUST_STORE_PASSWORD("Trust Store Password",String.class,"getTrustStorePassword","setTrustStorePassword",TYPE_ADVANCED),
+		SSL_CONNECTION("Host",boolean.class,"isSSLConnection","setSSLConnection",TYPE_ADVANCED),
+		SSL_PORT("SSL Port",int.class,"getSSLPort","setSSLPort",TYPE_ADVANCED),
+		
 		LOG_LEVEL("Log Level",int.class,"getLogLevel","setLogLevel",TYPE_ADVANCED),
 		MAX_ACCOUNT_SIZE("Max Account Size (MB)",double.class,"getMaxAccountSize","setMaxAccountSize",TYPE_ADVANCED),
 		MULTIPLE_INSTANCES("Multiple Instances",boolean.class,"allowMultipleInstances","setMultipleInstances",TYPE_ADVANCED),
