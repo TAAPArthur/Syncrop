@@ -11,3 +11,11 @@ Main Features:
 - *Offline managament* Whenever a local file is modified while you are not connected to the internet, it will be immidetaily be synced upon reconnection
 - *Conflict handinling* If 2 files were modifed on 2 diffrent offline machines, upon both connecting to the Internet, the newer one is kept and the elder is archived.
 - *Cross platform* Supports Linux and Windows (7,8,10)
+
+Layout:
+- Under Linux/syncrop is the psudeo-root tree used to generate the latest deb file
+- All the source files are under Syncrop
+
+Installing
+- A [syncrop.deb](/TAAPArthur/Syncrop/releases/latest) is available for download
+- To download all the Jars, go [here](https://github.com/TAAPArthur/Syncrop/tree/master/Linux/syncrop/usr/lib/syncrop)
