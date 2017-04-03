@@ -9,6 +9,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
 
+import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLServerSocketFactory;
 
 import logger.Logger;
@@ -22,7 +23,7 @@ import message.Message;
  */
 public abstract class Server 
 {
-    SSLServerSocketFactory ssf = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
+    
 	private ServerSocket serverSocket = null;
 	static HashMap<String, PrimaryConnectionThread> connections=new HashMap<String, PrimaryConnectionThread>(1);
 	private int port;
@@ -44,22 +45,22 @@ public abstract class Server
 	 */
 	public Server(Logger logger)
 	{
-		this(UNLIMITED_CONNECTIONS,50001,logger);
+		this(UNLIMITED_CONNECTIONS,50001,logger,false);
 	}
 	/**
 	 * 
 	 * @param maxConnections -the max number of connection this Server can have at 
 	 * one time 
 	 */
-	public Server(int maxConnections){this(maxConnections,50001,null);}
+	public Server(int maxConnections){this(maxConnections,50001,null,false);}
 	
-	public Server(int maxConnections, int port,Logger logger)
+	public Server(int maxConnections, int port,Logger logger,boolean ssl)
 	{
 		Server.logger=logger;
 		this.maxConnections=maxConnections;
 		this.port=port;
 		
-		start();
+		start(ssl);
 	}
 	
 	public void close() throws IOException{
@@ -69,11 +70,11 @@ public abstract class Server
 		if(serverSocket!=null)
 			serverSocket.close();
 	}
-	private void start()
+	private void start(boolean ssl)
 	{
 		log("Server on");
 		
-		listenToPort();
+		listenToPort(ssl);
 		waitForConnection();
 	}
 	/**
@@ -94,6 +95,9 @@ public abstract class Server
 							acceptConnection(serverSocket.accept());
 						Thread.sleep(1000);
 					} 
+					catch (SSLHandshakeException e){
+						logger.log(e.toString());
+					}
 					catch (IOException e) {log(e);}
 					catch (Exception e) {log(e);}
 				}
@@ -125,11 +129,15 @@ public abstract class Server
 	/**
 	 * Initializes serverSocket and lets it listen to port 50001
 	 */
-	private void listenToPort()
+	private void listenToPort(boolean ssl)
 	{
 		while(serverSocket==null)
 	        try {
-	        	serverSocket=ssf.createServerSocket(port,100);
+	        	serverSocket=
+	        			ssl?
+	        				SSLServerSocketFactory.getDefault().createServerSocket(port,100):
+	        				new ServerSocket(port,100);
+	        	
 	            //serverSocket = new ServerSocket();//accept queue size == 100
 	        } catch (IOException e) {
 	        	log("Could not listen on port: "+port);

@@ -54,9 +54,9 @@ public class ClientTest
 		final Messenger primary=getPrimary(host, port,internal);
 		try {Thread.sleep(100);} catch (InterruptedException e2) {e2.printStackTrace();}
 		//creates 2 Secondary Clients
-		final SecondaryClient secondary=new SecondaryClient("Testuser2",host,port,application);
+		final SecondaryClient secondary=new SecondaryClient("Testuser2",host,port,application,false);
 		try {Thread.sleep(100);} catch (InterruptedException e2) {e2.printStackTrace();}
-		final SecondaryClient third=new SecondaryClient("Testuser3",host,port,application);
+		final SecondaryClient third=new SecondaryClient("Testuser3",host,port,application,false);
 		//waits to make sure initialization is finished
 		try {Thread.sleep(100);} catch (InterruptedException e2) {e2.printStackTrace();}
 		if(!primary.isConnectedToServer()||!secondary.isConnectedToServer()||!third.isConnectedToServer())
@@ -141,15 +141,15 @@ public class ClientTest
 		
 		if(internal){
 			return new InternalServer(Server.UNLIMITED_CONNECTIONS, port, new GenericLogger(System.out),
-					username,application);
+					username,application,false);
 		}
 		else {
-			new ExternalServer(Server.UNLIMITED_CONNECTIONS,port,new GenericLogger(System.out));
+			new ExternalServer(Server.UNLIMITED_CONNECTIONS,port,new GenericLogger(System.out),false);
 
 			try {Thread.sleep(1000);} catch (InterruptedException e2) {e2.printStackTrace();}
 			System.out.println("Server started");
 			//creates the Primary Client
-			return new PrimaryClient(username,host,port,application,PrimaryClient.AUTOMATIC_YES,3);
+			return new PrimaryClient(username,host,port,application,PrimaryClient.AUTOMATIC_YES,3,false);
 
 		}
 	}

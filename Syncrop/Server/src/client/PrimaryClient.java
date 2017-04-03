@@ -38,7 +38,7 @@ public class PrimaryClient extends GenericClient
 	 */
 	public PrimaryClient(String username,String application,int acceptProtocol,int maxConnections)throws IOException
 	{
-		this(username,"localhost",DEFAULT_PORT, application, acceptProtocol, maxConnections);
+		this(username,"localhost",DEFAULT_PORT, application, acceptProtocol, maxConnections,false);
 	}
 	
 	/**
@@ -52,9 +52,9 @@ public class PrimaryClient extends GenericClient
 	 * @param maxConnections the max number of connections allowed
 	 * @throws IOException If the Client could not connect to Cloud
 	 */
-	public PrimaryClient(String username,String host, int port,String application,int type,int maxConnections)throws IOException
+	public PrimaryClient(String username,String host, int port,String application,int type,int maxConnections,boolean ssl)throws IOException
 	{
-		super(username,host, port);
+		super(username,host, port,ssl);
 	
 		acceptUser=type;
 		//initiliazes this client as the host

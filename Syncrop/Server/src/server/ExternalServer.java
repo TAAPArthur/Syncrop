@@ -25,8 +25,8 @@ public class ExternalServer extends Server
 		super(new GenericLogger());
 		addShutDownHook();
 	}
-	public ExternalServer(int maxConnections,int port,Logger logger){
-		super(maxConnections,port,logger);
+	public ExternalServer(int maxConnections,int port,Logger logger,boolean ssl){
+		super(maxConnections,port,logger,ssl);
 	}
 	private void addShutDownHook()
 	{

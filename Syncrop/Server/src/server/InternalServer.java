@@ -14,8 +14,8 @@ public class InternalServer extends Server implements Messenger {
 	 */
 	private String reasonToClose;
 	
-	public InternalServer(int maxConnections, int port,Logger logger,String username,String application) throws IOException{
-		super(maxConnections, port, logger);
+	public InternalServer(int maxConnections, int port,Logger logger,String username,String application,boolean ssl) throws IOException{
+		super(maxConnections, port, logger,ssl);
 		Server.username=username;
 		primary=new PrimaryConnectionThread(null,null,null,username,application, maxConnections);
 		primary.start();

@@ -8,11 +8,11 @@ public class SecondaryClient extends GenericClient
 {
 	public SecondaryClient(String username,String application)throws IOException
 	{
-		this(username,DEFAULT_HOST,DEFAULT_PORT, application);
+		this(username,DEFAULT_HOST,DEFAULT_PORT, application,false);
 	}
-	public SecondaryClient(String username,String host, int port, String application) throws IOException
+	public SecondaryClient(String username,String host, int port, String application,boolean ssl) throws IOException
 	{
-		super(username,host, port);
+		super(username,host, port,ssl);
 		
 		//tells the Server about this client
 		printMessage(new Object[]{application,false},Message.TYPE_CONNECTION_INFO);

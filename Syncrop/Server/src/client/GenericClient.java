@@ -68,7 +68,7 @@ public class GenericClient implements Messenger{
 	 * the connection socket
 	 */
 	private Socket socket=null;
-    SSLSocketFactory ssf = (SSLSocketFactory) SSLSocketFactory.getDefault();
+    
 
 	/**
 	 * The name of this Messenger. All Messages sent from this Messenger will have this 
@@ -129,10 +129,10 @@ public class GenericClient implements Messenger{
 	 * @param port the port to connect to
 	 * @throws IOException
 	 */
-	public GenericClient(String userID, String host, int port) throws IOException{
+	public GenericClient(String userID, String host, int port,boolean ssl) throws IOException{
 		this.USER_ID=userID;
 		
-		connect(host,port);
+		connect(host,port,ssl);
 		pingThread.start();
 		readMessageThread.start();
 	}
@@ -285,9 +285,13 @@ public class GenericClient implements Messenger{
 	 * @param host the host name
 	 * @param port the port number
 	 */
-	private void connect(String host,int port) throws IOException
+	private void connect(String host,int port,boolean ssl) throws IOException
 	{	
-		socket = ssf.createSocket(host, port);
+		socket = ssl?
+				SSLSocketFactory.getDefault().createSocket(host, port):
+				new Socket(host, port);
+		
+		
 		socket.setSoTimeout(60*4*1000);
 		
     	out = new ObjectOutputStream(new BufferedOutputStream(socket.getOutputStream()));
