@@ -27,6 +27,8 @@ public class PrimaryClient extends GenericClient
 	 */
 	int acceptUser;
 	
+	private int maxConnections;
+	
 	/**
 	 * Creates a Client and connects it to Cloud; This Client will be the 
 	 * acts as the "host" of the connection and can control how and when other users join  
@@ -54,14 +56,20 @@ public class PrimaryClient extends GenericClient
 	 */
 	public PrimaryClient(String username,String host, int port,String application,int type,int maxConnections,boolean ssl)throws IOException
 	{
-		super(username,host, port,ssl);
+		super(username,host, port,application,ssl);
 	
 		acceptUser=type;
 		//initiliazes this client as the host
-		printMessage(new Object[]{application,true,maxConnections},Message.TYPE_CONNECTION_INFO);
+		this.maxConnections=maxConnections;
+		init();
 		waitForConnectionThread.start();		
 	}
 
+	private void init() throws IOException{
+		connectToServer();
+		printMessage(new Object[]{application,true,maxConnections},Message.TYPE_CONNECTION_INFO);
+		startThreads();
+	}
 	/**
 	 * waits for user to try connect to game;
 	 */	

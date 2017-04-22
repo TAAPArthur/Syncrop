@@ -40,6 +40,8 @@ public class SyncROPFile extends SyncROPItem
 		if(key<=0)
 			key=0;
 		this.key=key;
+		if(getSize()!=lastRecordedSize)
+			setHasBeenUpdated();
 		if(exists()&&Files.isDirectory(file.toPath(),LinkOption.NOFOLLOW_LINKS)){
 			throw new IllegalArgumentException("path "+path+" denotes a directory so "
 					+ "it cannot be a SyncROPFile");
@@ -154,7 +156,7 @@ public class SyncROPFile extends SyncROPItem
 		if(targetOfLink!=null&&!(this instanceof SyncROPSymbolicLink)||targetOfLink==null&&(this instanceof SyncROPSymbolicLink))
 			return true;
 			
-		if(isDiffrentVersionsOfSameFile(key, modifiedSinceLastUpdate)){
+		if(isDiffrentVersionsOfSameFile(fileSize,key, modifiedSinceLastUpdate)){
 			logger.logDebug("diffrent versions of same file");
 			return false;
 		}

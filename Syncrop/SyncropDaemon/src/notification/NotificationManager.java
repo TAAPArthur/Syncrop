@@ -14,20 +14,24 @@ public class NotificationManager extends Thread {
 
 	@Override
 	public void run() {
-		int count=0;
+		int timeSinceFirstFileTransfered=0;
 		while(!Syncrop.isShuttingDown())
 		{
-			if(transferManager.getDownloadCount()+transferManager.getUploadCount()!=0)
-				count++;
-			
+			int sum=transferManager.getDownloadCount()+transferManager.getUploadCount();
+			if(sum!=0)
+				timeSinceFirstFileTransfered++;
 			if(Settings.showNotifications())
-				if(count==64||(count>7&&transferManager.haveAllFilesFinishedTranferring())){
-					transferManager.checkForNotifications();
-					count=0;
+				if(timeSinceFirstFileTransfered==600||
+					timeSinceFirstFileTransfered>10&&transferManager.haveAllFilesFinishedTranferring()
+					&&transferManager.getTimeFromLastCompletedFileTransfer()>10){
+					
+					transferManager.notifyUser();
+					timeSinceFirstFileTransfered=0;
 				}
 			
 			Syncrop.sleep(1000);
 		}		
 	}
+	
 
 }

@@ -11,6 +11,7 @@ import static transferManager.FileTransferManager.HEADER_REQUEST_LARGE_FILE_DOWN
 import java.io.IOException;
 import java.nio.MappedByteBuffer;
 
+import daemon.client.SyncropClientDaemon;
 import file.SyncROPFile;
 import syncrop.Syncrop;
 import transferManager.FileTransferManager;
@@ -32,11 +33,13 @@ public class UploadLargeFileThread extends Thread
 		this.fileTransferManager=fileTransferManager;
 		fileTransferManager.setLargeFileTransferInfo(target, path);
 	}
-	
+	MappedByteBuffer map;
 	public void run()
 	{
 		try {
+			map=file.mapAllBytesFromFile();
 			uploadFile(fileTransferManager);
+			map.clear();
 		} catch (Exception|Error e) {
 			logger.logFatalError(e, "");
 			System.exit(0);
@@ -49,21 +52,29 @@ public class UploadLargeFileThread extends Thread
 		{
 
 			long startTime=System.currentTimeMillis();
-			MappedByteBuffer map=file.mapAllBytesFromFile();
+			
 			//files have to be less than 2GB, which is the maxim Integer
 			long size=(int)file.getSize();
 			int offset=TRANSFER_SIZE;
 			logger.log("uploading large file; size="+size);
 			//mainClient.pausePrinting(true);
 			//mainClient.logs();
-			byte[]hash=FileTransferManager.getFileHash(file.getFile());
 			
-			mainClient.printMessage(file.formatFileIntoSyncData(hash,size),HEADER_REQUEST_LARGE_FILE_DOWNLOAD_START,target);
+			long dateMod=file.getDateModified();
+			mainClient.printMessage(file.formatFileIntoSyncData(null,size),HEADER_REQUEST_LARGE_FILE_DOWNLOAD_START,target);
+			logger.log("wait time:"+fileTransferManager.getDaemon().getExpectedFileTransferTime());
+			SyncropClientDaemon.sleep(fileTransferManager.getDaemon().getExpectedFileTransferTime());
+			
 			for(int i=0;i<size;i+=offset){	
-			
-				try {
-					Thread.sleep(fileTransferManager.getDaemon().getExptectedFileTransferTime()/2+20);
-				} catch (InterruptedException e) {}
+				if(SyncropClientDaemon.isConnectionActive());
+				if(Math.random()>.9){
+					if(file.getDateModified()!=dateMod||file.getSize()!=size){
+						fileTransferManager.cancelUpload(target, path, true);
+						logger.log("large file has been updated during upload");
+						return;
+					}
+					Syncrop.sleepShort();
+				}
 				if(isShuttingDown()){
 					logger.log("Large file upload aborted; shutting down");
 					return;
@@ -89,15 +100,12 @@ public class UploadLargeFileThread extends Thread
 					map.get(bytes, 0, bytes.length);
 									
 					//sends the packet or sends the packet with a signal that the upload is finished
-					mainClient.printMessage(file.formatFileIntoSyncData(bytes,size),HEADER_REQUEST_LARGE_FILE_DOWNLOAD,target);
-					
+					mainClient.printMessage(file.formatFileIntoSyncData(bytes,size),HEADER_REQUEST_LARGE_FILE_DOWNLOAD,target);				
 				}
 			}
-			mainClient.printMessage(file.formatFileIntoSyncData(hash,size),HEADER_REQUEST_END_LARGE_FILE_DOWNLOAD,target);
+			mainClient.printMessage(file.formatFileIntoSyncData(null,size),HEADER_REQUEST_END_LARGE_FILE_DOWNLOAD,target);
 			logger.log("done total time:"+(System.currentTimeMillis()-startTime)/1000.0+"s");
 			Syncrop.sleep();
-			map.clear();
-			map=null;
 		}
 		catch (OutOfMemoryError | SecurityException | IOException e)
 		{

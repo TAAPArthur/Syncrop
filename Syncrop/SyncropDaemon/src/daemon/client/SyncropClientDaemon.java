@@ -2,11 +2,19 @@ package daemon.client;
 
 import static notification.Notification.displayNotification;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.ConnectException;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashSet;
+
+import com.sun.jna.platform.FileUtils;
 
 import account.Account;
 import client.SecondaryClient;
@@ -32,7 +40,7 @@ import syncrop.SyncropCloseException;
 public class SyncropClientDaemon extends SyncDaemon{
 	
 	/**
-	 * If SyncropClientDaemon is in the process of autheniticating to Cloud
+	 * If SyncropClientDaemon is in the process of authenticating to Cloud
 	 */
 	static volatile boolean authenticating;
 	SyncropCommunication communication;
@@ -78,6 +86,8 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 */
 	@Override
 	public void init(){
+		if(!isNotMac()||!isNotWindows())
+			initializeFileUtils();
 		communication=new SyncropCommunication(this);
 		communication.start();
 		if(!isShuttingDown())
@@ -96,6 +106,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 		
 		int lastConnectionFailedMessage=-1;
 		boolean surpressConnectionMessage=false;
+		
 		logger.logTrace("Trying to connect to Server");
 		fileTransferManager.reset();
 		fileTransferManager.pause(true);
@@ -103,6 +114,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 		if(mainClient!=null&&!surpressConnectionMessage){
 			logger.log("connection closed for reason "+mainClient.getReasonToClose());
 			logger.log("dynamic timeout: "+mainClient.getTimeout());
+			Syncrop.sleepLong();
 		}
 		
 		//if(!ResourceManager.canReadAndWriteSyncropConfigurationFiles())
@@ -123,9 +135,12 @@ public class SyncropClientDaemon extends SyncDaemon{
 				//Initializes the main client and has it connect to Server
 				//TODO make id username
 				try {
-					
-					mainClient=new SecondaryClient(ResourceManager.getID(),
-							Settings.getHost(),Settings.getPort(), application);
+					if(Settings.isSSLConnection())
+						mainClient=new SecondaryClient(ResourceManager.getID(),
+								Settings.getHost(),Settings.getSSLPort(), application,true);
+					else 
+						mainClient=new SecondaryClient(ResourceManager.getID(),
+							Settings.getHost(),Settings.getPort(), application,false);
 					count=0;
 				}
 				catch (UnknownHostException e) {
@@ -225,7 +240,8 @@ public class SyncropClientDaemon extends SyncDaemon{
 	}
 	private void sendSettings(){
 		mainClient.printMessage(Settings.getConflictResolution(), HEADER_USER_SETTINGS_CONFLICT_RESOLUTION);
-		mainClient.printMessage(Settings.isDeletingFilesNotOnClient(), HEADER_USER_SETTINGS_DELETING_FILES_NOT_ON_CLIENT);
+		if(Settings.isDeletingFilesNotOnClient())
+			mainClient.printMessage(null, HEADER_USER_SETTINGS_DELETING_FILES_NOT_ON_CLIENT);
 	}
 	/**
 	 * This method handles authentication.<br/>
@@ -301,9 +317,9 @@ public class SyncropClientDaemon extends SyncDaemon{
 			set.add(isNotWindows()?dir.getDir():SyncROPItem.toLinuxPath(dir.getDir()));
 		for(String s:a.getRemovableDirectoriesThatExists())
 			set.add(isNotWindows()?s:SyncROPItem.toLinuxPath(s));
-		
+		logger.log("Starting sync started: "+set);
 		syncFilesToCloud(set.toArray(new String[set.size()]));
-		logger.log("Sync started: "+set);
+		
 	}
 
 	/**
@@ -347,7 +363,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 		if(Syncrop.isShuttingDown())
 			throw new SyncropCloseException();
 		else if(!isConnectionAccepted())throw new LostConnectionWithCloudException();
-		final int maxTransferSize=128;
+		final int maxTransferSize=100;
 		
 		
 		if(file==null||!file.isEnabled()||!file.isSyncable())return;
@@ -392,6 +408,63 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 */
 	public boolean verifyUser(String id,String accountName){
 		return true;
+	}
+	private static FileUtils fileUtils=null;
+
+	/**
+	 * Used to initialize {@link #fileUtils} which is used to send files to trash. Only call if os is Mac or Windows
+	 */
+	public static void initializeFileUtils(){
+		fileUtils = FileUtils.getInstance();
+	}
+	/**
+	 * Sends a file to trash bin
+	 * TODO Windows and Mac support
+	 * @param f the file to send to trash
+	 */
+	public static void sendToTrash(File file)
+	{
+		if(!file.exists())return;
+		if(logger.isDebugging())
+			logger.log("Sending file to trash path="+file);
+		
+		try {
+			if(isNotWindows()&&isNotMac())
+				sendToLinuxTrash(file);
+			else fileUtils.moveToTrash( new File[] {file});
+			/*else if(AccountManager.notWindows)
+				sendToWindowsTrash(f);
+			else sendToMacTrash(f);*/
+		}
+		
+		catch (IOException e) {
+			logger.logError(e, "occured while trying to send file to trash path="+file);
+		}
+		
+	}
+	
+	private static void sendToLinuxTrash(File file) throws IOException
+	{
+		String baseName=file.getName(),name=baseName;
+		File trashInfoFile=new File(System.getProperty("user.home")+"/.local/share/Trash/info",name+".trashinfo");
+		for(int i=2;trashInfoFile.exists();i++)
+		{
+			name=baseName+="."+i;
+			trashInfoFile=new File(System.getProperty("user.home")+"/.local/share/Trash/info",name+".trashinfo");
+		}			
+		File trashFile=new File(System.getProperty("user.home")+"/.local/share/Trash/files",name);
+		Files.move(file.toPath(), trashFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+		logger.log(file+" was sent to trash");
+		//DeletionDate=2014-03-01T23:38:18
+		DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		trashInfoFile.createNewFile();
+		PrintWriter out=new PrintWriter(trashInfoFile);
+		out.println("[Trash Info]");
+		out.println("Path="+file.getAbsolutePath());
+		out.println("DeletionDate="+dateFormat.format(System.currentTimeMillis()).replace(" ", "T"));
+		out.close();
+	
 	}
 	
 }

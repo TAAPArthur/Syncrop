@@ -1,6 +1,7 @@
 package syncrop;
 
 import java.io.IOException;
+import java.sql.SQLException;
 
 import daemon.SyncDaemon;
 import daemon.cloud.SyncropCloud;
@@ -19,7 +20,7 @@ public abstract class Syncrop {
 	 * The version number of Syncrop.<br/>
 	 * This value is the value version of the Syncrop DEB.
 	 */
-	static final private String VERSION_ID="2.3.0";
+	static final private String VERSION_ID="2.3.7";
 	/**
 	 * The version of the metadata. This value is stored in the metadata dir.
 	 * When this value differs from the stored value, the metadata is cleared.
@@ -27,7 +28,7 @@ public abstract class Syncrop {
 	 * is not compatible. Clearing the metadata directory is prone to cause conflicts
 	 * @see {@link ResourceManager#getMetadataDirectory()}
 	 */
-	static final private String METADATA_VERSION="4";
+	static final private String METADATA_VERSION="5";
 	
 	/**
 	 * 2^10 bytes
@@ -159,6 +160,13 @@ public abstract class Syncrop {
 		ResourceManager.initializeConfigurationFiles();
 		initializeLogger();
 		
+		try {
+			FileMetadataManager.startConnectionSession();
+		} catch (SQLException e) {
+			logger.logFatalError(e,"");
+			throw new IOException(e.getMessage());
+		}
+		
 		//Loads settings
 		new SettingsManager().loadSettings();
 		
@@ -170,15 +178,21 @@ public abstract class Syncrop {
 		logger.log("Version: "+VERSION_ID+":"+METADATA_VERSION+"; Encoding: "+System.getProperty("file.encoding")+
 				"; OS: "+System.getProperty("os.name")+"; host "+Settings.getHost()+":"+Settings.getPort()+" log level "+logger.getLogLevel());
 		
+		
 		//if config files cannot be read, quit
 		if(!ResourceManager.canReadAndWriteSyncropConfigurationFiles()){			
 			logger.log("cannot read and write Syncrop Configuration files",SyncropLogger.LOG_LEVEL_FATAL);
 			System.exit(0);
 			return;
 		}
+		ResourceManager.checkMetadataVersion();
+		
+		
 		//file account config files (.ini file)
 		ResourceManager.readFromConfigFile();
-		//enableCustomCertificates();
+		if(Settings.isSSLConnection())
+			logger.log("Using SSL conenction with truststore"+Settings.getTrustStoreFile());
+		
 	}
 	
 	/**
@@ -241,7 +255,6 @@ public abstract class Syncrop {
 	 * Sleeps the current thread. This method should be used when a 
 	 * loop needs to be run after a small, arbitrary amount a time  
 	 * This is a convince method for {@link Thread#sleep(long)} that suppress the error
-	 * @param i -milliseconds to sleep
 	 */
 	public static void sleep(){sleep(100);}
 	/**
@@ -257,14 +270,14 @@ public abstract class Syncrop {
 	 * This is a convince method for {@link Thread#sleep(long)} that suppress the error
 	 * @param i -milliseconds to sleep
 	 */
-	public static void sleepShort(){sleep(20);}
+	public static void sleepShort(){sleep(50);}
 	/**
 	 * Sleeps the current thread. This method should be used when a 
 	 * loop needs to be run after an arbitrarily small amount a time  
 	 * This is a convince method for {@link Thread#sleep(long)} that suppress the error
 	 * @param i -milliseconds to sleep
 	 */
-	public static void sleepVeryShort(){sleep(5);}
+	public static void sleepVeryShort(){sleep(10);}
 	/**
 	 * 
 	 * @return the time Syncrop started
@@ -278,6 +291,7 @@ public abstract class Syncrop {
 	 */
 	public static void shutdown(){
 		shuttingDown=true;
+		FileMetadataManager.endSession();
 	}
 	/**
 	 * The ClI is shutting down if shutDown is called; This method is called to let

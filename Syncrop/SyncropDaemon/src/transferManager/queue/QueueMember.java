@@ -6,15 +6,15 @@ import file.SyncROPItem;
 public class QueueMember implements Comparable<QueueMember>{
 	private String path;
 	private String owner;
-	String target;
-	final long timeStamp;
-	long dateModified;
-	int fileSizeTier;
+	private String target;
+	private final long timeStamp;
+	private long dateModified;
+	private int fileSizeTier;
 	
 	public QueueMember(SyncROPItem fileToAddToQueue,String target){
 		this(fileToAddToQueue.getPath(),fileToAddToQueue.getOwner(),fileToAddToQueue.getDateModified(), target,fileToAddToQueue.getSize());
 	}
-	public QueueMember(String path,String owner,long dateModifed,String target,long size){
+	private QueueMember(String path,String owner,long dateModifed,String target,long size){
 		this.path=path;
 		this.owner=owner;
 		this.target=target;
@@ -22,6 +22,7 @@ public class QueueMember implements Comparable<QueueMember>{
 		fileSizeTier=(int) (size/SyncDaemon.TRANSFER_SIZE);
 		this.dateModified=dateModifed;
 	}
+	public long getDateModified(){return dateModified;}
 	public boolean isLargeFile(){
 		return fileSizeTier>0;
 	}

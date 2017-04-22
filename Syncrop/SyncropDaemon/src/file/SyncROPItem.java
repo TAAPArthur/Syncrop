@@ -9,36 +9,29 @@ import static java.nio.file.attribute.PosixFilePermission.OTHERS_WRITE;
 import static java.nio.file.attribute.PosixFilePermission.OWNER_EXECUTE;
 import static java.nio.file.attribute.PosixFilePermission.OWNER_READ;
 import static java.nio.file.attribute.PosixFilePermission.OWNER_WRITE;
-import static syncrop.Syncrop.isNotMac;
 import static syncrop.Syncrop.isNotWindows;
 import static syncrop.Syncrop.logger;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
 import java.nio.file.attribute.PosixFilePermission;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.HashSet;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
 import javax.swing.JOptionPane;
 
+import account.Account;
+import daemon.SyncDaemon;
+import daemon.client.SyncropClientDaemon;
 import settings.Settings;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
 import syncrop.SyncropLogger;
-import account.Account;
-
-import com.sun.jna.platform.FileUtils;
-
-import daemon.SyncDaemon;
-import daemon.client.SyncropClientDaemon;
 
 public abstract class SyncROPItem 
 {
@@ -66,7 +59,6 @@ public abstract class SyncROPItem
 	volatile long dateModified=-2;
 	boolean modifiedSinceLastKeyUpdate;
 	
-	private static FileUtils fileUtils=null;
 	private boolean deletionRecorded=false;
 	private boolean hasBeenUpdated=false;
 	private String filePermisions;
@@ -140,12 +132,7 @@ public abstract class SyncROPItem
 		}
 		filePermisions=s;
 	}
-	/**
-	 * Used to initialize {@link #fileUtils} which is used to send files to trash. Only call if os is Mac or Windows
-	 */
-	public static void initializeFileUtils(){
-		fileUtils = FileUtils.getInstance();
-	}
+	
 	
 	
 	/**
@@ -329,104 +316,7 @@ public abstract class SyncROPItem
 		return path;
 		
 	}
-	
-	/**
-	 * Sends a file to trash bin
-	 * TODO Windows and Mac support
-	 * @param f the file to send to trash
-	 */
-	void sendToTrash(File f)
-	{
-		if(!file.exists())return;
-		if(logger.isDebugging())
-			logger.log("Sending file to trash path="+f);
 		
-		try {
-			if(isNotWindows()&&isNotMac())
-				sendToLinuxTrash(f);
-			else fileUtils.moveToTrash( new File[] {file});
-			/*else if(AccountManager.notWindows)
-				sendToWindowsTrash(f);
-			else sendToMacTrash(f);*/
-		}
-		
-		catch (IOException e) {
-			logger.logError(e, "occured while trying to send file to trash path="+path);
-		}
-		
-	}
-	
-	private void sendToLinuxTrash(File f) throws IOException
-	{
-		String baseName=file.getName(),name=baseName;
-		File trashInfoFile=new File(System.getProperty("user.home")+"/.local/share/Trash/info",name+".trashinfo");
-		for(int i=2;trashInfoFile.exists();i++)
-		{
-			name=baseName+="."+i;
-			trashInfoFile=new File(System.getProperty("user.home")+"/.local/share/Trash/info",name+".trashinfo");
-		}			
-		File trashFile=new File(System.getProperty("user.home")+"/.local/share/Trash/files",name);
-		Files.move(f.toPath(), trashFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-
-		logger.log(f+" was sent to trash");
-		//DeletionDate=2014-03-01T23:38:18
-		DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-		trashInfoFile.createNewFile();
-		PrintWriter out=new PrintWriter(trashInfoFile);
-		out.println("[Trash Info]");
-		out.println("Path="+f.getAbsolutePath());
-		out.println("DeletionDate="+dateFormat.format(System.currentTimeMillis()).replace(" ", "T"));
-		out.close();
-	
-	}
-	/*
-	private void sendToWindowsTrash(File f)throws IOException
-	{
-		String os=System.getProperty("os.name").toLowerCase();
-		File bin=new File("C:\\"+(
-				os.equals("windows 2000")||os.equals("windows nt")||os.equals("windows xp")?
-					"RECYCLER":
-					os.contains("windows 98")||os.contains("95")?
-							"RECYCLED":
-							"$Recycle.Bin")
-							);
-		File deletedFileDir=new File(bin,bin.list()[0]);
-		String split[]=f.getName().split("\\.");
-		String extension=split[split.length-1];
-		File deletedFile=null;
-		String basename=null;
-		File deletedFileInfo=null;
-		do 
-		{
-			basename="S"+getRandomSring(5)+"."+extension;
-			deletedFile=new File(deletedFileDir,"$R"+basename);
-			deletedFileInfo=new File(deletedFileDir,"$I"+basename);
-		}
-		while (deletedFile.exists());
-		deletedFileInfo.createNewFile();
-		PrintWriter out=new PrintWriter(f);
-		out.write(path);
-		out.close();
-		Files.move(f.toPath(),deletedFile.toPath(),StandardCopyOption.REPLACE_EXISTING);
-	}
-	
-	private String getRandomSring(int length){
-		String s="";
-		for(int i=0;i<length;i++)
-			s+=getRandomLetter();
-		return s;
-	}
-	private char getRandomLetter()
-	{
-		return (char)(Math.random()*26+65);
-	}
-	
-	private void sendToMacTrash(File f)throws IOException
-	{
-		throw new IllegalAccessError("Cannot access this method");
-	}
-	*/
-	
 	public final void save(){
 		ResourceManager.writeFile(this);
 	}
@@ -436,8 +326,8 @@ public abstract class SyncROPItem
 	 */
 	public boolean delete(long dateOfDelection)
 	{
-		dateModified=dateOfDelection;
-		if(exists())
+		
+		if(exists())	
 			logger.log("Deleting file: "+this);
 		else return false;
 		
@@ -450,10 +340,11 @@ public abstract class SyncROPItem
 			logger.logError(new IllegalArgumentException("Type of SyncropItem does not match file type"),"");
 			return false;
 		}
+		setDateModified(dateOfDelection,false);
 		if(file.exists()){
 			if(Syncrop.isInstanceOfCloud())
 				file.delete();
-			else sendToTrash(file);
+			else SyncropClientDaemon.sendToTrash(file);
 		}
 		
 		if(file.exists()){
@@ -463,7 +354,7 @@ public abstract class SyncROPItem
 			while(file.exists()&&count<10);
 		}
 				
-		return true;
+		return file.exists();
 	}
 	
 	
@@ -526,7 +417,10 @@ public abstract class SyncROPItem
 	 * measured in milliseconds since the epoch (00:00:00 GMT, January 1, 1970)
 	 * @throws IllegalArgumentException if l<0
 	 */
-	public void setDateModified(Long l)
+	public void setDateModified(long l){
+		setDateModified(l,true);
+	}
+	public void setDateModified(Long l,boolean updateActualFile)
 	{
 		//l=(l/1000)*1000;
 		
@@ -534,13 +428,14 @@ public abstract class SyncROPItem
 			dateModified=l;
 			setHasBeenUpdated();
 		}
-		if(file.exists()){
-			try {
-				Files.setLastModifiedTime(file.toPath(), FileTime.fromMillis(l));
-			} catch (IOException e) {
-				logger.logError(e, "occured while trying to change the modified time of "+file);
+		if(updateActualFile)
+			if(file.exists()){
+				try {
+					Files.setLastModifiedTime(file.toPath(), FileTime.fromMillis(l));
+				} catch (IOException e) {
+					logger.logError(e, "occured while trying to change the modified time of "+file);
+				}
 			}
-		}
 		
 	}
 	/**
@@ -581,6 +476,7 @@ public abstract class SyncROPItem
 	}
 
 	public File getFile() {return file;}
+	public byte[] readAllBytesFile() throws IOException {return Files.readAllBytes(file.toPath());}
 	
 	public boolean deleteMetadata(){return ResourceManager.deleteFile(this);}
 	
@@ -655,8 +551,8 @@ public abstract class SyncROPItem
 				" removeable:"+isRemovable()+" isDir:"+file.isDirectory();
 	}
 	
-	public boolean isDiffrentVersionsOfSameFile(long key,boolean modifiedSinceLastKeyUpdate){
-		
+	public boolean isDiffrentVersionsOfSameFile(long key,long size,boolean modifiedSinceLastKeyUpdate){
+		if(this.getSize()!=size)return false;
 		if(modifiedSinceLastKeyUpdate||this.modifiedSinceLastKeyUpdate)
 			return this.getKey()==key;
 		else return true;

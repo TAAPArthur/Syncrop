@@ -288,7 +288,6 @@ public abstract class GenericConnectionThread extends Thread
 	boolean isReady(){return input.size()!=0;}
 
 	
-	
 	class ReadMessagesThread extends Thread
 	{
 		public ReadMessagesThread(){
@@ -344,10 +343,11 @@ public abstract class GenericConnectionThread extends Thread
 			boolean primary=GenericConnectionThread.this instanceof PrimaryConnectionThread;
 			if(message.isMessageToServer())
 			{
-				if(message.getHeader().equals(Message.HEADER_PING))					
+				if(message.getHeader().equals(Message.HEADER_PING)){
 					printMessage(new Message(message.getMessage(),Server.username,Message.TYPE_MESSAGE_TO_CLIENT,Message.HEADER_PONG));
-				else if(message.getHeader().equals(Message.HEADER_PONG))
-					timeoutCalculator.calcualteTimeout((int)(System.currentTimeMillis()-(long)message.getMessage()));
+					timeoutCalculator.calculateTimeout((int)(System.currentTimeMillis()-(long)message.getMessage()));
+				}
+				//else if(message.getHeader().equals(Message.HEADER_PONG)){}
 				else if(message.getHeader().equals(Message.HEADER_CLOSE_CONNECTION))
 					terminateConnection("User request:"+message.getMessage(),false);
 				else if(message.getHeader().equals(Message.HEADER_REMOVE_USER)&&primary)

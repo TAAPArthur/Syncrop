@@ -2,7 +2,7 @@ Package: syncrop
 Source: syncrop
 Section: java
 Priority: standard
-Maintainer: Arthur Williams <arthur@taaparthur.no-ip.org>
+Maintainer: Arthur Williams <taaparthur@gmail.com>
 Homepage: taaparthur.no-ip.org
 Architecture: all
 Description: Sync files with SyncROP

@@ -122,7 +122,7 @@ public final class SyncropCloud extends SyncDaemon
 					logger.log("Closing server socket");
 					((Server) mainClient).close();
 				}
-				mainClient=new InternalServer(Server.UNLIMITED_CONNECTIONS, Settings.getPort(), logger,getUsername(),application);
+				mainClient=new InternalServer(Server.UNLIMITED_CONNECTIONS, Settings.getPort(), logger,getUsername(),application,Settings.isSSLConnection());
 			} catch (IOException e) {
 				if(!triedToConnectToServer){
 					logger.log("Could not connect to server");
@@ -220,17 +220,25 @@ public final class SyncropCloud extends SyncDaemon
 
 	
 	
-	public void updateAllClients(SyncROPItem file,String targetToExclude){		
+	public void updateAllClients(SyncROPItem file,String targetToExclude){
+		if(!isConnectionActive())
+			return;
 		logger.logTrace("Updating to all clients "+file.getPath()+" excluding "+targetToExclude+" out of "+clients.size()+" users");
-		if(isConnectionActive())
-			for(String key:clients.keySet()){
-				logger.logTrace("Updating All clients"+key+" "+targetToExclude+" "+file.getOwner()+" "+clients.get(key).getAccountName());
-				if(!key.equals(targetToExclude)&&file.getOwner().equals(clients.get(key).getAccountName()))
-					if(!clients.get(key).isPathRestricted(file.getPath()))
-						fileTransferManager.addToSendQueue(file,key);
-					else logger.logTrace("File not echoed because restricted");
-				else logger.log(key+" is not target receipent");
-			}
+		boolean updatedKey=false;
+		for(String key:clients.keySet()){
+			if(!key.equals(targetToExclude)&&file.getOwner().equals(clients.get(key).getAccountName()))
+				if(!clients.get(key).isPathRestricted(file.getPath())){
+					if(!updatedKey){
+						((SyncROPFile)file).updateKey();
+						file.save();
+						updatedKey=true;
+						
+					}
+					fileTransferManager.addToSendQueue(file,key);
+				}
+				else logger.logTrace("File not echoed because restricted");
+			else logger.log(key+" is not target receipent");
+		}
 	}
 	
 	/**
@@ -627,6 +635,10 @@ public final class SyncropCloud extends SyncDaemon
 	@Override
 	public void setPropperPermissions(SyncROPItem item,String filePermissions){
 		try {
+			if(item==null){
+				logger.logWarning("item is null when trying to set permissions");
+				return;
+			}
 			if(!item.exists())
 				return;	
 			if(item.isSymbolicLink())return;

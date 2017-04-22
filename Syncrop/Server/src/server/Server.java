@@ -106,7 +106,7 @@ public abstract class Server
 		}.start();
 	}
 	void acceptConnection(Socket clientSocket) throws IOException, ClassNotFoundException{
-		clientSocket.setSoTimeout(60*2*1000);
+		clientSocket.setSoTimeout(60*4*1000);
 		ObjectOutputStream out = new ObjectOutputStream(new BufferedOutputStream(clientSocket.getOutputStream()));
 		out.flush();
 		ObjectInputStream in = new ObjectInputStream(new BufferedInputStream(clientSocket.getInputStream()));

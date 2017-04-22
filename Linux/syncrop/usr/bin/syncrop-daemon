@@ -3,7 +3,7 @@ command=$1
 
 start()
 {
-	nice -n 19 nohup java -Xms20M -Xmx20M -jar /usr/lib/syncrop/SyncropDaemon.jar $2 >~/.syncrop/daemon.out&
+	taskset -c 0 nohup java -Xms20M -Xmx20M -jar /usr/lib/syncrop/SyncropDaemon.jar $2 >~/.syncrop/daemon.out&
 }
 
 stop()

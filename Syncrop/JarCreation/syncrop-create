@@ -49,18 +49,6 @@ function createDeb {
 	#gpg -abs -o Release.gpg Release
 
 }
-function moveDeb {
-	cd "$HOME/Documents/Syncrop/Linux/"
-	packageVersion="$packageName""_$version"
-	
-	echo "$packageVersion*.changes" 
-	mv "$packageVersion"*".changes" "$HOME/Documents/TAAPArthur/html/debian/$packageName"_all.changes
-	mv "$packageVersion"*".dsc" "$HOME/Documents/TAAPArthur/html/debian/$packageName"_all.dsc
-	mv "$packageVersion"*".deb" "$HOME/Documents/TAAPArthur/html/debian/pool/main/$packageName"_all.deb
-	cd  "$HOME/Documents/TAAPArthur/html/debian/"
-	debsign --re-sign -k99F4C4AD *.changes
-	debsign --re-sign -k99F4C4AD *.dsc
-}
 function zipResourcesForDownload {
 	cd $path
 	zip -u "$HOME/Documents/TAAPArthur/html/Syncrop/syncrop/SyncropDaemonFiles" SyncropGUI.jar SyncropDaemon.jar Client.jar Server.jar json-simple-1.1.1.jar jna.jar
@@ -68,23 +56,21 @@ function zipResourcesForDownload {
 	
 	ln -f $path/* $linux_path/
 }
-function push {
-	git commit $HOME/Documents/Syncrop/Syncrop/ -m "$message"
+function commit {
+	git commit $HOME/Documents/Syncrop/Syncrop/ -a -m "$message"
 	
-	git commit $path -m "$message"
-	git commit $linux_path -m "$message"
-	git push
-	#############Windows#################
-	ln -f $path/* $windows_path/
-	
-	git commit $windows_path -m "$message"
-	echo "pushing changes to git"
+	git commit $path -a -m "$message"
+	git commit $linux_path -a -m "$message"
 	#git push
+	#############Windows#################
+	#ln -f $path/* $windows_path/
+	
+	#git commit $windows_path -m "$message"
+	echo "pushing changes to git"
+	git push
 }
 
 createJars
 message=$(zenity --entry)
 createDeb
-#moveDeb
-zipResourcesForDownload
-push
+#commit

@@ -8,6 +8,7 @@ import static syncrop.Syncrop.notWindows;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -54,7 +55,7 @@ public class ResourceManager
 	
 	
 	
-	static File metaDataVersionFile;
+	
 	static final String REMOVABLE_DIR_NAME="removable";
 	static final String REGULAR_DIR_NAME="regular";
 	
@@ -336,15 +337,7 @@ public class ResourceManager
 			}
 			logger.logDebug("Accounts: "+accounts.toString());
 			in.close();
-			boolean sameMetaDataVersion=false;
-			if(metaDataVersionFile.exists()){
-				in=new BufferedReader(new InputStreamReader(new FileInputStream(metaDataVersionFile)));
-				sameMetaDataVersion=in.readLine().equals(Syncrop.getMetaDataVersion());
-			}
-			if(!sameMetaDataVersion){
-				logger.log("Metadata version is not the same; current version is"+Syncrop.getMetaDataVersion());
-				deleteMetadata();	
-			}
+			
 		}
 		catch (IOException|SecurityException e){
 			logger.logFatalError(e,"tyring to read from config file");
@@ -355,7 +348,7 @@ public class ResourceManager
 	}
 	private static void deleteMetadata() throws IOException{
 		logger.log("deleting metadata");
-		FileMetadataManager.deleteDatabase();
+		FileMetadataManager.recreateDatabase();
 		
 	}
 	
@@ -397,14 +390,14 @@ public class ResourceManager
 		if(!new File(getConfigFilesHome()).exists())
 			new File(getConfigFilesHome()).mkdirs();
 		configFile=new File(getConfigFilesHome(),"syncrop.ini");
-		
-		metaDataVersionFile=new File(getConfigFilesHome(),"METADATA_VERSION");
+				
 		temp=new File(getConfigFilesHome(),".temp");
 		
 		try {
 			if(!temp.exists())temp.mkdir();
 			if(!configFile.exists())configFile.createNewFile();
-			deleteTemporaryFile(null);
+			deleteAllTemporaryFiles();
+			
 		}
 		catch (IOException e) 
 		{
@@ -412,29 +405,66 @@ public class ResourceManager
 			e.printStackTrace();
 		}
 	}
+	public static void checkMetadataVersion(){
+
+		try {			
+			boolean sameMetaDataVersion=false;
+			File metaDataVersionFile=new File(getConfigFilesHome(),"METADATA_VERSION");
+			
+			if(FileMetadataManager.doesDatabaseExists()){
+				if(metaDataVersionFile.exists()){
+					BufferedReader in=new BufferedReader(new InputStreamReader(new FileInputStream(metaDataVersionFile)));
+					sameMetaDataVersion=in.readLine().trim().equals(Syncrop.getMetaDataVersion());
+					in.close();
+				}
+				if(!sameMetaDataVersion){
+					logger.log("Metadata version is not the same; current version is"+Syncrop.getMetaDataVersion());
+					deleteMetadata();	
+					updateMetadataVersionFile(metaDataVersionFile);
+				}
+			}
+			else {
+				FileMetadataManager.createDatabase();
+				updateMetadataVersionFile(metaDataVersionFile);
+			}
+		}
+		catch (IOException e) 
+		{
+			logger.logError(e);
+		}
+	}
+	private static void updateMetadataVersionFile(File metaDataVersionFile) throws FileNotFoundException{
+		PrintWriter out=new PrintWriter(metaDataVersionFile);
+		out.print(Syncrop.getMetaDataVersion());
+		out.close();
+	}
 	
 	
 	/**
 	 * Deletes the temporary file if it already exists
 	 * @return true if the temporaryFile was deleted successfully
 	 */
-	public static void deleteTemporaryFile(String user){
+	public static void deleteAllTemporaryFiles(){
 		try {
-			if(user==null)
-				for(File f:temp.listFiles())
-					if(f.getName().endsWith(".temp"))
-						Files.deleteIfExists(f.toPath());
-			else
-				Files.deleteIfExists(getTemporaryFile(user).toPath());
+			for(File f:temp.listFiles())
+				if(f.getName().endsWith(".temp"))
+					Files.deleteIfExists(f.toPath());
 		} catch (IOException e) {
-			logger.logError(e,"temp file failed to be deleted: "+getTemporaryFile(user));
+			logger.logError(e,"temps file failed to be deleted: ");
 		}
 	}
-	public static String getTemporaryFilename(String user){
-		return "~"+user+".temp";
+	public static void deleteTemporaryFile(String user,String path){
+		try {
+			Files.deleteIfExists(getTemporaryFile(user,path).toPath());
+		} catch (IOException e) {
+			logger.logError(e,"temp file failed to be deleted: "+getTemporaryFile(user,path));
+		}
 	}
-	public static File getTemporaryFile(String user){
-		return new File(temp,getTemporaryFilename(user));
+	public static String getTemporaryFilename(String user,String path){
+		return "~"+user+path.hashCode()+".temp";
+	}
+	public static File getTemporaryFile(String user,String path){
+		return new File(temp,getTemporaryFilename(user,path));
 	}
 	
 	
@@ -514,9 +544,7 @@ public class ResourceManager
 	}
 
 	
-	public static File getMetadataVersionFile() {
-		return metaDataVersionFile;
-	}
+	
 	
 	public static String convertToPattern(String literal){
 		literal="^\\Q"+literal+"\\E";

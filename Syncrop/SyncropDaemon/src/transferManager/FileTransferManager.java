@@ -13,15 +13,9 @@ import static file.SyncROPItem.INDEX_SIZE;
 import static file.SyncROPItem.INDEX_SYMBOLIC_LINK_TARGET;
 import static notification.Notification.displayNotification;
 import static syncrop.ResourceManager.getFile;
-import static syncrop.Syncrop.isInstanceOfCloud;
 import static syncrop.Syncrop.isNotWindows;
 import static syncrop.Syncrop.logger;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
@@ -31,12 +25,10 @@ import daemon.client.SyncropClientDaemon;
 import daemon.cloud.SyncropCloud;
 import file.SyncROPFile;
 import file.SyncROPItem;
-import logger.Logger;
 import message.Message;
 import settings.Settings;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
-import syncrop.SyncropLogger;
 import transferManager.queue.QueueMember;
 import transferManager.queue.SendQueue;
 /**
@@ -211,7 +203,7 @@ public class FileTransferManager extends Thread{
 	public void reset()
 	{
 		logger.log("File transfer manager reseting");
-		ResourceManager.deleteTemporaryFile(null);
+		ResourceManager.deleteAllTemporaryFiles();
 		if(Syncrop.isInstanceOfCloud())
 			pathsOfLargeFilesBeingSent.clear();
 		else pathOfLargeFilesBeingSent=null;
@@ -220,10 +212,11 @@ public class FileTransferManager extends Thread{
 		
 		timeOfLastCompletedFileTransfer=0;
 		outStandingFiles=0;
-		resetRecord();
+		resetTransferRecord();
 	}
-	public void resetRecord(){
+	public void resetTransferRecord(){
 		uploadCount=downloadCount=0;
+		timeOfLastCompletedFileTransfer=0;
 		uploadNameOfFirstFile=downloadNameOfFirstFile=null;
 	}
 	
@@ -325,20 +318,17 @@ public class FileTransferManager extends Thread{
 	private void sendFile(QueueMember member){
 		
 		SyncROPItem file=ResourceManager.getFile(member.getPath(),member.getOwner());
+		if(file.hasBeenUpdated()){
+			logger.logTrace("will not send file because file has recently been updated"+file.getPath());
+			return;
+		}
 		String userSendingTo=member.getTarget();
 		
-		if(file==null)logger.log("file "+file+" was not sent because it is null",SyncropLogger.LOG_LEVEL_DEBUG);
-		else if(!file.isSyncable())
-			logger.log("file "+file+" was not sent because it is a non empty dir",SyncropLogger.LOG_LEVEL_DEBUG);
-		else if(file.isEnabled())
-		{
-			daemon.uploadFile(file, userSendingTo);
-			timeLastFileWasSent=System.currentTimeMillis();
-			outStandingFiles++;
-			logger.log("Sending: "+file.getPath()+" "+userSendingTo);
-		}
-		else logger.log("file "+file+" was not sent because it is not" +
-					"enabled",SyncropLogger.LOG_LEVEL_DEBUG);
+		daemon.uploadFile(file, userSendingTo);
+		timeLastFileWasSent=System.currentTimeMillis();
+		outStandingFiles++;
+		logger.log("Sending: "+file.getPath()+" "+userSendingTo);
+	
 	}
 	
 	
@@ -347,8 +337,7 @@ public class FileTransferManager extends Thread{
 		timeOfLastCompletedFileTransfer=System.currentTimeMillis();
 		if(isKeepingRecord()){
 			if(downloadCount==0)
-				if(downloadNameOfFirstFile==null)
-					downloadNameOfFirstFile=path;
+				downloadNameOfFirstFile=path;
 			downloadCount++;
 		}
 	}
@@ -423,16 +412,14 @@ public class FileTransferManager extends Thread{
 			//tells recipient to stop uploading the file that this client was downloading
 			cancel(path,	HEADER_CANCEL_UPLOAD,id);
 		
-		if(!localCommand)logger.log("Remote cancel download");
+		if(!localCommand)logger.log("Remote cancel download: "+path);
 
-		logger.log("Cancled download of file "+path);
 		if(path.equals(getPathOfLargeFileBeingSent(id)))
-			ResourceManager.deleteTemporaryFile(id);
+			ResourceManager.deleteTemporaryFile(id,path);
 	}
 		
 	private void cancel(String path,String header,String target)
-	{
-		
+	{		
 		logger.log("Telling "+target+
 				(header.contains("failed")?" that ":" to ")+
 				header+" file:"+path);
@@ -448,21 +435,20 @@ public class FileTransferManager extends Thread{
 			try
 			{
 				if(!paused&&outStandingFiles<=12&&daemon.isConnectionAccepted()&&!isEmpty()
-					&&System.currentTimeMillis()-timeLastFileWasSent>daemon.getExptectedFileTransferTime()/2)	
+					&&System.currentTimeMillis()-timeLastFileWasSent>daemon.getExpectedFileTransferTime()/2)	
 				{
 					QueueMember m=sendQueue.peek();
 					if(m==null)continue;
-					if(m.getTimeInQueue()>Math.min(12000,daemon.getExptectedFileTransferTime()))
+					if(m.getTimeInQueue()>Math.max(1000,daemon.getExpectedFileTransferTime()))
 						if(m.isLargeFile()&&daemon.isSendingLargeFile()){
 							Syncrop.sleep();
 						}
 						else {
 							sendFile(sendQueue.poll());
-							if(daemon.getExptectedFileTransferTime()>10000)
-								logger.logTrace("File transfer time is high: "+daemon.getExptectedFileTransferTime());
-							if(logger.isLogging(Logger.LOG_LEVEL_TRACE))
-								logger.logTrace("totalMem = "+Runtime.getRuntime().totalMemory()+
-										"  freeMem = "+Runtime.getRuntime().freeMemory());
+							Syncrop.sleepShort();
+							if(daemon.getExpectedFileTransferTime()>10000)
+								logger.logTrace("File transfer time is high: "+daemon.getExpectedFileTransferTime());
+							
 						}
 					else Syncrop.sleep();
 				}
@@ -569,35 +555,28 @@ public class FileTransferManager extends Thread{
 			else localFile.deleteMetadata();
 		return false;
 	}
-	
-	public void checkForNotifications()
-	{
 		
-		if(!isInstanceOfCloud()&&downloadCount+uploadCount!=0&&daemon.isConnectionAccepted())
-			if(getTimeFromLastCompletedFileTransfer()>12000
-					||downloadCount+uploadCount>=12
-					||haveAllFilesFinishedTranferring()){
-		
-				notitfyUser();
-			}
-	}
-	private void notitfyUser()
+	public void notifyUser()
 	{
 		String prefix="",suffix="";
 		if(haveAllFilesFinishedTranferring()){
 			//prefix="All files finished transferring\n";
 			suffix="\n\nAll files finished transferring";
 		}
+		String notification="";
 		if(uploadCount!=0)
 			if(uploadCount==1)
-				displayNotification(prefix+uploadNameOfFirstFile+" was uploaded to cloud"+suffix);
-			else displayNotification(prefix+uploadNameOfFirstFile+" and "+(uploadCount-1)+
-					" other file"+(uploadCount-1==1?"":"s")+" were uploaded to cloud"+suffix);
-		if(downloadCount!=0)
+				notification+=uploadNameOfFirstFile+" was uploaded to cloud";
+			else notification+=uploadNameOfFirstFile+" and "+(uploadCount-1)+
+					" other file"+(uploadCount-1==1?"":"s")+" were uploaded to cloud";
+		if(downloadCount!=0){
+			if(!notification.isEmpty())notification+="\n\n";
 			if(downloadCount==1)
-				displayNotification(prefix+downloadNameOfFirstFile+" was downloaded from cloud"+suffix);
-			else displayNotification(prefix+downloadNameOfFirstFile+" and "+(downloadCount-1)+
-					" other file"+(downloadCount-1==1?"":"s")+" were downloaded from cloud"+suffix);
+				notification+=downloadNameOfFirstFile+" was downloaded from cloud";
+			else notification+=downloadNameOfFirstFile+" and "+(downloadCount-1)+
+					" other file"+(downloadCount-1==1?"":"s")+" were downloaded from cloud";
+		}
+		displayNotification(prefix+notification+suffix);
 		if(haveAllFilesFinishedTranferring())
 		{
 			if(logger.isDebugging())
@@ -607,8 +586,7 @@ public class FileTransferManager extends Thread{
 				System.exit(0);
 			}
 		}
-		uploadCount=downloadCount=0;
-		uploadNameOfFirstFile=downloadNameOfFirstFile=null;			
+		resetTransferRecord();			
 	}
 	
 	public void uploadRequest(Message message){
@@ -721,21 +699,7 @@ public class FileTransferManager extends Thread{
 	public int getDownloadCount(){return downloadCount;}
 	public int getUploadCount(){return uploadCount;}
 	
-	public static byte[]getFileHash(File file){
-		try {
-			MessageDigest md = MessageDigest.getInstance("MD5");
-			InputStream is = new FileInputStream(file);
-			DigestInputStream dis = new DigestInputStream(is, md);
-			while(dis.available()>0)
-				dis.read();
-			dis.close();
-			return md.digest();
-		} catch (NoSuchAlgorithmException | IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return null;
-	}
+	
 	public static byte[]getHash(byte[]bytes){
 		try {
 			MessageDigest md = MessageDigest.getInstance("MD5");

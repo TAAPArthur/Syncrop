@@ -9,12 +9,16 @@ import java.util.HashMap;
 
 import logger.Logger;
 import message.Message;
+import message.TimeoutCalculator;
 
 public class PrimaryConnectionThread extends GenericConnectionThread{
 	
 	CheckThreadsThread checkThreadsThread=null;
-		
+	private boolean internal;
 	public PrimaryConnectionThread(Socket s,ObjectInputStream in,ObjectOutputStream out,String username,String application,int maxConnections) throws IOException {
+		this(s, in, out, username, application, maxConnections, false);
+	}
+	public PrimaryConnectionThread(Socket s,ObjectInputStream in,ObjectOutputStream out,String username,String application,int maxConnections,boolean internal) throws IOException {
 		super(s,in,out);
 		if(username==null||username.isEmpty())
 			username=System.currentTimeMillis()+"";
@@ -22,7 +26,7 @@ public class PrimaryConnectionThread extends GenericConnectionThread{
 		this.username=username;
 		//id=username+"_"+application+System.currentTimeMillis();
 		this.maxConnections=maxConnections;
-		
+		this.internal=internal;
 		this.clientSocket=s;
 		
 		Server.connections.put(username, this);
@@ -46,7 +50,7 @@ public class PrimaryConnectionThread extends GenericConnectionThread{
 	@Override
 	public void run()
 	{
-		(checkThreadsThread=new CheckThreadsThread()).start();
+		(checkThreadsThread=new CheckThreadsThread(!internal)).start();
 		while (!isConnectionClosed())//relays info
 		{
 			try 
@@ -153,22 +157,31 @@ public class PrimaryConnectionThread extends GenericConnectionThread{
 	
 	class CheckThreadsThread extends Thread
 	{
-		public CheckThreadsThread() 
+		boolean checkPrimary;
+		public CheckThreadsThread(boolean checkPrimary) 
 		{
 			super("CheckThreads");
+			this.checkPrimary=checkPrimary;
 		}
 		@Override
 		public void run()
 		{
 			while(isConnectedToClient()){
 				try{
-					for(String key:clients.keySet())
-						clients.get(key).printMessage(new Message(
-								System.currentTimeMillis(), Server.username, Message.TYPE_MESSAGE_TO_CLIENT,Message.HEADER_PING));
-					if(clientSocket!=null)	
-						printMessage(new Message(
-								System.currentTimeMillis(), Server.username, Message.TYPE_MESSAGE_TO_CLIENT,Message.HEADER_PING));
-					Thread.sleep(timeoutCalculator.getPingDelay());
+					long currentTime=System.currentTimeMillis();
+					
+					for(SecondaryConnectionThread client:clients.values()){
+						if(currentTime-client.timeoutCalculator.getTimeOfLastUpdate()<=TimeoutCalculator.MAX_PING_DELAY+client.getExpectedRoundTripTime()){
+							log("pinging");
+							//client.printMessage(new Message(System.currentTimeMillis(), Server.username, Message.TYPE_MESSAGE_TO_CLIENT,Message.HEADER_PING));
+						}
+						else client.closeConnection("Timeout ("+client.getTimeout()+"ms <"+(currentTime-client.timeoutCalculator.getTimeOfLastUpdate())+")", true);
+					}
+					if(checkPrimary&&clientSocket!=null)
+						if(currentTime-timeoutCalculator.getTimeOfLastUpdate()<=getTimeout())
+							;//printMessage(new Message(System.currentTimeMillis(), Server.username, Message.TYPE_MESSAGE_TO_CLIENT,Message.HEADER_PING));
+						else terminateConnection("Timeout (primary) ("+getTimeout()+"ms)", true);
+					Thread.sleep(30*60*1000);//terminating an idle connection is not high priority
 				} 
 				catch (InterruptedException e){log("Check threads threads has been interrupted");}
 				catch (ConcurrentModificationException e) {log(e.toString());}

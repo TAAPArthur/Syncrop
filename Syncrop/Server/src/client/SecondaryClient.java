@@ -6,16 +6,22 @@ import message.Message;
 
 public class SecondaryClient extends GenericClient 
 {
+	
 	public SecondaryClient(String username,String application)throws IOException
 	{
 		this(username,DEFAULT_HOST,DEFAULT_PORT, application,false);
 	}
 	public SecondaryClient(String username,String host, int port, String application,boolean ssl) throws IOException
 	{
-		super(username,host, port,ssl);
-		
+		super(username,host, port,application,ssl);
+		init();		
+	}
+	private void init() throws IOException{
+		connectToServer();
 		//tells the Server about this client
 		printMessage(new Object[]{application,false},Message.TYPE_CONNECTION_INFO);
+		startThreads();
+		
 	}
 
 	/**

@@ -7,7 +7,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.SocketException;
-import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
 
 import javax.net.ssl.SSLSocketFactory;
 
@@ -22,7 +23,7 @@ import message.TimeoutCalculator;
 public class GenericClient implements Messenger{
 	TimeoutCalculator timeoutCalculator=new TimeoutCalculator();
 	private static boolean unshared=true;
-	
+	String application;
 	/**
 	 * the host name, or null for the loopback address.
 	 */
@@ -86,15 +87,15 @@ public class GenericClient implements Messenger{
 	/**
 	 * contains main messages
 	 */
-	volatile ArrayList<Message>main=new ArrayList<Message>();
+	volatile LinkedList<Message>main=new LinkedList<Message>();
 	/**
 	 * contains notification messages
 	 */
-	volatile ArrayList<Message>notifications=new ArrayList<Message>();
+	volatile List<Message>notifications=new LinkedList<Message>();
 	/**
 	 * contains messages retaining to connection info
 	 */
-	volatile ArrayList<Message>connectionInfo=new ArrayList<Message>();
+	volatile List<Message>connectionInfo=new LinkedList<Message>();
 	
 	/**
 	 * The last recored time of the last sent message
@@ -113,7 +114,8 @@ public class GenericClient implements Messenger{
 				try{
 					Thread.sleep(timeoutCalculator.getPingDelay());
 					if(isConnectedToServer())
-						printMessage(System.currentTimeMillis(),Message.TYPE_MESSAGE_TO_SERVER,Message.HEADER_PING);					
+						printMessage(System.currentTimeMillis(),Message.TYPE_MESSAGE_TO_SERVER,Message.HEADER_PING);
+					
 				} catch (InterruptedException e) {}
 			}while(isConnectedToServer());
 		}
@@ -122,6 +124,9 @@ public class GenericClient implements Messenger{
 	public int getTimeout(){return timeoutCalculator.getTimeout();}
 	public int getExpectedRoundTripTime(){return timeoutCalculator.getExpectedMaxRoundTripTime();}
 	
+	String host; 
+	int port;
+	boolean ssl;
 	/**
 	 * 
 	 * @param username the unique name of the user making the connection
@@ -129,10 +134,17 @@ public class GenericClient implements Messenger{
 	 * @param port the port to connect to
 	 * @throws IOException
 	 */
-	public GenericClient(String userID, String host, int port,boolean ssl) throws IOException{
+	protected GenericClient(String userID, String host, int port,String application,boolean ssl) throws IOException{
 		this.USER_ID=userID;
+		this.host=host;
+		this.port=port;
+		this.ssl=ssl;
+		this.application=application;
 		
-		connect(host,port,ssl);
+	}
+	
+	
+	protected void startThreads(){
 		pingThread.start();
 		readMessageThread.start();
 	}
@@ -144,9 +156,9 @@ public class GenericClient implements Messenger{
 	 * This method is used to block the thread until a message is received;
 	 * @param arrayList the ArrayList to wait for
 	 */
-	private void wait(ArrayList<Message> arrayList)
+	private void wait(List<Message> list)
 	{
-		while(arrayList.size()==0&&isConnectedToServer())
+		while(list.isEmpty()&&isConnectedToServer())
 			try {
 				Thread.sleep(waitTime);
 			} catch (InterruptedException e) {}
@@ -158,9 +170,9 @@ public class GenericClient implements Messenger{
 	 * @return the next message in the list
 	 * @throws IOException 
 	 */
-	private Message read(ArrayList<Message>list) throws IOException
+	private Message read(List<Message>list) throws IOException
 	{
-		if(list.size()==0)
+		if(list.isEmpty())
 		{
 			wait(list);
 			if(!isConnectedToServer())
@@ -285,7 +297,7 @@ public class GenericClient implements Messenger{
 	 * @param host the host name
 	 * @param port the port number
 	 */
-	private void connect(String host,int port,boolean ssl) throws IOException
+	protected void connectToServer() throws IOException
 	{	
 		socket = ssl?
 				SSLSocketFactory.getDefault().createSocket(host, port):
@@ -374,14 +386,15 @@ public class GenericClient implements Messenger{
 				Message message = null;
 				try 
 				{
-					message=(Message)in.readObject();	
+					
+					message=(Message)(unshared?in.readUnshared():in.readObject());	
 					if(message.isMessageToClient()){
 						if(message.getHeader().equals(Message.HEADER_CLOSE_CONNECTION))
 							closeConnection("Closed by server:"+message.getMessage());
-						else if(message.getHeader().equals(Message.HEADER_PING))
+						else if(message.getHeader().equals(Message.HEADER_PING))	
 							printMessage(message.getMessage(),Message.TYPE_MESSAGE_TO_SERVER,Message.HEADER_PONG);
 						else if(message.getHeader().equals(Message.HEADER_PONG))
-							timeoutCalculator.calcualteTimeout((int)(System.currentTimeMillis()-(long)message.getMessage()));
+							timeoutCalculator.calculateTimeout((int)(System.currentTimeMillis()-(long)message.getMessage()));
 					}
 					else if(message.isNotification())
 					{
@@ -389,8 +402,13 @@ public class GenericClient implements Messenger{
 							connectionAccepted=false;
 						notifications.add(message);
 					}
-					else if(message.isDefault())main.add(message);
-					else connectionInfo.add(message);
+					else if(message.isMessageConnectionInfo())
+						connectionInfo.add(message);
+					else {
+						main.add(message);
+						if(Math.random()>.5)
+							Thread.sleep(waitTime);
+					}
 				}
 				catch (EOFException e)
 				{	

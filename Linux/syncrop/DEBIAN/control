@@ -1,13 +1,11 @@
-Version: 2.2.0
+Version: 2.3.7
 Package: syncrop
-Installed-Size: 490
+Source: syncrop
 Section: java
-Maintainer: Arthur Williams <arthur@taaparthur.no-ip.org>
-Homepage: http://taaparthur.no-ip.org
 Priority: standard
+Maintainer: Arthur Williams <taaparthur@gmail.com>
+Homepage: taaparthur.no-ip.org
 Architecture: all
 Description: Sync files with SyncROP
- SyncROP syncs your files to a cloud and access them form anywhere.
-
-
+   SyncROP syncs your files to a cloud and access them form anywhere.
 
