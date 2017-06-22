@@ -1,0 +1,3 @@
+#!/bin/bash
+
+python /usr/lib/syncrop/syncrop-indicator.py

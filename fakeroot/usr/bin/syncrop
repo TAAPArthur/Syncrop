@@ -1,0 +1,50 @@
+#!/bin/bash
+
+start()
+{
+    memory="15M"
+    if [ $1 =="--cloud" ] then;
+        memory="30M"
+    fi
+	taskset -c 0 nohup nice -n19 java -Xms"$memory" -Xmx"$memory" -jar /usr/lib/syncrop/Syncrop.jar $@ >~/.syncrop/daemon.out&
+}
+
+stop()
+{
+ 	pid=`pgrep -f 'java.*/usr/lib/syncrop/Syncrop.jar $@'`
+	kill $pid
+	while ps -p $pid; 
+	do 
+	sleep 1;
+	done;
+}
+version()
+{
+	java -Xmx15M -jar /usr/lib/syncrop/Syncrop.jar "-v"
+}
+command="$1"
+shift
+case "$command" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart|reload)
+		stop
+		start
+		;;
+	version|"-v"|"--version")
+		version
+		;;
+    "--open-log")
+        xdg-open "$HOME/.syncrop/syncrop.log"
+        ;;
+    
+	*)
+		echo $"Usage: $0 {start|stop|restart|reload|status}"
+	        exit 1
+esac
+
+exit 0

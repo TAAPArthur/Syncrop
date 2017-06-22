@@ -8,8 +8,8 @@ pkgdesc='SyncROP syncs your files to a cloud and access them form anywhere.'
 
 arch=('any')
 license=('MIT')
-depends=('java-runtime')
-optdepends('python','pyqt4-common')
+depends=('java-runtime-headless')
+optdepends=('python: tray-icon','pyqt4-common: tray-icon')
 md5sums=('SKIP')
 
 source=("https://github.com/TAAPArthur/Syncrop/syncrop.tar.gz")
