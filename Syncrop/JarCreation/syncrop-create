@@ -1,76 +1,44 @@
 #!/bin/bash
-echo "$HOME/Documents/Syncrop"
+baseDir="$HOME/Documents/Syncrop"
 packageName="syncrop"
 mfHome="$HOME/Documents/Syncrop/Syncrop/JarCreation"
 
-
 path="$HOME/Documents/Syncrop/Jars" #$HOME/Documents/Syncrop
-
-linux_path="$HOME/Documents/Syncrop/Linux/syncrop/usr/lib/syncrop"
-windows_path="$HOME/Documents/Syncrop/Windows/Jars"
+linux_path="$HOME/Documents/Syncrop/fakeroot/usr/lib/syncrop"
 
 function createJars {
-	cd $HOME/Documents/Syncrop/Syncrop/SyncropGUI/bin
+	cd "$HOME/Documents/Syncrop/Syncrop/SyncropGUI/bin"
 	jar cfm "$path/SyncropGUI.jar" "$mfHome/SyncropGUI_MANIFEST.MF" *
 	
-	cd $HOME/Documents/Syncrop/Syncrop/SyncropDaemon/bin
+	cd "$HOME/Documents/Syncrop/Syncrop/SyncropDaemon/bin"
 	
-	jar cfm "$path/SyncropDaemon.jar" "$mfHome/SyncropDaemon_MANIFEST.MF" * ../Resources
-	jar cfm "$path/SyncropCloud.jar" "$mfHome/Cloud_MANIFEST.MF" * ../Resources
+	jar cfm "$path/Syncrop.jar" "$mfHome/Syncrop_MANIFEST.MF" * 
 	
 	cd ../../Server/bin
 	jar cf "$path/Client.jar" client/* logger/* message/*
 	jar cf "$path/Server.jar" server/* logger/* message/*
 	
-	cd $HOME/Documents/Syncrop/Syncrop/SyncropHelper/bin
+	cd "$HOME/Documents/Syncrop/Syncrop/SyncropHelper/bin"
 	
 	jar cfm "$path"/SyncropHelper.jar "$mfHome"/SyncropHelper_MANIFEST.MF *
 }
 
-function createDeb {
+function package {
 	#############Linux################
+	cd $baseDir;
 	version=`java -jar "$path/SyncropDaemon.jar" -v`
-
-	sourceFiles="$HOME/Documents/Syncrop/Linux/syncrop"	
-	cd $sourceFiles
-	echo "Version: $version"
-	echo $version>"$HOME/Documents/TAAPArthur/html/Syncrop/syncrop_version.html"
-	echo "Version: $version" >"DEBIAN/control"
-	cat "$mfHome/control_minus_version" >>"DEBIAN/control"
-	 
-	dpkg-deb --build $sourceFiles "$HOME/Documents/TAAPArthur/html/debian/pool/main/syncrop_all.deb"
-	cd "$HOME/Documents/TAAPArthur/html/debian/pool/main/"
-
-	#dpkg-sig --sign builder syncrop.deb
-	#apt-ftparchive packages . > Packages
-   	#gzip -c Packages > Packages.gz
-	#apt-ftparchive release . > Release
-	#gpg --clearsign -o InRelease Release
-	#gpg -abs -o Release.gpg Release
-
-}
-function zipResourcesForDownload {
-	cd $path
-	zip -u "$HOME/Documents/TAAPArthur/html/Syncrop/syncrop/SyncropDaemonFiles" SyncropGUI.jar SyncropDaemon.jar Client.jar Server.jar json-simple-1.1.1.jar jna.jar
-	zip -u "$HOME/Documents/TAAPArthur/html/Syncrop/syncrop/SyncropCloudFiles" *
+	sed -i "4s/.*/pkgver='$version'/" PKGBUILD
+    tar -pczf "syncrop.tar.gz" fakeroot
 	
-	ln -f $path/* $linux_path/
 }
+
 function commit {
-	git commit $HOME/Documents/Syncrop/Syncrop/ -a -m "$message"
-	
-	git commit $path -a -m "$message"
-	git commit $linux_path -a -m "$message"
-	#git push
-	#############Windows#################
-	#ln -f $path/* $windows_path/
-	
-	#git commit $windows_path -m "$message"
+	git commit -a -m "$message"
 	echo "pushing changes to git"
 	git push
 }
 
 createJars
 message=$(zenity --entry)
-createDeb
-#commit
+package
+commit

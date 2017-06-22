@@ -1,6 +1,8 @@
 package daemon;
 
 import static notification.Notification.displayNotification;
+import static settings.Settings.getMaxFileSize;
+import static settings.Settings.getMaxTransferSize;
 import static transferManager.FileTransferManager.HEADER_FILE_SUCCESSFULLY_UPLOADED;
 import static transferManager.FileTransferManager.HEADER_REQUEST_SMALL_FILE_DOWNLOAD;
 import static transferManager.FileTransferManager.HEADER_REQUEST_SYMBOLIC_LINK_DOWNLOAD;
@@ -40,11 +42,7 @@ public abstract class SyncDaemon extends Syncrop{
 	 */
 	protected static boolean initializingConnection=false;
 	
-	/**
-	 * the maximum package size of a file being transfered. If the file size is less
-	 * than this value, {@value #TRANSFER_SIZE}, the entire file will be sent at once.
-	 */
-	public static final int TRANSFER_SIZE=64*KILOBYTE;
+	
 
 	/**
 	 * Checks to see if files have been modified every few seconds; The exact time
@@ -94,17 +92,6 @@ public abstract class SyncDaemon extends Syncrop{
 	public final static String HEADER_SET_ENABLED_PATHS="set enabled paths";
 	
 	public final static String HEADER_CLEAN_CLOUD_FILES="clean cloud's files";
-	/**
-	 * parameter should be a string containing the relative path of the file to share
-	 */
-	public final static String HEADER_SHARE_FILE="SHARE";
-	/**
-	 * parameter should be a string containing the relative path of the file to share
-	 */
-	public final static String HEADER_SHARED_SUCCESS="SHARE KEY";
-	public final static String HEADER_REQUEST_ACCESS_TO_SHARED_FILE="REQUEST SHARED FILE";
-	public final static String HEADER_REQUEST_ACCESS_TO_SHARED_FILE_RESPONSE="REQUEST SHARED FILE RESPONSE";
-	public final static String HEADER_STOP_SHARING_FILE="STOP SHARING FILE";
 	
 	UploadLargeFileThread uploadLargeFileThread;
 	
@@ -153,7 +140,7 @@ public abstract class SyncDaemon extends Syncrop{
 	    			//wakes all threads; they know to end since shuttingDown is true
 	    			fileWatcher.interrupt();
 	    			mainSocketListener.interrupt();
-	    			fileTransferManager.shutDown();
+	    			fileTransferManager.onShutDown();
 	    			uploadLargeFileThread.interrupt();
 	    			if(SyncropClientDaemon.isConnectionActive()){
 		    			int timeToLive=100+getExpectedFileTransferTime()*fileTransferManager.getOutstandingFiles();
@@ -275,7 +262,7 @@ public abstract class SyncDaemon extends Syncrop{
 				logger.logError(e, " occured while trying to change the write/execute permissions of "+item.getAbsPath());
 			}
 	}
-	public void startDownloadOfLargeFile(String id,String path,String owner, long dateModified, long key,boolean modifiedSinceLastUpdate,String filePermissions,boolean exists, byte[]bytes,long size){
+	public void startDownloadOfLargeFile(String id,String path,String owner, long dateModified, long key,boolean modifiedSinceLastUpdate,String filePermissions,boolean exists, long size){
 		
 		try {
 			SyncROPItem localFile=ResourceManager.getFile(path, owner);
@@ -286,7 +273,7 @@ public abstract class SyncDaemon extends Syncrop{
 					
 					return;
 				}*/
-				if(localFile.isDiffrentVersionsOfSameFile(size,key, localFile.getDateModified()!=dateModified)){
+				if(localFile.isDiffrentVersionsOfSameFile(size,key, modifiedSinceLastUpdate)){
 					ResourceManager.lockFile(path, owner);
 					localFile.setDateModified(dateModified);
 					localFile.save();
@@ -326,7 +313,7 @@ public abstract class SyncDaemon extends Syncrop{
 					return;
 				}
 				Files.write(ResourceManager.getTemporaryFile(id,path).toPath(), bytes,StandardOpenOption.APPEND);
-				if(ResourceManager.getTemporaryFile(id,path).length()>MAX_FILE_SIZE){
+				if(ResourceManager.getTemporaryFile(id,path).length()>getMaxFileSize()){
 					logger.log("Download failed because tempFile is too large; deleting");
 					fileTransferManager.cancelDownload(id,path,true);
 					removeUser(id,"Hacking attempt");
@@ -342,19 +329,14 @@ public abstract class SyncDaemon extends Syncrop{
 		fileTransferManager.cancelDownload(id,path,true);
 	}
 	
-	public void endDownloadOfLargeFile(String id,String path,String owner,long dateModified,long key,boolean modifiedSinceLastUpdate,String filePermissions,boolean exists,byte[] bytes,long length){
+	public void endDownloadOfLargeFile(String id,String path,String owner,long dateModified,long key,boolean modifiedSinceLastUpdate,String filePermissions,boolean exists,long length){
 		if(ResourceManager.getTemporaryFile(id,path).exists())
-			downloadFile(id, path, owner, dateModified, key,modifiedSinceLastUpdate,filePermissions, exists, bytes, length,null, true,true);
+			downloadFile(id, path, owner, dateModified, key,modifiedSinceLastUpdate,filePermissions, exists, null, length,null, true,true);
 		else logger.log("File has already been canceled");
 	}
 	
 	
-	public void downloadFile(String id,String path,String owner,long dateModified,long key,boolean modifiedSinceLastUpdate,String filePermissions,boolean exists,byte[] bytes,long length,boolean copyFromFile){
-		downloadFile(id, path, owner, dateModified, key,modifiedSinceLastUpdate,filePermissions, exists, bytes, length,null, copyFromFile,true);
-	}
-	public void downloadFile(String id,String path,String owner,long dateModified,long key,boolean modifiedSinceLastUpdate,String filePermissions,boolean exists,byte[] bytes,long length,boolean copyFromFile,boolean echo){
-		downloadFile(id, path, owner, dateModified, key,modifiedSinceLastUpdate,filePermissions, exists, bytes, length,null, copyFromFile,echo);
-	}
+	
 	
 	public void downloadFile(String id,String path,String owner,long dateModified,long key,boolean modifiedSinceLastUpdate,String filePermissions,boolean exists,byte[] bytes,long length,String linkTarget,boolean copyFromFile,boolean echo){
 		if(exists)
@@ -598,14 +580,14 @@ public abstract class SyncDaemon extends Syncrop{
 						((SyncROPSymbolicLink)file).formatFileIntoSyncData(),
 						HEADER_REQUEST_SYMBOLIC_LINK_DOWNLOAD,
 						target);
-			else if(file.getSize()<=TRANSFER_SIZE)
+			else if(file.getSize()<=getMaxTransferSize())
 			{
 				mainClient.printMessage(
 					file.formatFileIntoSyncData(((SyncROPFile) file).readAllBytesFromFile())
 					,HEADER_REQUEST_SMALL_FILE_DOWNLOAD,
 					target);		
 			}
-			else if(file.getSize()<=MAX_FILE_SIZE)
+			else if(file.getSize()<=getMaxFileSize())
 				(uploadLargeFileThread= new UploadLargeFileThread((SyncROPFile) file, target, fileTransferManager)).start();
 			else
 				logger.log("Files is too big to upload; path="+path);
@@ -677,4 +659,5 @@ public abstract class SyncDaemon extends Syncrop{
 		if(mainClient!=null)
 			mainClient.printMessage(m,header,target);
 	}
+
 }

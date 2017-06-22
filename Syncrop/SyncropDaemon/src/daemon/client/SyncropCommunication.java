@@ -29,7 +29,7 @@ public class SyncropCommunication extends Thread
 	public static final String CLEAN="CLEAN";
 	public static final String UPDATE="UPDATE";
 	
-	public static final String SHARE="SHARE";
+	
 	public static ServerSocket serverSocket;
 	SyncDaemon daemon;
 	PrintWriter out;
@@ -83,11 +83,6 @@ public class SyncropCommunication extends Thread
 							daemon.printMessage(
 									ResourceManager.getAccount().getRestrictionsList()
 									, SyncDaemon.HEADER_CLEAN_CLOUD_FILES);
-							break;
-						case SHARE:
-							String pathToShare=sc.nextLine();
-							if(daemon.isConnectionAccepted())
-								daemon.printMessage(pathToShare, SyncDaemon.HEADER_SHARE_FILE);
 							break;
 						default:
 							out.println("Unknown");

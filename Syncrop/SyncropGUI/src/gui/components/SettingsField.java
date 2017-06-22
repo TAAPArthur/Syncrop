@@ -21,9 +21,9 @@ public class SettingsField extends JPanel{
 	
 	public SettingsField(Options option){
 		this.option=option;
-		if(option.getDataType().equals(double.class)||option.getDataType().equals(int.class)){
+		if(option.getDataType().equals(long.class)||option.getDataType().equals(int.class)){
 			component=new JSpinner();
-			if(option.getDataType().equals(double.class))
+			if(option.getDataType().equals(long.class))
 			((JSpinner)component).setModel(new SpinnerNumberModel(0, 0, 10*Syncrop.KILOBYTE, 10));
 			
 			add(new JLabel(option.getTitle()));
@@ -36,7 +36,7 @@ public class SettingsField extends JPanel{
 	}
 	public void load(){
 		Object value=option.getValue();
-		if(option.getDataType().equals(double.class)||option.getDataType().equals(int.class)){
+		if(option.getDataType().equals(long.class)||option.getDataType().equals(int.class)){
 			((JSpinner)component).setValue(value);
 			component.setSize(200, component.getHeight());
 		}
@@ -46,7 +46,7 @@ public class SettingsField extends JPanel{
 	}
 	public void save(){
 		Object value;
-		if(option.getDataType().equals(double.class)||option.getDataType().equals(int.class)){
+		if(option.getDataType().equals(long.class)||option.getDataType().equals(int.class)){
 			value=((JSpinner)component).getValue();
 		}
 		else if(option.getDataType().equals(boolean.class))

@@ -53,10 +53,7 @@ public class SyncropCommunicationThread extends Thread{
 	public void clean(){
 		print(SyncropCommunication.CLEAN);
 	}
-	public void share(String path){
-		SyncropGUI.logger.log("Sharing public file:"+path);
-		print(SyncropCommunication.SHARE,path);
-	}
+	
 	
 	public void requestFileSharing(String absPath,boolean sharePublic){
 		

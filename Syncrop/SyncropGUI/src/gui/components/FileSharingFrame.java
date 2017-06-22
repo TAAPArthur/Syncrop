@@ -11,11 +11,8 @@ import javax.swing.JPanel;
 import javax.swing.JTextArea;
 import javax.swing.filechooser.FileFilter;
 
-import syncrop.ResourceManager;
-import file.SyncROPDir;
-import file.SyncROPFile;
 import file.SyncROPItem;
-import gui.SyncropGUI;
+import syncrop.ResourceManager;
 
 public class FileSharingFrame extends JFrame implements ActionListener{
 
@@ -64,20 +61,6 @@ public class FileSharingFrame extends JFrame implements ActionListener{
 	}
 	@Override
 	public void actionPerformed(ActionEvent e) {
-		if(fileChooser.isMultiSelectionEnabled())
-			for(File fileToShare:fileChooser.getSelectedFiles())
-				shareFile(fileToShare);
-		else shareFile(fileChooser.getSelectedFile());
 	}
-	private void shareFile(File fileToShare){
-		String realitvePath=ResourceManager.getRelativePath(fileToShare.getAbsolutePath(), ResourceManager.getAccount().getName(), removable.isSelected());
-		SyncROPItem file=
-				fileToShare.isFile()?
-					new SyncROPFile(realitvePath, ResourceManager.getAccount().getName()):
-					new SyncROPDir(realitvePath, ResourceManager.getAccount().getName());
-		if(file.isEnabled()){
-				SyncropGUI.getSyncropCommunicationThread().share(realitvePath);
-			dispose();
-		}
-	}
+	
 }

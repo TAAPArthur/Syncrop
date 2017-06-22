@@ -17,7 +17,6 @@ import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 import java.util.regex.Pattern;
@@ -27,7 +26,6 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import account.Account;
-import daemon.cloud.filesharing.SharedFile;
 import file.Directory;
 import file.SyncROPItem;
 import settings.Settings;
@@ -103,19 +101,6 @@ public class ResourceManager
 	private volatile static String lockedPath;
 	private volatile static String lockedOwner;
 	
-	public final static LinkedHashSet<SharedFile>sharedFiles=new LinkedHashSet<>();
-	
-	
-	public static SharedFile getSharedFile (String absPath){
-		for(SharedFile file:sharedFiles)
-			if(file.getAbsolutePath().equals(absPath))
-				return file;
-		return null;
-	}
-	
-	public static void addSharedFiles(SharedFile file){
-		sharedFiles.add(file);
-	}
 	
 	
 	/**

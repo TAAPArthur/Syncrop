@@ -1,7 +1,7 @@
 package transferManager.queue;
 
-import daemon.SyncDaemon;
 import file.SyncROPItem;
+import settings.Settings;
 
 public class QueueMember implements Comparable<QueueMember>{
 	private String path;
@@ -19,7 +19,7 @@ public class QueueMember implements Comparable<QueueMember>{
 		this.owner=owner;
 		this.target=target;
 		timeStamp=System.currentTimeMillis();
-		fileSizeTier=(int) (size/SyncDaemon.TRANSFER_SIZE);
+		fileSizeTier=(int) (size/Settings.getMaxTransferSize());
 		this.dateModified=dateModifed;
 	}
 	public long getDateModified(){return dateModified;}

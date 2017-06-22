@@ -6,6 +6,7 @@ import static file.SyncROPItem.INDEX_EXISTS;
 import static file.SyncROPItem.INDEX_KEY;
 import static file.SyncROPItem.INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE;
 import static file.SyncROPItem.INDEX_PATH;
+import static file.SyncROPItem.INDEX_SIZE;
 import static file.SyncROPItem.INDEX_SYMBOLIC_LINK_TARGET;
 
 import java.io.File;
@@ -28,7 +29,6 @@ import account.Account;
 import authentication.Authenticator;
 import daemon.SyncDaemon;
 import daemon.client.SyncropClientDaemon;
-import daemon.cloud.filesharing.SharedFileManger;
 import file.SyncROPDir;
 import file.SyncROPFile;
 import file.SyncROPItem;
@@ -77,11 +77,7 @@ public final class SyncropCloud extends SyncDaemon
 			for(String s:args)
 				if(s.startsWith("-i"))
 					instance=s.substring(2).trim();
-				else if(s.startsWith("-v")){
-					System.out.println(Syncrop.getVersionID());
-					System.exit(0);
-				}
-				
+
 		new SyncropCloud(instance);
 	}
 	
@@ -388,6 +384,7 @@ public final class SyncropCloud extends SyncDaemon
 				boolean clientFileExists=(Boolean)(files[i][INDEX_EXISTS]);
 				String linkTarget=(String)(files[i][INDEX_SYMBOLIC_LINK_TARGET]);
 				boolean clientUpdatedSinceLastUpdate=(boolean)files[i][INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE];
+				long size=(long)files[i][INDEX_SIZE];
 				
 				boolean clientDir=clientKey==-1;
 				
@@ -466,7 +463,7 @@ public final class SyncropCloud extends SyncDaemon
 							logger.logTrace("local file is null, downloading file"+path);
 						}
 					}
-					else if(!localFile.isDiffrentVersionsOfSameFile(clientKey,clientUpdatedSinceLastUpdate)){
+					else if(!localFile.isDiffrentVersionsOfSameFile( clientKey,size,clientUpdatedSinceLastUpdate)){
 						logger.logTrace(path+" local file "+(localFile.exists()?"exists":"")+" is newer"+isLocalFileNewerVersion+" "+!isLocalFileOlderVersion+
 								" "+clientKey+"->"+localFile.getKey()+" "+clientUpdatedSinceLastUpdate+" "+localFile.modifiedSinceLastKeyUpdate());
 						if(isLocalFileNewerVersion)
@@ -557,33 +554,7 @@ public final class SyncropCloud extends SyncDaemon
 		else ;
 		//delete literal link; copy (no link) shared dir to spot;
 	}
-	void makeFileShareable(Message message){
-		String []s=(String[]) message.getMessage();
-		String path=s[0];
-		SyncropUser user=clients.get(message.getUserID());
-		String owner=user.getAccountName();
-		String shareKey=SyncROPItem.generateShareKey(path, owner);
-		SharedFileManger.setSharedFileToken(shareKey,ResourceManager.getAbsolutePath(path, owner));
-		mainClient.printMessage(path, HEADER_SHARED_SUCCESS);
-	}
-	void shareFile(Message message){
-		
-		String []s=(String[]) message.getMessage();
-		String path=s[0];
-		String shareKey=s[1];
-		SyncropUser user=clients.get(message.getUserID());
-		String accountName=user.getAccountName();
-		String error="File successfully Shared";
-		try {
-			Path absTarget=new File(SharedFileManger.getSharableFile(shareKey)).toPath();
-			Path absPath=new File(ResourceManager.getAbsolutePath(path,accountName)).toPath();
-			Files.createSymbolicLink(absTarget,absPath);
-		} catch (IOException e) {
-			logger.logError(e,"");
-			error=e.toString();
-		}
-		mainClient.printMessage(error, HEADER_REQUEST_ACCESS_TO_SHARED_FILE);
-	}
+	
 	
 	@Override
 	public boolean handleResponse(Message message)
@@ -592,14 +563,6 @@ public final class SyncropCloud extends SyncDaemon
 		else
 			switch(message.getHeader())
 			{
-				case HEADER_SHARE_FILE:
-					makeFileShareable(message);
-					break;
-				case HEADER_REQUEST_ACCESS_TO_SHARED_FILE:
-					shareFile(message);
-					break;
-				case HEADER_STOP_SHARING_FILE:
-					stopSharingFile(message);
 				case HEADER_SYNC_FILES:
 					syncFiles(message);
 					break;
@@ -653,7 +616,7 @@ public final class SyncropCloud extends SyncDaemon
 			logger.logWarning("Do not have write permissions to "+item.getAbsPath());
 			logger.logWarning("item"+item.toString());
 			logger.logWarning("isEnabled:"+item.isEnabled());
-			logger.logWarning(Account.getUniversalRestrictions());;
+			
 		}
 		catch (SecurityException | IOException e) {
 			logger.logError(e, " occured while trying to change the write/execute permissions of "+item.getAbsPath());

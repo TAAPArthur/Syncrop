@@ -1,7 +1,13 @@
 package syncrop;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.sql.SQLException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 
 import daemon.SyncDaemon;
 import daemon.cloud.SyncropCloud;
@@ -42,12 +48,6 @@ public abstract class Syncrop {
 	 * 1024^2 KILOBYTE or 2^10 MEGABYTE
 	 */
 	public static final int GIGABYTE=MEGABYTE*1024;
-	
-	/**
-	 * the maximum size of a file that can be sent. A file with a larger size will 
-	 * be considered disabled until its size is less than {@value #MAX_FILE_SIZE}
-	 */
-	public static final int MAX_FILE_SIZE=Integer.MAX_VALUE;
 	
 	
 	/**
@@ -191,7 +191,7 @@ public abstract class Syncrop {
 		//file account config files (.ini file)
 		ResourceManager.readFromConfigFile();
 		if(Settings.isSSLConnection())
-			logger.log("Using SSL conenction with truststore"+Settings.getTrustStoreFile());
+			logger.log("Using SSL conenction");
 		
 	}
 	
@@ -299,5 +299,52 @@ public abstract class Syncrop {
 	 * @return true if the SyncropDaemon is shutting down; false otherwise
 	 */
 	public static boolean isShuttingDown(){return shuttingDown;}
+	
+	/**
+	 * Sends a file to trash bin
+	 * TODO Windows and Mac support
+	 * @param f the file to send to trash
+	 */
+	public static void sendToTrash(File file)
+	{
+		if(!file.exists())return;
+		if(logger.isDebugging())
+			logger.log("Sending file to trash path="+file);
+		
+		try {
+			if(isNotWindows()&&isNotMac())
+				sendToLinuxTrash(file);
+			else file.delete();
+		}
+		
+		catch (IOException e) {
+			logger.logError(e, "occured while trying to send file to trash path="+file);
+		}
+	}
+	
+	private static void sendToLinuxTrash(File file) throws IOException
+	{
+		String baseName=file.getName(),name=baseName;
+		File trashInfoFile=new File(System.getProperty("user.home")+"/.local/share/Trash/info",name+".trashinfo");
+		for(int i=2;trashInfoFile.exists();i++)
+		{
+			name=baseName+="."+i;
+			trashInfoFile=new File(System.getProperty("user.home")+"/.local/share/Trash/info",name+".trashinfo");
+		}			
+		File trashFile=new File(System.getProperty("user.home")+"/.local/share/Trash/files",name);
+		Files.move(file.toPath(), trashFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+		logger.log(file+" was sent to trash");
+		//DeletionDate=2014-03-01T23:38:18
+		DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		trashInfoFile.createNewFile();
+		PrintWriter out=new PrintWriter(trashInfoFile);
+		out.println("[Trash Info]");
+		out.println("Path="+file.getAbsolutePath());
+		out.println("DeletionDate="+dateFormat.format(System.currentTimeMillis()).replace(" ", "T"));
+		out.close();
+	
+	}
+
 	
 }

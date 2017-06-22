@@ -1,6 +1,6 @@
 package daemon;
 
-import static daemon.SyncDaemon.TRANSFER_SIZE;
+
 import static daemon.SyncDaemon.mainClient;
 import static syncrop.Syncrop.isShuttingDown;
 import static syncrop.Syncrop.logger;
@@ -13,6 +13,7 @@ import java.nio.MappedByteBuffer;
 
 import daemon.client.SyncropClientDaemon;
 import file.SyncROPFile;
+import settings.Settings;
 import syncrop.Syncrop;
 import transferManager.FileTransferManager;
 
@@ -55,13 +56,13 @@ public class UploadLargeFileThread extends Thread
 			
 			//files have to be less than 2GB, which is the maxim Integer
 			long size=(int)file.getSize();
-			int offset=TRANSFER_SIZE;
+			int offset=(int)Settings.getMaxTransferSize();
 			logger.log("uploading large file; size="+size);
 			//mainClient.pausePrinting(true);
 			//mainClient.logs();
 			
 			long dateMod=file.getDateModified();
-			mainClient.printMessage(file.formatFileIntoSyncData(null,size),HEADER_REQUEST_LARGE_FILE_DOWNLOAD_START,target);
+			mainClient.printMessage(file.formatFileIntoSyncData(),HEADER_REQUEST_LARGE_FILE_DOWNLOAD_START,target);
 			logger.log("wait time:"+fileTransferManager.getDaemon().getExpectedFileTransferTime());
 			SyncropClientDaemon.sleep(fileTransferManager.getDaemon().getExpectedFileTransferTime());
 			
@@ -100,10 +101,10 @@ public class UploadLargeFileThread extends Thread
 					map.get(bytes, 0, bytes.length);
 									
 					//sends the packet or sends the packet with a signal that the upload is finished
-					mainClient.printMessage(file.formatFileIntoSyncData(bytes,size),HEADER_REQUEST_LARGE_FILE_DOWNLOAD,target);				
+					mainClient.printMessage(file.formatFileIntoSyncData(bytes),HEADER_REQUEST_LARGE_FILE_DOWNLOAD,target);				
 				}
 			}
-			mainClient.printMessage(file.formatFileIntoSyncData(null,size),HEADER_REQUEST_END_LARGE_FILE_DOWNLOAD,target);
+			mainClient.printMessage(file.formatFileIntoSyncData(),HEADER_REQUEST_END_LARGE_FILE_DOWNLOAD,target);
 			logger.log("done total time:"+(System.currentTimeMillis()-startTime)/1000.0+"s");
 			Syncrop.sleep();
 		}

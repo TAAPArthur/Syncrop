@@ -43,10 +43,10 @@ public abstract class SyncROPItem
 	public final static int INDEX_PATH=0,INDEX_OWNER=1,INDEX_DATE_MODIFIED=2,INDEX_KEY=3,
 			INDEX_FILE_PERMISSIONS=4,INDEX_EXISTS=5,INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE=6,
 			INDEX_SYMBOLIC_LINK_TARGET=7,
-					INDEX_BYTES=7,INDEX_SIZE=8;
+					INDEX_SIZE=8,INDEX_BYTES=9;
 	
-	public final static int INDEX_LENGTH=8;
-	public final static int INDEX_LENGTH_EXTENDED=9;
+	public final static int INDEX_LENGTH=9;
+	public final static int INDEX_LENGTH_EXTENDED=10;
 	
 	public static final String CONFLICT_ENDING=".SYNCROPconflict";
 		
@@ -197,7 +197,7 @@ public abstract class SyncROPItem
 		//return file.isDirectory();
 	}
 	public boolean isLargeFile(){
-		return this.getSize()>SyncDaemon.TRANSFER_SIZE;
+		return this.getSize()>Settings.getMaxTransferSize();
 	}
 	public boolean isSyncable(){
 		return !exists()||!isDir()||isEmpty();
@@ -492,6 +492,23 @@ public abstract class SyncROPItem
 	public Object[] formatFileIntoSyncData()
 	{
 		Object[] syncData=new Object[INDEX_LENGTH];
+		setSyncData(syncData);
+		return syncData;
+	}
+	/**
+	 * Saves key information of file to an object array.
+	 * This array also includes bytes of the file. Note the bytes may not exceed {@value SyncDaemon#transferSize}
+	 * @param file the SyncROPItem to format
+	 * @return an object array with defining information of the file
+	 */
+	public Object[] formatFileIntoSyncData(byte[] bytes)
+	{
+		Object[] syncData=new Object[INDEX_LENGTH_EXTENDED];
+		setSyncData(syncData);
+		syncData[INDEX_BYTES]=bytes;
+		return syncData;
+	}
+	private void setSyncData(Object[] syncData){
 		syncData[INDEX_PATH]=isNotWindows()?
 				getPath():
 				SyncROPItem.toLinuxPath(getPath());
@@ -502,29 +519,11 @@ public abstract class SyncROPItem
 		syncData[INDEX_EXISTS]=exists();
 		syncData[INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE]=modifiedSinceLastKeyUpdate();
 		syncData[INDEX_SYMBOLIC_LINK_TARGET]=getTargetPath();
-		return syncData;
+		syncData[INDEX_SIZE]=getSize();
 	}
 	
-	public Object[] formatFileIntoSyncData(byte[] bytes){
-		return formatFileIntoSyncData(bytes, getSize());
-	}
 	
-	public Object[] formatFileIntoSyncData(byte[] bytes,long size)
-	{
-		Object[] syncData=new Object[INDEX_LENGTH_EXTENDED];
-		syncData[INDEX_PATH]=isNotWindows()?
-				getPath():
-				toLinuxPath(getPath());
-		syncData[INDEX_OWNER]=getOwner();
-		syncData[INDEX_DATE_MODIFIED]=getDateModified();
-		syncData[INDEX_KEY]=getKey();
-		syncData[INDEX_FILE_PERMISSIONS]=getFilePermissions();
-		syncData[INDEX_EXISTS]=exists();
-		syncData[INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE]=modifiedSinceLastKeyUpdate();
-		syncData[INDEX_BYTES]=bytes;
-		syncData[INDEX_SIZE]=size;
-		return syncData;
-	}
+	
 	
 	
 	public void unrecordDeletion(){deletionRecorded=false;}

@@ -9,6 +9,7 @@ import gui.tabs.Optimization;
 import gui.tabs.ScriptsTab;
 import gui.tabs.SettingsTab;
 import gui.tabs.SyncropTab;
+import settings.Settings;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
@@ -71,7 +72,7 @@ public class SyncropGUI extends Syncrop implements ActionListener{
 		SyncropGUI.tabs=new SyncropTab[]{new AccountTab(),new FileSharingTab(),new FilesTab(),new ScriptsTab(),new SettingsTab(),new Optimization()};
 		SyncropGUI.syncropCommunicationThread=new SyncropCommunicationThread();
 		logger.logTrace("Starting GUI");
-		frame=new JFrame("Syncrop"+instance);
+		frame=new JFrame("Syncrop"+instance+" Settings");
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
 		frame.setVisible(true);
@@ -147,7 +148,7 @@ public class SyncropGUI extends Syncrop implements ActionListener{
 	public static void update() {
 		
 		double size=ResourceManager.getAccount().getRecordedSize();
-		double maxSize=Account.getMaximumAccountSizeInBytes();
+		double maxSize=Settings.getMaxAccountSize();
 		String percentUsed=String.format("%.2f",size/maxSize*100);
 
 		

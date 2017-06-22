@@ -1,7 +1,6 @@
 package account;
 
 import static notification.Notification.displayNotification;
-import static syncrop.Syncrop.GIGABYTE;
 import static syncrop.Syncrop.isInstanceOfCloud;
 import static syncrop.Syncrop.isNotWindows;
 import static syncrop.Syncrop.logger;
@@ -20,13 +19,14 @@ import java.util.regex.Matcher;
 
 import javax.swing.JOptionPane;
 
-import syncrop.RecursiveDeletionFileVisitor;
-import syncrop.ResourceManager;
-import syncrop.Syncrop;
 import file.Directory;
 import file.RemovableDirectory;
 import file.Restriction;
 import file.SyncROPItem;
+import settings.Settings;
+import syncrop.RecursiveDeletionFileVisitor;
+import syncrop.ResourceManager;
+import syncrop.Syncrop;
 /**
  * An account includes all the connection info needed to get files from the server.
  * An Account is uniquely identified by its username, so if two accounts have the
@@ -62,10 +62,7 @@ public class Account
 	 * The last recored size of the account measured in GB
 	 */
 	private long recordedSize;
-	/**
-	 * The maxium size of an account measured in bytes
-	 */
-	private static long maximumAccountSize=4L*GIGABYTE;
+	
 	
 	/**
 	 * warns teh user about the 
@@ -466,13 +463,13 @@ public class Account
 	public void setRecordedSize(long recordedSize) 
 	{
 		this.recordedSize = recordedSize;
-		if(warning!=2&&this.recordedSize/maximumAccountSize>1.0)
+		if(warning!=2&&this.recordedSize/Settings.getMaxAccountSize()>1.0)
 		{
 			warning=2;
 			displayNotification("Account "+getName()+
 					" is can no longer be synced because it is too large");
 		}
-		else if(warning!=1&&this.recordedSize/maximumAccountSize>.9)
+		else if(warning!=1&&this.recordedSize/Settings.getMaxAccountSize()>.9)
 		{
 			warning=1;
 			displayNotification("Account "+getName()+
@@ -497,7 +494,7 @@ public class Account
 	 */
 	public boolean willBeFull(long deltaLength)
 	{
-		return recordedSize+deltaLength>maximumAccountSize;
+		return recordedSize+deltaLength>Settings.getMaxAccountSize();
 	}
 	
 	/**
@@ -519,27 +516,10 @@ public class Account
 	}
 	
 	
-	/**
-	 * 
-	 * @return the maximum Account size {@value #maximumAccountSize} bytes 
-	 * @see #maximumAccountSize
-	 */
-	public static long getMaximumAccountSizeInBytes() {
-		return maximumAccountSize;
-	}
-	public static long getMaximumAccountSizeInMegaBytes() {
-		return maximumAccountSize/Syncrop.MEGABYTE;
-	}
-	/**
-	 * 
-	 * @param maximumAccountSize -new max size in bytes
-	 */
-	public static void setMaximumAccountSize(long maximumAccountSize) {
-		Account.maximumAccountSize = maximumAccountSize;
-	}
+	
 	
 	public boolean isEnabled() {
-		return enabled&&maximumAccountSize>=recordedSize;
+		return enabled&&Settings.getMaxAccountSize()>=recordedSize;
 	}
 	public void setEnabled(boolean enabled) {
 		if(!enabled)
@@ -600,13 +580,5 @@ public class Account
 			} catch (StringIndexOutOfBoundsException e) {return false;}
 	}
 
-	public static String getUniversalRestrictions() {
-		return ResourceManager.formatCollection(universalRestrictions);
-	}
-	public static void addUniversalRestriction(String... universalRestrictions) {
-		
-		for(String universalRestriction:universalRestrictions)
-			if(!universalRestriction.isEmpty())
-				Account.universalRestrictions.add(new Restriction(universalRestriction));
-	}
+	
 }

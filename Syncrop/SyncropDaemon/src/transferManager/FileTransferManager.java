@@ -1,6 +1,6 @@
 package transferManager;
 
-import static daemon.SyncDaemon.TRANSFER_SIZE;
+
 import static file.SyncROPItem.INDEX_BYTES;
 import static file.SyncROPItem.INDEX_DATE_MODIFIED;
 import static file.SyncROPItem.INDEX_EXISTS;
@@ -97,7 +97,7 @@ public class FileTransferManager extends Thread{
 	
 	/**
 	 * Requests recipient to download a small file. A small fire is a file whose size is 
-	 * less than or equal to the transfer size, {@value SyncDaemon#TRANSFER_SIZE}. <br/>
+	 * less than or equal to the transfer size, {@value SyncDaemon#transferSize}. <br/>
 	 * The message that should accompany this header is defined by 
 	 * {@link SyncROPItem#formatFileIntoSyncData(byte[])}
 	 */
@@ -105,14 +105,14 @@ public class FileTransferManager extends Thread{
 	
 	/**
 	 * Requests recipient to download a small file. A small fire is a file whose size is 
-	 * less than or equal to the transfer size, {@value #TRANSFER_SIZE}. <br/>
+	 * less than or equal to the transfer size, {@value #transferSize}. <br/>
 	 * The message that should accompany this header is defined by 
 	 * {@link SyncROPItem#formatFileIntoSyncData(byte[])}
 	 */
 	public final static String HEADER_REQUEST_SMALL_FILE_DOWNLOAD="request small file download";
 	/**
 	 * Requests recipient to download a small file. A small fire is a file whose size is 
-	 * greater than the transfer size, {@value #TRANSFER_SIZE}. <br/>
+	 * greater than the transfer size, {@value #transferSize}. <br/>
 	 * The message that should accompany this header is defined by 
 	 * {@link SyncROPItem#formatFileIntoSyncData(byte[])}
 	 */
@@ -170,7 +170,7 @@ public class FileTransferManager extends Thread{
 	/**
 	 * if a file is being received. No two files will be received simultaneously 
 	 */
-	//private volatile boolean receiveing=false;
+	//private volatile boolean receiving=false;
 	//private volatile String userSendingTo,userReceivingFrom;
 	//private volatile String fileSending, fileReceiveing;
 	//private volatile long fileSendingDate;
@@ -180,6 +180,11 @@ public class FileTransferManager extends Thread{
 	private volatile boolean paused=false;
 	
 	private final SyncDaemon daemon;
+	
+	/**
+	 * Returns a reference to an instance of SyncropDaemon or SyncropCloud
+	 * @return a refrence to the running daemon
+	 */
 	public SyncDaemon getDaemon(){return daemon;} 
 		
 	public FileTransferManager(SyncDaemon daemon)
@@ -190,7 +195,11 @@ public class FileTransferManager extends Thread{
 			pathsOfLargeFilesBeingSent=new HashMap<>();
 		
 	}
-	public void shutDown(){
+	/**
+	 * Will be called when Daemon is shutting down;
+	 * Cleans up transfer manager
+	 */
+	public void onShutDown(){
 		unsetLargeFileTransferInfo(null);
 		sendQueue.clear();
 		this.interrupt();
@@ -214,6 +223,10 @@ public class FileTransferManager extends Thread{
 		outStandingFiles=0;
 		resetTransferRecord();
 	}
+	/**
+	 * Resets the count of files being upload/downloaded respectively.
+	 *  These values are used for notifications
+	 */
 	public void resetTransferRecord(){
 		uploadCount=downloadCount=0;
 		timeOfLastCompletedFileTransfer=0;
@@ -274,7 +287,7 @@ public class FileTransferManager extends Thread{
 			logger.log(file.getPath()+" cannot be added to send queue because it is not enabled");
 			return;
 		}
-		if(file.getSize()>SyncropClientDaemon.MAX_FILE_SIZE)
+		if(file.getSize()>Settings.getMaxFileSize())
 		{
 			logger.log("File is too big to sync path="+file.getPath()+" size="+
 				file.getSize()/SyncropClientDaemon.MEGABYTE+"MBs");
@@ -335,7 +348,7 @@ public class FileTransferManager extends Thread{
 	public void updateDownloadFileTransferStatistics(String path)
 	{
 		timeOfLastCompletedFileTransfer=System.currentTimeMillis();
-		if(isKeepingRecord()){
+		if(Settings.showNotifications()){
 			if(downloadCount==0)
 				downloadNameOfFirstFile=path;
 			downloadCount++;
@@ -365,7 +378,7 @@ public class FileTransferManager extends Thread{
 	private void updateUploadFileTransferStatistics(String path)
 	{
 		timeOfLastCompletedFileTransfer=System.currentTimeMillis();
-		if(isKeepingRecord())
+		if(Settings.showNotifications())
 		{
 			if(uploadCount==0)
 				uploadNameOfFirstFile=path;
@@ -374,12 +387,6 @@ public class FileTransferManager extends Thread{
 		logger.log("File upload success:"+path);
 		
 		outStandingFiles--;
-	}
-	public boolean isKeepingRecord(){
-		return keepRecord;
-	}
-	public void keepRecord(boolean b){
-		keepRecord=b;
 	}
 	
 	
@@ -466,8 +473,6 @@ public class FileTransferManager extends Thread{
 		return "sendQueue size="+sendQueue.size();				
 	}
 	
-	
-	
 	public long getTimeFromLastCompletedFileTransfer() {
 		return System.currentTimeMillis()-timeOfLastCompletedFileTransfer;
 	}
@@ -511,9 +516,9 @@ public class FileTransferManager extends Thread{
 	}
 	private boolean isFileSizeToLarge(byte[]bytes,String path){
 		if(bytes!=null){
-			if(bytes.length>TRANSFER_SIZE)
+			if(bytes.length>Settings.getMaxTransferSize())
 				logger.logDebug("file path="+path+" packet is to large to download");
-			return bytes.length>TRANSFER_SIZE;
+			return bytes.length>Settings.getMaxTransferSize();
 		}
 		return false;
 	}
@@ -646,37 +651,30 @@ public class FileTransferManager extends Thread{
 		String filePermissions=(String) syncData[INDEX_FILE_PERMISSIONS];
 		boolean exists=(boolean)syncData[INDEX_EXISTS];
 		boolean updatedSinceLastUpdate=(boolean)syncData[INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE];
+		
 		if(message.getHeader().equals(HEADER_REQUEST_SYMBOLIC_LINK_DOWNLOAD)){
 			String target=(String)syncData[INDEX_SYMBOLIC_LINK_TARGET];
 			daemon.downloadFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists,null, 0,target, false,true);
 			return;
 		}
 		
-		byte[] bytes=null;
-		long size=-1;
-		//String pathOfTarget=null;
-		if(syncData.length>5)
-		{
-				bytes=(byte[])syncData[INDEX_BYTES];
-				size=(long)syncData[INDEX_SIZE];						
-		}
+		
+		long size=(long)syncData[INDEX_SIZE];
+		
 		
 		switch (message.getHeader()) 
 		{
 			case HEADER_REQUEST_SMALL_FILE_DOWNLOAD:
-				if(bytes!=null&&bytes.length!=size)
-					throw new IllegalArgumentException(
-							"length of bytes needs to equal size when syncing small file");
-				daemon.downloadFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists,bytes, size, false);
+				daemon.downloadFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists,(byte[])syncData[INDEX_BYTES], size,null, false,true);
 				break;
 			case HEADER_REQUEST_LARGE_FILE_DOWNLOAD_START:
-				daemon.startDownloadOfLargeFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists,bytes, size);
+				daemon.startDownloadOfLargeFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists, size);
 				break;
 			case HEADER_REQUEST_LARGE_FILE_DOWNLOAD:
-				daemon.downloadLargeFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists,bytes, size);
+				daemon.downloadLargeFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists,(byte[])syncData[INDEX_BYTES], size);
 				break;
 			case HEADER_REQUEST_END_LARGE_FILE_DOWNLOAD:
-				daemon.downloadFile(sender, path, owner, dateModified, key, updatedSinceLastUpdate, filePermissions, exists, bytes, size, true, true);
+				daemon.endDownloadOfLargeFile(sender, path, owner, dateModified, key, updatedSinceLastUpdate, filePermissions, exists, size);
 				break;
 		}
 		
@@ -711,47 +709,5 @@ public class FileTransferManager extends Thread{
 		return null;
 	}
 
-}
-
-/*
- * 
- * File renaming detection is not complete
-public void renameRequest(Message m)throws IOException{
-	Object syncData[]=(Object[])message.getMessage();
-	
-	String originalPath=(String) syncData[0],
-			originalTargetPath=(String)syncData[5];
-	
-	String path=isNotWindows()?originalPath:
-		SyncROPItem.toWindowsPath(originalPath),
-		targetPath=isNotWindows()?originalTargetPath:
-			SyncROPItem.toWindowsPath(originalTargetPath);
-	
-	String owners[]=getVerifiedOwners(message.getUsername(),(String[])syncData[1]);
-	String owner=owners[0];
-	if(!isPathEnabled(path, owners))
-	{
-		if(logger.isDebugging())
-			logger.log("file "+path+" is considered to be disabled");
-		
-		return;
-	}
-	
-	//long dateModified=(long)syncData[2];
-	long key=(long)syncData[3];
-	
-	SyncROPItem originalFile;
-	
-	//SyncROPItem item;
-	if(key==-1)//is directory
-		originalFile=ResourceManager.getDirByPath(path, owners[0]);
-	else 
-		originalFile=ResourceManager.getFileByPath(path, owners[0]);
-	
-	if(originalFile==null||!originalFile.exists())return;
-	originalFile.rename(new File(ResourceManager.getHome(owner, originalFile.isRemovable())), targetPath);
-	mainClient.printMessage(syncData,
-			HEADER_REQUEST_FILE_RENAME,originalFile.getOwners(),message.getUsername());
 	
 }
-*/

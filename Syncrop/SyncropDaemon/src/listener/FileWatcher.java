@@ -17,9 +17,9 @@ import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -27,7 +27,6 @@ import org.json.simple.JSONObject;
 import account.Account;
 import daemon.SyncDaemon;
 import daemon.client.SyncropClientDaemon;
-import daemon.cloud.filesharing.SharedFile;
 import file.Directory;
 import file.RemovableDirectory;
 import file.SyncROPDir;
@@ -147,8 +146,7 @@ public class FileWatcher extends Thread{
 					}
 					logger.logTrace("detected new file "+path);
 				}
-				if(Syncrop.isInstanceOfCloud())
-					checkIfFileIsShared(item);
+				
 			}
 			if(Files.isDirectory(file.toPath())){
 				try {
@@ -212,23 +210,7 @@ public class FileWatcher extends Thread{
 		return new SyncROPFile(path, a.getName()) ;
 	}
 	
-	public void checkIfFileIsShared(SyncROPItem item){
-		if(item==null||!Syncrop.isInstanceOfCloud())return;
-		try {
-			String targetOfLink=Files.readSymbolicLink(item.getFile().toPath()).toString();
-			if(!targetOfLink.startsWith(item.getHome()))
-				if(targetOfLink.startsWith(ResourceManager.getSyncropCloudHome())){
-					SharedFile sharedFile=ResourceManager.getSharedFile(targetOfLink);
-					if(sharedFile!=null){
-						if(sharedFile.hasLinkToSharedFile(item.getAbsPath()))
-							sharedFile.addLinkToSharedFile(item.getAbsPath());
-					}
-					else new SharedFile(item.getTargetPath(), item.getOwner(), item.getAbsPath()); 
-				}
-		} catch (IOException e1) {
-			
-		}
-	}
+	
 	
 	@Override
 	public void start(){
@@ -238,20 +220,18 @@ public class FileWatcher extends Thread{
 			new Thread(removableFileWatcher,"Removable File Listener").start();
 	}
 	
-	public int getReactionDelay(){
-		return 1000;
-	}
+	
 	@Override
 	public void run(){
-		int delay=getReactionDelay();
+		
 		while(!SyncropClientDaemon.isShuttingDown())
 			try {
 				listenForDirectoryChanges();
 				while(!eventQueue.isEmpty()){
 					EventQueueMember member=eventQueue.peek();
 					
-					if(System.currentTimeMillis()-member.timeStamp>delay)
-						reactToDirectoryChanges(eventQueue.pop());
+					if(member.isStable())
+						reactToDirectoryChanges(eventQueue.poll());
 					else break;
 					logger.logTrace("Event queue is: "+eventQueue.size());
 					if(daemon!=null&&SyncDaemon.isConnectionActive())
@@ -259,7 +239,6 @@ public class FileWatcher extends Thread{
 					else if(Math.random()>.90)
 						Syncrop.sleepShort();
 				}
-				Thread.sleep(delay/4);
 			} catch (InterruptedException x) {
 				continue;
 			}
@@ -286,29 +265,7 @@ public class FileWatcher extends Thread{
 		}
 		
 	}
-	class EventQueueMember{
-		String owner;
-		WatchedDir dir;
-		String path;
-		WatchEvent.Kind<?>kind;
-		long timeStamp=System.currentTimeMillis();
-		EventQueueMember(WatchedDir dir,String path, WatchEvent.Kind<?>kind){
-			this.owner=dir.getAccountName();
-			this.dir=dir;
-			this.path=path;
-			this.kind=kind;
-		}
-		public WatchEvent.Kind<?> getKind(){return kind;}
-		public boolean equals(Object o){
-			return o instanceof EventQueueMember&&
-					((EventQueueMember)o).owner.equals(owner)&&
-					((EventQueueMember)o).path.equals(path);
-		}
-		public String toString(){
-			return "path:"+path+" "+kind;
-		}
-	}
-	LinkedList<EventQueueMember>eventQueue=new LinkedList<>();
+	PriorityQueue<EventQueueMember>eventQueue=new PriorityQueue<>();
 	private void addEvent(WatchedDir dir,String path, WatchEvent.Kind<?>kind){
 		EventQueueMember queueMember=new EventQueueMember(dir, path, kind);
 		if(eventQueue.contains(queueMember))
@@ -331,7 +288,6 @@ public class FileWatcher extends Thread{
 				if(!ResourceManager.isLocked(path, dir.getAccountName()))
 					addEvent(dir, path, e.kind());
 			}
-			catch (IllegalArgumentException e1){}
 			catch (Exception e1){
 				logger.logError(e1, "occured while listening for dir changes");
 			}
@@ -395,7 +351,7 @@ public class FileWatcher extends Thread{
 		if(item==null){
 			if(Files.isSymbolicLink(file.toPath())){
 				item=tryToCreateSyncropLink(file, path, dir.getAccount(),dir.isRemovable());
-				checkIfFileIsShared(item);
+				
 			}
 			else if(file.isDirectory()){
 				if(file.list().length==0)

@@ -1,3 +1,12 @@
-*metadata*
 *test*
 *.settings*
+*~
+bin/
+.metadata/
+*.metadata*
+Syncrop/.recommenders/
+Syncrop/RemoteSystemsTempFiles/
+
+*.classpath
+*.project
+

@@ -2,19 +2,11 @@ package daemon.client;
 
 import static notification.Notification.displayNotification;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.net.ConnectException;
 import java.net.UnknownHostException;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashSet;
-
-import com.sun.jna.platform.FileUtils;
 
 import account.Account;
 import client.SecondaryClient;
@@ -23,10 +15,8 @@ import daemon.cloud.SyncropCloud;
 import file.Directory;
 import file.SyncROPItem;
 import message.Message;
-import notification.Notification;
 import settings.Settings;
 import syncrop.FileMetadataManager;
-import syncrop.LostConnectionWithCloudException;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
 import syncrop.SyncropCloseException;
@@ -54,10 +44,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 			for(String s:args)
 				if(s.startsWith("-i"))
 					instance=s.substring(2).trim();
-				else if(s.startsWith("-v")){
-					System.out.println(Syncrop.getVersionID());
-					System.exit(0);
-				}
+				
 		new SyncropClientDaemon(instance);
 	}
 	/**
@@ -86,8 +73,6 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 */
 	@Override
 	public void init(){
-		if(!isNotMac()||!isNotWindows())
-			initializeFileUtils();
 		communication=new SyncropCommunication(this);
 		communication.start();
 		if(!isShuttingDown())
@@ -229,7 +214,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 				initializingConnection=false;
 				break;
 			} 
-			catch (IOException|LostConnectionWithCloudException e){logger.log(e.toString());}
+			catch (IOException e){logger.log(e.toString());}
 			catch (Exception e) {
 				logger.logFatalError(e, "occured after connecting to Cloud");
 				System.exit(0);
@@ -307,7 +292,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 * 
 	 * @see #syncFilesToCloud(String, String...)
 	 */
-	public void syncAllFilesToCloud() throws IOException,LostConnectionWithCloudException
+	public void syncAllFilesToCloud() throws IOException
 	{
 		
 		HashSet<String>set=new HashSet<String>();
@@ -331,7 +316,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 * @param pathsToSync  only have the cloud sync files that are in this domain 
 	 * @throws IOException 
 	 */
-	public void syncFilesToCloud(String... pathsToSync) throws IOException,LostConnectionWithCloudException{
+	public void syncFilesToCloud(String... pathsToSync) throws IOException{
 		
 		final ArrayList<Object[]> message=new ArrayList<Object[]>();
 		mainClient.printMessage(pathsToSync, HEADER_SET_ENABLED_PATHS);
@@ -357,12 +342,13 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 * Note this method does not check to see if new files have been added.
 	 * @param metaDataFile the metadata directory to recursively check
 	 * @param message the messages in queue to be sent; When messages are sent, this list is cleared
+	 * @throws IOException 
 	 */
-	private void syncFilesToCloud(SyncROPItem file,final ArrayList<Object[]> message){
+	private void syncFilesToCloud(SyncROPItem file,final ArrayList<Object[]> message) throws IOException{
 
 		if(Syncrop.isShuttingDown())
 			throw new SyncropCloseException();
-		else if(!isConnectionAccepted())throw new LostConnectionWithCloudException();
+		else if(!isConnectionAccepted())throw new IOException("Not connected");
 		final int maxTransferSize=100;
 		
 		
@@ -386,22 +372,6 @@ public class SyncropClientDaemon extends SyncDaemon{
 		
 	}
 	
-	
-	
-	
-	@Override
-	/**
-	 * {@inheritDoc}
-	 */
-	public boolean handleResponse(Message message){
-		if(super.handleResponse(message))return true;
-		else if(message.getHeader().equals(HEADER_SHARED_SUCCESS)){
-			Notification.displayNotification("File shared "+(String) message.getMessage());
-			communication.updateGUI();
-		}
-		else return false;
-		return true;
-	}
 	@Override
 	/**
 	 * 	{@inheritDoc}
@@ -409,62 +379,6 @@ public class SyncropClientDaemon extends SyncDaemon{
 	public boolean verifyUser(String id,String accountName){
 		return true;
 	}
-	private static FileUtils fileUtils=null;
 
-	/**
-	 * Used to initialize {@link #fileUtils} which is used to send files to trash. Only call if os is Mac or Windows
-	 */
-	public static void initializeFileUtils(){
-		fileUtils = FileUtils.getInstance();
-	}
-	/**
-	 * Sends a file to trash bin
-	 * TODO Windows and Mac support
-	 * @param f the file to send to trash
-	 */
-	public static void sendToTrash(File file)
-	{
-		if(!file.exists())return;
-		if(logger.isDebugging())
-			logger.log("Sending file to trash path="+file);
-		
-		try {
-			if(isNotWindows()&&isNotMac())
-				sendToLinuxTrash(file);
-			else fileUtils.moveToTrash( new File[] {file});
-			/*else if(AccountManager.notWindows)
-				sendToWindowsTrash(f);
-			else sendToMacTrash(f);*/
-		}
-		
-		catch (IOException e) {
-			logger.logError(e, "occured while trying to send file to trash path="+file);
-		}
-		
-	}
-	
-	private static void sendToLinuxTrash(File file) throws IOException
-	{
-		String baseName=file.getName(),name=baseName;
-		File trashInfoFile=new File(System.getProperty("user.home")+"/.local/share/Trash/info",name+".trashinfo");
-		for(int i=2;trashInfoFile.exists();i++)
-		{
-			name=baseName+="."+i;
-			trashInfoFile=new File(System.getProperty("user.home")+"/.local/share/Trash/info",name+".trashinfo");
-		}			
-		File trashFile=new File(System.getProperty("user.home")+"/.local/share/Trash/files",name);
-		Files.move(file.toPath(), trashFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-
-		logger.log(file+" was sent to trash");
-		//DeletionDate=2014-03-01T23:38:18
-		DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-		trashInfoFile.createNewFile();
-		PrintWriter out=new PrintWriter(trashInfoFile);
-		out.println("[Trash Info]");
-		out.println("Path="+file.getAbsolutePath());
-		out.println("DeletionDate="+dateFormat.format(System.currentTimeMillis()).replace(" ", "T"));
-		out.close();
-	
-	}
 	
 }

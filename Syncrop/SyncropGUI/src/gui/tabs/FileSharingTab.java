@@ -1,8 +1,5 @@
 package gui.tabs;
 
-import gui.components.FileSharingFrame;
-import gui.components.SyncropPanel;
-
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
@@ -10,9 +7,8 @@ import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 
-import daemon.cloud.filesharing.SharedFile;
-
-import syncrop.ResourceManager;
+import gui.components.FileSharingFrame;
+import gui.components.SyncropPanel;
 
 public class FileSharingTab  extends JPanel implements SyncropTab,ActionListener {
 
@@ -52,11 +48,11 @@ public class FileSharingTab  extends JPanel implements SyncropTab,ActionListener
 	
 	@Override
 	public void reload() {
-		for(SharedFile file:ResourceManager.sharedFiles){
-			mySharedFiles.addLine(file.getPath());
-			//todo deteced shared files; wuery cloud
-			//filesSharedWithMe.addLines(file.get)
-		}		
+//		for(SharedFile file:ResourceManager.sharedFiles){
+//			mySharedFiles.addLine(file.getPath());
+//			//todo deteced shared files; wuery cloud
+//			//filesSharedWithMe.addLines(file.get)
+//		}		
 	}
 
 }

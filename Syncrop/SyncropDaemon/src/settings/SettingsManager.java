@@ -1,5 +1,6 @@
 package settings;
-
+import static syncrop.Syncrop.GIGABYTE;
+import static syncrop.Syncrop.MEGABYTE;
 import static logger.Logger.LOG_LEVEL_WARN;
 import static syncrop.ResourceManager.getConfigFilesHome;
 import static syncrop.Syncrop.isInstanceOfCloud;
@@ -29,13 +30,15 @@ public class SettingsManager {
 		HOST("Host",String.class,"getHost","setHost",TYPE_ADVANCED),
 		PORT("Port",int.class,"getPort","setPort",TYPE_ADVANCED),
 		
-		TRUST_STORE_FILE("Host",String.class,"getTrustStoreFile","setTrustStoreFile",TYPE_ADVANCED),
-		TRUST_STORE_PASSWORD("Trust Store Password",String.class,"getTrustStorePassword","setTrustStorePassword",TYPE_ADVANCED),
 		SSL_CONNECTION("Host",boolean.class,"isSSLConnection","setSSLConnection",TYPE_ADVANCED),
 		SSL_PORT("SSL Port",int.class,"getSSLPort","setSSLPort",TYPE_ADVANCED),
 		
 		LOG_LEVEL("Log Level",int.class,"getLogLevel","setLogLevel",TYPE_ADVANCED),
-		MAX_ACCOUNT_SIZE("Max Account Size (MB)",double.class,"getMaxAccountSize","setMaxAccountSize",TYPE_ADVANCED),
+		
+		MAX_ACCOUNT_SIZE("Max Account Size (MB)",long.class,"getMaxAccountSize","setMaxAccountSize",TYPE_ADVANCED),
+		MAX_FILE_SIZE("Max File Size (MB)",long.class,"getMaxFileSize","setMaxFileSize",TYPE_ADVANCED),
+		MAX_TRANSFER_SIZE("Max Transfer Size (MB)",long.class,"getMaxTransferSize","setMaxTransferSize",TYPE_ADVANCED),
+		
 		MULTIPLE_INSTANCES("Multiple Instances",boolean.class,"allowMultipleInstances","setMultipleInstances",TYPE_ADVANCED),
 		AUTO_QUIT("Auto Quit",boolean.class,"autoQuit","setAutoQuit",TYPE_ADVANCED),
 		WINDOWS_COMPATIBLE("Windows Compatible",boolean.class,"isWindowsCompatible","setWindowsCompatible",TYPE_ADVANCED),
@@ -44,12 +47,10 @@ public class SettingsManager {
 		
 		SHOW_NOTIFICATIONS("Show Notifications",boolean.class,"showNotifications","setShowNotifications",TYPE_SIMPLE),
 		SYNC_HIDDEN_FILES("Sync Hidden Files",boolean.class,"canSyncHiddenFiles","setSyncHiddenFiles",TYPE_SIMPLE),
-		AUTO_START("Auto Start",boolean.class,"autoStart","setAutoStart",TYPE_SIMPLE),
 		ALLOW_CONFLICTS("Allow Conflicts",boolean.class,"isConflictsAllowed","setConflictsAllowed",TYPE_ADVANCED),
 		CONFLICT_RESOLUTION("Conflict Resolution",int.class,"getConflictResolution","setConflictResolution",TYPE_ADVANCED),
-		DELETING_FILES_NOT_ON_CLIENT("Conflict Resolution",boolean.class,"isDeletingFilesNotOnClient","setDeletingFilesNotOnClient",TYPE_ADVANCED),
+		DELETING_FILES_NOT_ON_CLIENT("Conflict Resolution",boolean.class,"isDeletingFilesNotOnClient","setDeletingFilesNotOnClient",TYPE_ADVANCED);
 		
-		UNIVERSAL_RESTRICTIONS("universal Restrictions",String.class,"getUniversalRestrictions","setUniversalRestrictions",TYPE_CLOUD);
 		
 		int type;
 		String title;
@@ -78,7 +79,7 @@ public class SettingsManager {
 			} catch (NoSuchMethodException | SecurityException
 					| IllegalAccessException | IllegalArgumentException
 					| InvocationTargetException e) {
-				logger.logError(e);
+				logger.log(e.toString()+";Error setting value:"+value+" "+setterName);
 			}
 		}
 		public Object getValue(){
@@ -134,7 +135,12 @@ public class SettingsManager {
 				interpretSettings(in.readLine());
 			in.close();
 			
-		} catch (FileNotFoundException e) {
+		}
+		catch (IllegalArgumentException e) {
+			Syncrop.logger.logError(e);
+			System.exit(1);
+		}
+		catch (FileNotFoundException e) {
 			Syncrop.logger.log("file preference file does not exist but file.exists()==true", 
 					SyncropLogger.LOG_LEVEL_ERROR,e);
 		}
@@ -156,7 +162,9 @@ public class SettingsManager {
 		s[0]=s[0].trim().toUpperCase();		
 		s[1]=s[1].trim();
 		String name=s[0];
-		Object value=s[1];
+		String value=s[1];
+		Object formattedValue=null;
+		
 		Options option=null;
 		try {
 			option=Options.valueOf(name);
@@ -164,13 +172,20 @@ public class SettingsManager {
 			logger.logWarning(e.toString());
 		}
 		if(option!=null){
-			if(option.getDataType().equals(double.class))
-				value=Double.parseDouble((String) value);
+			if(option.getDataType().equals(long.class))
+				if( value.endsWith("m")|| value.endsWith("M"))
+					formattedValue=MEGABYTE*Long.parseLong(value.substring(0, value.length()-1));
+				else if( value.endsWith("g")|| value.endsWith("G"))
+					formattedValue=GIGABYTE*Long.parseLong(value.substring(0, value.length()-1));
+				else 
+					formattedValue=Long.parseLong(value);
 			else if(option.getDataType().equals(int.class))
-				value=Integer.parseInt((String) value);
+					formattedValue=Integer.parseInt(value);
 			else if(option.getDataType().equals(boolean.class))
-				value=Boolean.parseBoolean((String) value);
-				option.setValue(value);
+				formattedValue=Boolean.parseBoolean(value);
+			else 
+				formattedValue=value;
+			option.setValue(formattedValue);
 		}
 		else logger.log("Unrecognized option when parsing settings: "+s[0],LOG_LEVEL_WARN);		
 	}

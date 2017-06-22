@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Syncrop
+Version=1.0
+Exec=syncrop-gui
+Comment=Sync files with Syncrop
+Icon=/usr/share/pixmaps/ROPicon.jpg
+Type=Application
+Terminal=false
+StartupNotify=true
+Encoding=UTF-8
+Categories=System;Application;FileTransfer;
