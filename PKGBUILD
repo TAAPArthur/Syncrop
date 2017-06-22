@@ -12,7 +12,7 @@ depends=('java-runtime-headless')
 optdepends=('python: tray-icon','pyqt4-common: tray-icon')
 md5sums=('SKIP')
 
-source=("https://github.com/TAAPArthur/Syncrop/syncrop.tar.gz")
+source=("https://github.com/TAAPArthur/Syncrop/releases/latest")
 _srcDir="fakeroot"
 
 package() {
