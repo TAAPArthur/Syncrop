@@ -17,6 +17,9 @@ import java.sql.Statement;
 import java.util.LinkedList;
 import java.util.Properties;
 
+import org.sqlite.SQLiteConfig.JournalMode;
+import org.sqlite.SQLiteConfig.Pragma;
+
 import file.SyncROPDir;
 import file.SyncROPFile;
 import file.SyncROPItem;
@@ -41,6 +44,7 @@ public class FileMetadataManager {
 	*/
 	public static void startConnectionSession() throws SQLException{
 		Properties config = new Properties();
+		config.setProperty(Pragma.JOURNAL_MODE.pragmaName, JournalMode.TRUNCATE.name());
 		
 		conn=DriverManager.getConnection("jdbc:sqlite:"+getDatabasePath()+"?journal_mode=WAL",config);
 	}
@@ -77,6 +81,7 @@ public class FileMetadataManager {
 	        		+ "Key Long, ModifiedSinceLastKeyUpdate Boolean, LastRecordedSize Long,"
 	        		+ "FilePermissions String) ;");
 	        stat.close();
+	        
 	        //conn.close();
 		} catch (SQLException e) {
 			logger.logFatalError(e, "could not create table: "+TABLE_NAME);

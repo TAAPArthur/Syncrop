@@ -396,7 +396,7 @@ public class ResourceManager
 			boolean sameMetaDataVersion=false;
 			File metaDataVersionFile=new File(getConfigFilesHome(),"METADATA_VERSION");
 			
-			if(FileMetadataManager.doesDatabaseExists()){
+			if(FileMetadataManager.doesDatabaseExists()&&FileMetadataManager.doesDatabaseExists()){
 				if(metaDataVersionFile.exists()){
 					BufferedReader in=new BufferedReader(new InputStreamReader(new FileInputStream(metaDataVersionFile)));
 					sameMetaDataVersion=in.readLine().trim().equals(Syncrop.getMetaDataVersion());

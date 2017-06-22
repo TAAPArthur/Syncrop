@@ -12,7 +12,7 @@ start()
 
 stop()
 {
- 	pid=`pgrep -f 'java.*/usr/lib/syncrop/Syncrop.jar $@'`
+ 	pid=$(pgrep -f 'java.*/usr/lib/syncrop/Syncrop.jar' "$@")
 	kill $pid
 	while ps -p $pid; 
 	do 
