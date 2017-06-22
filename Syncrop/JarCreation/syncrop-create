@@ -23,7 +23,7 @@ function createJars {
 function package {
 	#############Linux################
 	cd $baseDir;
-	version=`java -jar "$path/SyncropDaemon.jar" -v`
+	version=`java -jar "$path/Syncrop.jar" -v`
 	sed -i "4s/.*/pkgver='$version'/" PKGBUILD
     tar -pczf "syncrop.tar.gz" fakeroot
 	
