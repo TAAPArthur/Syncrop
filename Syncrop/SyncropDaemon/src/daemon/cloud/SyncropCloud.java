@@ -40,7 +40,6 @@ import server.Server;
 import settings.Settings;
 import syncrop.FileMetadataManager;
 import syncrop.ResourceManager;
-import syncrop.Syncrop;
 import syncrop.SyncropLogger;
 import transferManager.FileTransferManager;
 

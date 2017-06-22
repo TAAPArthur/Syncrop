@@ -1,16 +1,12 @@
 package notification;
 
-import static syncrop.ResourceManager.getConfigFilesHome;
 import static syncrop.Syncrop.getInstance;
 import static syncrop.Syncrop.isNotWindows;
 import static syncrop.Syncrop.logger;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 
 import settings.Settings;
-import syncrop.Syncrop;
 
 public class Notification {
 	
@@ -20,17 +16,7 @@ public class Notification {
 
 		//setup notifications
 		if(Settings.showNotifications())//loads Realmofpi symbol for notifications
-			{
-				File image=new File(getConfigFilesHome(),Syncrop.getImageFileName());
-				if(!image.exists())
-					try {
-						Files.copy(c.getResourceAsStream("/Resources/SyncropIcon.png"),image.toPath());
-					} catch (NullPointerException|IOException e) {
-						logger.logError(e, "; Image could not be created");
-					}
-				pathToImage=image.getAbsolutePath();
-				//AccountManager.log("path to image="+pathToImage);
-			}
+			pathToImage="/usr/share/pixmaps/syncrop.png";
 	}
 	
 	/**

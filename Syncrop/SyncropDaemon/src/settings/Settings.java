@@ -1,20 +1,8 @@
 package settings;
 
-import static syncrop.ResourceManager.HOME;
-import static syncrop.ResourceManager.getConfigFilesHome;
 import static syncrop.Syncrop.GIGABYTE;
 import static syncrop.Syncrop.MEGABYTE;
-import static syncrop.Syncrop.isInstanceOfCloud;
-import static syncrop.Syncrop.isNotMac;
-import static syncrop.Syncrop.isNotWindows;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.PrintWriter;
-
-import syncrop.ResourceManager;
 import syncrop.Syncrop;
 
 
@@ -77,7 +65,6 @@ public class Settings {
 	 */
 	static private int port;
 	static private int sslPort;
-	static private boolean autoStart=false;
 	
 	static final String settingsFileName="syncrop.settings";
 	static final String cloudSettingsFileName="syncrop-cloud.settings";
