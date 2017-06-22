@@ -1,7 +1,6 @@
-*test*
 *.settings*
 *~
-bin/
+Syncrop/*/bin/
 .metadata/
 *.metadata*
 Syncrop/.recommenders/

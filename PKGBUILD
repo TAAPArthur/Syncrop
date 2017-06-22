@@ -17,8 +17,6 @@ _srcDir="fakeroot"
 package() {
 
   cd "$_srcDir"
-  mkdir -p "$pkgdir/usr/bin/"
-  mkdir -p "$pkgdir/usr/lib/$pkgname/"
-  install -D -m 0755 * "$pkgdir/"
+  mv * "$pkgdir"
 
 }

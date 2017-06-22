@@ -18,9 +18,6 @@ function createJars {
 	jar cf "$path/Client.jar" client/* logger/* message/*
 	jar cf "$path/Server.jar" server/* logger/* message/*
 	
-	cd "$HOME/Documents/Syncrop/Syncrop/SyncropHelper/bin"
-	
-	jar cfm "$path"/SyncropHelper.jar "$mfHome"/SyncropHelper_MANIFEST.MF *
 }
 
 function package {
