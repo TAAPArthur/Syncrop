@@ -1,7 +1,7 @@
 *.settings*
 *~
 Syncrop/*/bin/
-syncrop-*.tar.xz
+syncrop*.tar.xz
 .metadata/
 *.metadata*
 Syncrop/.recommenders/
