@@ -98,7 +98,7 @@ public abstract class SyncDaemon extends Syncrop{
 	public SyncDaemon(String instance) throws IOException{
 		super(instance);
 		Thread.currentThread().setPriority(Thread.MIN_PRIORITY);
-		addShutdownHook();
+		
 		try
 		{
 			displayNotification("Syncrop started");

@@ -76,8 +76,9 @@ public class FileMetadataManager {
 		try {
 			//Connection conn=getNewReadOnlyConnectionInstance();
 			Statement stat = conn.createStatement();
+			
 	        stat.executeUpdate("CREATE TABLE IF NOT EXISTS "+TABLE_NAME+
-	        		" (Path String PRIMARY KEY,Owner String PRIMARY KEY, DateModified Long, "
+	        		" (Path String PRIMARY KEY,Owner String, DateModified Long, "
 	        		+ "Key Long, ModifiedSinceLastKeyUpdate Boolean, LastRecordedSize Long,"
 	        		+ "FilePermissions String) ;");
 	        stat.close();

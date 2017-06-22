@@ -1,6 +1,7 @@
 package syncrop;
 import static logger.Logger.LOG_LEVEL_ERROR;
 import static notification.Notification.displayNotification;
+import static settings.Settings.getCloudHomeDir;
 import static syncrop.Syncrop.isInstanceOfCloud;
 import static syncrop.Syncrop.logger;
 import static syncrop.Syncrop.notWindows;
@@ -62,7 +63,7 @@ public class ResourceManager
 	 * All non removable file paths are relative to Home
 	 */
 	public static final String HOME=System.getProperty("user.home");
-	private static String SYNCROP_CLOUD_HOME=File.separatorChar+"home/Syncrop"+File.separatorChar;
+	
 	
 	/**
 	 * The name of the directory that holds configuration files
@@ -159,17 +160,17 @@ public class ResourceManager
 		String relativePath=absPath.substring(home.length());
 		return relativePath;
 	}
-	public static String getSyncropCloudHome(){return SYNCROP_CLOUD_HOME;}
+	
 	
 	public static String getOwner(String absPath){
-		String temp=absPath.substring(SYNCROP_CLOUD_HOME.length());
+		String temp=absPath.substring(getCloudHomeDir().length());
 		return temp.substring(0, temp.indexOf(File.separatorChar));
 	}
 	public static String getHome(String accountName,boolean removable)
 	{
 		//TODO make path settings
 		if(Syncrop.isInstanceOfCloud())
-			return SYNCROP_CLOUD_HOME+accountName+File.separatorChar+
+			return getCloudHomeDir()+accountName+File.separatorChar+
 				(removable?REMOVABLE_DIR_NAME:REGULAR_DIR_NAME)+File.separatorChar;
 		else 
 			return removable?"":HOME+File.separatorChar;

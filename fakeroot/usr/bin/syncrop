@@ -7,7 +7,7 @@ start()
         memory="30M"
     fi
 
-	taskset -c 0 nohup nice -n19 java -Xms"$memory" -Xmx"$memory" -jar /usr/lib/syncrop/Syncrop.jar $@ >~/.syncrop/daemon.out&
+	taskset -c 0 nohup nice -n19 java -Dfile.encoding=UTF-8 -Xms"$memory" -Xmx"$memory" -jar /usr/lib/syncrop/Syncrop.jar $@ >~/.syncrop/daemon.out&
 }
 
 stop()

@@ -12,7 +12,7 @@ public class Notification {
 	
 	private static String pathToImage=null;
 	
-	public static void initilize(Class<?>c){
+	public static void initilize(){
 
 		//setup notifications
 		if(Settings.showNotifications())//loads Realmofpi symbol for notifications

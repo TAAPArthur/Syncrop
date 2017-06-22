@@ -3,13 +3,15 @@ package settings;
 import static syncrop.Syncrop.GIGABYTE;
 import static syncrop.Syncrop.MEGABYTE;
 
+import java.io.File;
+
 import syncrop.Syncrop;
 
 
 public class Settings {
 
 	
-	
+	private static String cloudHomeDir=File.separatorChar+"home/syncrop"+File.separatorChar;
 	/**
 	 * the maximum size of a file that can be sent. A file with a larger size will 
 	 * be considered disabled until its size is less than {@value #MAX_FILE_SIZE}
@@ -185,6 +187,13 @@ public class Settings {
 	}
 	public static void setSSLConnection(boolean b){
 		sslConnection=b;
+	}
+	
+	public static String getCloudHomeDir() {
+		return cloudHomeDir;
+	}
+	public static void setCloudHomeDir(String cloudHomeDir) {
+		Settings.cloudHomeDir = cloudHomeDir;
 	}
 	
 }

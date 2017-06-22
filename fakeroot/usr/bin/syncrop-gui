@@ -1,2 +1,2 @@
 #!/bin/bash
-java -Xmx30M -jar /usr/lib/syncrop/SyncropGUI.jar
+java -Dfile.encoding=UTF-8 -Xmx30M -jar /usr/lib/syncrop/SyncropGUI.jar

@@ -156,9 +156,17 @@ public abstract class Syncrop {
 	private void init()throws IOException{
 		//sets the start time 
 		startTime=System.currentTimeMillis();
+		
 		//define the logger
 		ResourceManager.initializeConfigurationFiles();
 		initializeLogger();
+		//Loads settings
+		new SettingsManager().loadSettings();
+		
+		addShutdownHook();
+		
+		//initilize Notification;
+		Notification.initilize();
 		
 		try {
 			FileMetadataManager.startConnectionSession();
@@ -167,17 +175,11 @@ public abstract class Syncrop {
 			throw new IOException(e.getMessage());
 		}
 		
-		//Loads settings
-		new SettingsManager().loadSettings();
-		
-		//initilize Notification; only needed for Windows
-		Notification.initilize(getClass());
-
-		
 		//logs basic config info
 		logger.log("Version: "+VERSION_ID+":"+METADATA_VERSION+"; Encoding: "+System.getProperty("file.encoding")+
 				"; OS: "+System.getProperty("os.name")+"; host "+Settings.getHost()+":"+Settings.getPort()+" log level "+logger.getLogLevel());
-		
+		if(Settings.isSSLConnection())
+			logger.log("Using SSL conenction");
 		
 		//if config files cannot be read, quit
 		if(!ResourceManager.canReadAndWriteSyncropConfigurationFiles()){			
@@ -187,14 +189,12 @@ public abstract class Syncrop {
 		}
 		ResourceManager.checkMetadataVersion();
 		
-		
 		//file account config files (.ini file)
 		ResourceManager.readFromConfigFile();
-		if(Settings.isSSLConnection())
-			logger.log("Using SSL conenction");
+		
 		
 	}
-	
+	protected void addShutdownHook(){}
 	/**
 	 * 
 	 * @return whether or not Syncrop will as Cloud
