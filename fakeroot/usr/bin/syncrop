@@ -6,8 +6,8 @@ start()
     if [ "$1" == "--cloud" ]; then
         memory="30M"
     fi
-    echo "$@";
-	#taskset -c 0 nohup nice -n19 java -Xms"$memory" -Xmx"$memory" -jar /usr/lib/syncrop/Syncrop.jar $@ >~/.syncrop/daemon.out&
+
+	taskset -c 0 nohup nice -n19 java -Xms"$memory" -Xmx"$memory" -jar /usr/lib/syncrop/Syncrop.jar $@ >~/.syncrop/daemon.out&
 }
 
 stop()
