@@ -342,9 +342,8 @@ public abstract class SyncDaemon extends Syncrop{
 	public void downloadFile(String id,String path,String owner,long dateModified,long key,boolean modifiedSinceLastUpdate,String filePermissions,boolean exists,byte[] bytes,long length,String linkTarget,boolean copyFromFile,boolean echo){
 		if(exists)
 			logger.log("downloading file "+path);
-		
-		
-		
+		else 
+			logger.log("deleting file "+path);
 		ResourceManager.lockFile(path,owner);
 		SyncROPItem localFile=null;
 		try {

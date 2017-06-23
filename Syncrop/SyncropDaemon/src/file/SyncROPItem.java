@@ -68,6 +68,8 @@ public abstract class SyncROPItem
           OTHERS_READ,OTHERS_WRITE,OTHERS_EXECUTE,
 	};
 	
+	
+	
 	public SyncROPItem(String path,String owner,long modificicationDate,boolean modifedSinceLastKeyUpdate,long lastRecordedSize,String filePermissions) 
 	{
 		for(String c:illegalChars)

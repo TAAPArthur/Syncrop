@@ -21,17 +21,14 @@ public class NotificationManager extends Thread {
 			if(sum!=0)
 				timeSinceFirstFileTransfered++;
 			if(Settings.showNotifications())
-				if(timeSinceFirstFileTransfered==600||
+				if(timeSinceFirstFileTransfered==60||
 					timeSinceFirstFileTransfered>10&&transferManager.haveAllFilesFinishedTranferring()
 					&&transferManager.getTimeFromLastCompletedFileTransfer()>10){
 					
 					transferManager.notifyUser();
 					timeSinceFirstFileTransfered=0;
-				}
-			
+				}		
 			Syncrop.sleep(1000);
 		}		
 	}
-	
-
 }

@@ -1,13 +1,11 @@
 package syncrop;
 
 import static syncrop.ResourceManager.getAbsolutePath;
-import static syncrop.ResourceManager.isFileRemovable;
 import static syncrop.Syncrop.logger;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -225,16 +223,9 @@ public class FileMetadataManager {
 		SyncROPItem file=null;
 		try {
 			if(Files.isSymbolicLink(f.toPath())){
-				String target=null;
 				try {
-					Path targetPath=Files.readSymbolicLink(f.toPath());
-					String targetOfLink = targetPath.toString().replace(
-							ResourceManager.getHome(owner, isFileRemovable(path)), "");
-					//if(getAccount(owner).isPathEnabled(target))
-						target=targetOfLink;
+					file = SyncROPSymbolicLink.getInstance(path,owner,dateModified,key,modifedSinceLastKeyUpdate,lastRecordedSize,filePermissions,f);
 				} catch (IOException e) {logger.logError(e);}
-			
-				file = new SyncROPSymbolicLink(path,owner,dateModified,key,modifedSinceLastKeyUpdate,target,lastRecordedSize,filePermissions);
 			}
 			else if(isDir)
 				file = new SyncROPDir(path, owner,dateModified,lastRecordedSize,filePermissions);

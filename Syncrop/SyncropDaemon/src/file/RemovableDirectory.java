@@ -2,8 +2,8 @@ package file;
 
 import java.io.File;
 
-import syncrop.ResourceManager;
 import account.Account;
+import syncrop.ResourceManager;
 
 public class RemovableDirectory extends Directory{
 

@@ -43,7 +43,7 @@ public class GenericClient implements Messenger{
 	 * the time internal in miliseconds that read methods will check to see if there is 
 	 * a message to forward
 	 */
-	private static long waitTime=10;
+	private static long waitTime=20;
 	
 	/**
 	 * How many messages have been sent or received<br/>
@@ -299,17 +299,13 @@ public class GenericClient implements Messenger{
 	 * @param port the port number
 	 */
 	protected void connectToServer() throws IOException
-	{	
-		System.out.println("connecting");
+	{
 		socket = ssl?
 				SSLSocketFactory.getDefault().createSocket(host, port):
 				new Socket(host, port);
-				System.out.println("handshake");
 		if(ssl)
 			((SSLSocket) socket).startHandshake();
 
-		System.out.println("connected");
-		
 		socket.setSoTimeout(60*4*1000);
 		
     	out = new ObjectOutputStream(new BufferedOutputStream(socket.getOutputStream()));

@@ -1,7 +1,6 @@
 package file;
 
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 
 
 public class SyncROPDir extends SyncROPItem
@@ -17,7 +16,7 @@ public class SyncROPDir extends SyncROPItem
 	}
 	public SyncROPDir(String path,String owner,long modificicationDate,long lastRecordedSize,String filePermisions){
 		super(path, owner, modificicationDate,false,lastRecordedSize,filePermisions);
-		if(exists()&&!Files.isDirectory(file.toPath(),LinkOption.NOFOLLOW_LINKS)){
+		if(exists()&&!Files.isDirectory(file.toPath())){
 			throw new IllegalArgumentException("path "+path+"  does not denote"
 					+ " a directory so it cannot be a SyncROPDir");
 		}

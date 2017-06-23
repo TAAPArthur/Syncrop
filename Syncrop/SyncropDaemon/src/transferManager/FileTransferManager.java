@@ -289,7 +289,7 @@ public class FileTransferManager extends Thread{
 		}
 		if(file.getSize()>Settings.getMaxFileSize())
 		{
-			logger.log("File is too big to sync path="+file.getPath()+" size="+
+			logger.logTrace("File is too big to sync path="+file.getPath()+" size="+
 				file.getSize()/SyncropClientDaemon.MEGABYTE+"MBs");
 			return; 
 		}
@@ -476,9 +476,8 @@ public class FileTransferManager extends Thread{
 	public long getTimeFromLastCompletedFileTransfer() {
 		return System.currentTimeMillis()-timeOfLastCompletedFileTransfer;
 	}
-	
 	public boolean haveAllFilesFinishedTranferring(){
-		return isEmpty()&&getOutstandingFiles()==0;
+		return daemon.isConnectionAccepted()&&isEmpty()&&getOutstandingFiles()==0;
 	}
 	public int getOutstandingFiles(){return outStandingFiles;}
 	

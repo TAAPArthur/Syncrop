@@ -139,7 +139,13 @@ public class FileWatcher extends Thread{
 		if(!ResourceManager.isLocked(path,a.getName())){
 			if(Files.isSymbolicLink(file.toPath())){
 				if(item==null){
-					item=tryToCreateSyncropLink(file, path, a,removable);
+					
+					try {
+						item=SyncROPSymbolicLink.getInstance(path, a.getName(), file);
+					} catch (IOException e) {
+						logger.logError(e);
+						return;
+					}
 					if(!item.isEnabled()){
 						logger.log(item+" is not enabled");
 						return;
@@ -196,19 +202,6 @@ public class FileWatcher extends Thread{
 		//else updateAccountSize(a, file, item);
 	}
 	
-	public static SyncROPFile tryToCreateSyncropLink(File file,String path, Account a,boolean removable){
-		String target;
-		try {
-			Path targetPath=Files.readSymbolicLink(file.toPath());
-			target = targetPath.toString().replace(
-					ResourceManager.getHome(a.getName(), removable), "");
-			if(a.isPathEnabled(target))
-				return new SyncROPSymbolicLink(path,a.getName(),target);
-		} catch (IOException e) {
-			logger.logWarning(e.toString()+" file was not a symbolic link file="+file);
-		}
-		return new SyncROPFile(path, a.getName()) ;
-	}
 	
 	
 	
@@ -226,14 +219,14 @@ public class FileWatcher extends Thread{
 		
 		while(!SyncropClientDaemon.isShuttingDown())
 			try {
-				listenForDirectoryChanges();
+				
 				while(!eventQueue.isEmpty()){
+					logger.logTrace("Event queue is: "+eventQueue.size());
+					listenForDirectoryChanges();
 					EventQueueMember member=eventQueue.peek();
 					
 					if(member.isStable())
 						reactToDirectoryChanges(eventQueue.poll());
-					else break;
-					logger.logTrace("Event queue is: "+eventQueue.size());
 					if(daemon!=null&&SyncDaemon.isConnectionActive())
 						Thread.sleep(daemon.getExpectedFileTransferTime());
 					else if(Math.random()>.90)
@@ -331,7 +324,6 @@ public class FileWatcher extends Thread{
 			onDelete(dir, path, file, item,member.timeStamp);
 		else logger.logWarning("Unexpected kind: "+member.getKind());				
 	
-	
 	}
 
 	void onModify(WatchedDir dir,String path,File file,SyncROPItem item){
@@ -341,7 +333,6 @@ public class FileWatcher extends Thread{
 			if(item.hasBeenUpdated()){//item.getDateModified()!=item.getFile().lastModified()){
 				if(Syncrop.isInstanceOfCloud())
 					daemon.setPropperPermissions(item, null);
-				
 				daemon.addToSendQueue(item);
 				item.save();
 			}
@@ -350,7 +341,11 @@ public class FileWatcher extends Thread{
 		String owner=dir.getAccountName();
 		if(item==null){
 			if(Files.isSymbolicLink(file.toPath())){
-				item=tryToCreateSyncropLink(file, path, dir.getAccount(),dir.isRemovable());
+				try {
+					item=SyncROPSymbolicLink.getInstance(path,dir.getAccountName(), file);
+				} catch (IOException e) {
+					logger.logError(e);
+				}				
 				
 			}
 			else if(file.isDirectory()){

@@ -1,11 +1,13 @@
 package file;
 
+import static syncrop.ResourceManager.isFileRemovable;
 import static syncrop.Syncrop.logger;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
+import java.nio.file.Path;
 
 import syncrop.ResourceManager;
 
@@ -14,7 +16,38 @@ public class SyncROPSymbolicLink extends SyncROPFile{
 	private String targetPath;
 	private File targetFile;
 	
-	public SyncROPSymbolicLink(String path, String owner,
+	public static boolean isSyncropSymbolicLink(String owner,String target) throws IOException{
+		return ResourceManager.getAccount(owner).isPathEnabled(target);
+	}
+	public static SyncROPItem getInstance(String path,String owner,File f) throws IOException{
+		Path targetPath=Files.readSymbolicLink(f.toPath()).toAbsolutePath();
+		String target = targetPath.toString().replace(
+				ResourceManager.getHome(owner, isFileRemovable(path)), "");
+		if(isSyncropSymbolicLink(owner,target)||!Files.exists(targetPath))
+			return new SyncROPSymbolicLink(path, owner, target);
+		else {
+			if(Files.isDirectory(targetPath))
+				return new SyncROPDir(path, owner);
+			else 
+				return new SyncROPFile(path, owner);
+		}
+	}
+	public static SyncROPItem getInstance(String path,String owner,
+			long dateModified,long key,boolean modifedSinceLastKeyUpdate,long lastRecordedSize,String filePermissions,
+			File f) throws IOException{
+		Path targetPath=Files.readSymbolicLink(f.toPath()).toAbsolutePath();
+		String target = targetPath.toString().replace(
+				ResourceManager.getHome(owner, isFileRemovable(path)), "");
+		if(isSyncropSymbolicLink(owner,target)||!Files.exists(targetPath))
+			return new SyncROPSymbolicLink(path, owner, dateModified,key,modifedSinceLastKeyUpdate,target,lastRecordedSize,filePermissions);
+		else {
+			if(Files.isDirectory(targetPath))
+				return new SyncROPDir(path, owner,dateModified,lastRecordedSize,filePermissions);
+			else 
+				return new SyncROPFile(path, owner,dateModified,key,modifedSinceLastKeyUpdate,lastRecordedSize,filePermissions);
+		}
+	}
+	private SyncROPSymbolicLink(String path, String owner,
 			String targetPath){
 		this(path, owner, -1, -1,false, targetPath,-1,"");
 	}
@@ -30,6 +63,10 @@ public class SyncROPSymbolicLink extends SyncROPFile{
 			throw new IllegalArgumentException("path "+path+" is not a symbolic link so "
 					+ "it cannot be a SyncROPSymbolicLink");
 		}
+		if(!ResourceManager.getAccount(getOwner()).isPathEnabled(path))
+			throw new IllegalArgumentException("path "+path+" is a symbolic link so "
+					+ "to a non-synced file so it should be treated as a regular file");
+
 	}
 	@Override
 	public long getSize(){
