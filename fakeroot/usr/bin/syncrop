@@ -12,11 +12,11 @@ start()
 
 stop()
 {
- 	pid=$(pgrep -f 'java.*/usr/lib/syncrop/Syncrop.jar' "$@")
+ 	pid=$(pgrep -f "java.*/usr/lib/syncrop/Syncrop.jar *$@")
 	kill $pid
-	while ps -p $pid; 
+	while ps -p $pid >>/dev/null; 
 	do 
-	sleep 1;
+    	sleep 1;
 	done;
 }
 version()
@@ -30,7 +30,7 @@ case "$command" in
 		start $@
 		;;
 	stop)
-		stop
+		stop $@
 		;;
 	restart|reload)
 		stop $@

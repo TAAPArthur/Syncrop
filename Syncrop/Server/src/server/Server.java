@@ -32,7 +32,7 @@ public abstract class Server
 	static Logger logger;
 	
 	static String username="SERVER";
-	
+	private boolean ssl=false;
 	/**
 	 * Creates a Server with an unlimited number of connections
 	 */
@@ -59,8 +59,8 @@ public abstract class Server
 		Server.logger=logger;
 		this.maxConnections=maxConnections;
 		this.port=port;
-		
-		start(ssl);
+		this.ssl=ssl;
+		start();
 	}
 	
 	public void close() throws IOException{
@@ -70,11 +70,11 @@ public abstract class Server
 		if(serverSocket!=null)
 			serverSocket.close();
 	}
-	private void start(boolean ssl)
+	private void start()
 	{
 		log("Server on");
 		
-		listenToPort(ssl);
+		listenToPort();
 		waitForConnection();
 	}
 	/**
@@ -129,13 +129,13 @@ public abstract class Server
 	/**
 	 * Initializes serverSocket and lets it listen to port 50001
 	 */
-	private void listenToPort(boolean ssl)
+	private void listenToPort()
 	{
 		while(serverSocket==null)
 	        try {
 	        	serverSocket=
 	        			ssl?
-	        				SSLServerSocketFactory.getDefault().createServerSocket(port,100):
+	        				SSLServerSocketFactory.getDefault().createServerSocket(port,4):
 	        				new ServerSocket(port,100);
 	        	
 	            //serverSocket = new ServerSocket();//accept queue size == 100

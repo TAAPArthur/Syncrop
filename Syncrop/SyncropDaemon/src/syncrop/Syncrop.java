@@ -27,6 +27,7 @@ public abstract class Syncrop {
 	 * This value is the value version of the Syncrop DEB.
 	 */
 	static final private String VERSION_ID="2.3.8";
+	static final public String APPLICATION_NAME="Syncrop";
 	/**
 	 * The version of the metadata. This value is stored in the metadata dir.
 	 * When this value differs from the stored value, the metadata is cleared.

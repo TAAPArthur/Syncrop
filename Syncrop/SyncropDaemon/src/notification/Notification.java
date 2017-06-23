@@ -7,6 +7,7 @@ import static syncrop.Syncrop.logger;
 import java.io.IOException;
 
 import settings.Settings;
+import syncrop.Syncrop;
 
 public class Notification {
 	
@@ -30,7 +31,7 @@ public class Notification {
 		logger.log("Notification: "+message);
 		if(isNotWindows())
 			try {
-				Runtime.getRuntime().exec(new String []{"notify-send","-i",pathToImage,"Syncrop "+getInstance(),message});
+				Runtime.getRuntime().exec(new String []{"notify-send","-i",pathToImage,Syncrop.APPLICATION_NAME+" "+getInstance(),message});
 			} catch (IOException|NullPointerException e) {
 				Settings.setShowNotifications(false);
 				logger.log("can't notify user of message: '"+message+

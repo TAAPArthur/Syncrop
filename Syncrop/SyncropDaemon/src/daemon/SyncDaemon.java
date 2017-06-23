@@ -101,7 +101,7 @@ public abstract class SyncDaemon extends Syncrop{
 		
 		try
 		{
-			displayNotification("Syncrop started");
+			displayNotification(APPLICATION_NAME+" started");
 			init();
 		} 
 		catch (Exception|Error e) {
@@ -124,75 +124,76 @@ public abstract class SyncDaemon extends Syncrop{
 	 */
 	protected void addShutdownHook()
 	{
-		logger.logTrace("Creating shutdown hook");
 		Runtime.getRuntime().addShutdownHook(
 				new Thread("Shutdown-thread") {
 	        public void run() 
 	        {
-	        	shutdown();
+	        	quit();
 	        }
-	        public void shutdown()
-	    	{
-	        	Syncrop.shutdown();
-	    		
-	    		try {
-	    			logger.log("received kill signal");
-	    			//wakes all threads; they know to end since shuttingDown is true
-	    			fileWatcher.interrupt();
-	    			mainSocketListener.interrupt();
-	    			fileTransferManager.onShutDown();
-	    			uploadLargeFileThread.interrupt();
-	    			if(SyncropClientDaemon.isConnectionActive()){
-		    			int timeToLive=100+getExpectedFileTransferTime()*fileTransferManager.getOutstandingFiles();
-		    			
-		    			logger.log("Allowing "+timeToLive+"s for remaining files("+fileTransferManager.getOutstandingFiles()+") to finish transferring");
-		    			if(timeToLive>12000){
-		    				timeToLive=12000;
-		    				logger.log("time to live truncated to"+12000);
-		    			}
-		    			//wait for threads to die;
-		    			Thread.sleep(timeToLive);
-	    			}
-    				if(mainSocketListener.isAlive())
-    				{
-    					//ignoring waiting threads and proceeding with shutdown;
-    					logger.logWarning("main socket isAlive"+mainSocketListener.isAlive()+
-    							"FileWatcher isAlive:"+fileWatcher.isAlive()+
-    							"; ignoring and shutting down; "+
-    							fileTransferManager.getOutstandingFiles()+" files left outstanding");
-    				}
-	    			
-	    			if(SyncropCommunication.serverSocket!=null)
-	    				SyncropCommunication.serverSocket.close();
-	    			ResourceManager.deleteAllTemporaryFiles();
-    			} 
-    			catch (NullPointerException e) 
-    			{
-    				logger.logWarning("Error when shutting down."+mainSocketListener+
-    					" "+fileWatcher+" equals null");
-    			}
-    			catch (Exception|Error e)
-    			{
-    				logger.logError(e,"occured while trying to shutdown");
-    			}
-	    		finally
-	    		{
-	    			if(mainClient!=null){
-	    				mainClient.closeConnection("Shutting down", true);
-	    				mainClient=null;//will cause any remaining processes to exit via exception
-	    				if(mainSocketListener.isAlive())
-	    					mainSocketListener.interrupt();
-	    			}
-	    			
-	    			displayNotification("SYNCROP is shutting down");
-	    			//closes the notification; only needed for Windows
-	    			Notification.close();
-	    			logger.log("Shutting down");
-	    			ResourceManager.shutDown();
-	    			
-	    		}
-	    	}
 	    });
+	}
+	
+	public void quit(){
+
+    	Syncrop.shutdown();
+		
+		try {
+			logger.log("received kill signal");
+			//wakes all threads; they know to end since shuttingDown is true
+			fileWatcher.interrupt();
+			mainSocketListener.interrupt();
+			fileTransferManager.onShutDown();
+			uploadLargeFileThread.interrupt();
+			if(SyncropClientDaemon.isConnectionActive()){
+    			int timeToLive=100+getExpectedFileTransferTime()*fileTransferManager.getOutstandingFiles();
+    			
+    			logger.log("Allowing "+timeToLive+"s for remaining files("+fileTransferManager.getOutstandingFiles()+") to finish transferring");
+    			if(timeToLive>12000){
+    				timeToLive=12000;
+    				logger.log("time to live truncated to"+12000);
+    			}
+    			//wait for threads to die;
+    			Thread.sleep(timeToLive);
+			}
+			if(mainSocketListener.isAlive())
+			{
+				//ignoring waiting threads and proceeding with shutdown;
+				logger.logWarning("main socket isAlive"+mainSocketListener.isAlive()+
+						"FileWatcher isAlive:"+fileWatcher.isAlive()+
+						"; ignoring and shutting down; "+
+						fileTransferManager.getOutstandingFiles()+" files left outstanding");
+			}
+			
+			if(SyncropCommunication.serverSocket!=null)
+				SyncropCommunication.serverSocket.close();
+			ResourceManager.deleteAllTemporaryFiles();
+		} 
+		catch (NullPointerException e) 
+		{
+			logger.logWarning("Error when shutting down."+mainSocketListener+
+				" "+fileWatcher+" equals null");
+		}
+		catch (Exception|Error e)
+		{
+			logger.logError(e,"occured while trying to shutdown");
+		}
+		finally
+		{
+			if(mainClient!=null){
+				mainClient.closeConnection("Shutting down", true);
+				mainClient=null;//will cause any remaining processes to exit via exception
+				if(mainSocketListener.isAlive())
+					mainSocketListener.interrupt();
+			}
+			
+			displayNotification(APPLICATION_NAME+" is shutting down");
+			//closes the notification; only needed for Windows
+			Notification.close();
+			logger.log("Shutting down");
+			ResourceManager.shutDown();
+			
+		}
+	
 	}
 	
 	/**

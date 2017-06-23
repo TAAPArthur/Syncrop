@@ -10,6 +10,7 @@ import java.net.SocketException;
 import java.util.LinkedList;
 import java.util.List;
 
+import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
 import message.Message;
@@ -299,10 +300,15 @@ public class GenericClient implements Messenger{
 	 */
 	protected void connectToServer() throws IOException
 	{	
+		System.out.println("connecting");
 		socket = ssl?
 				SSLSocketFactory.getDefault().createSocket(host, port):
 				new Socket(host, port);
-		
+				System.out.println("handshake");
+		if(ssl)
+			((SSLSocket) socket).startHandshake();
+
+		System.out.println("connected");
 		
 		socket.setSoTimeout(60*4*1000);
 		
