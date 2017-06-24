@@ -1,3 +1,45 @@
-#!/bin/bash
+#!/usr/bin/env python3
 
-python /usr/lib/syncrop/syncrop-indicator.py
+from os import system
+import gi
+gi.require_version('AppIndicator3', '0.1')
+gi.require_version('Gtk', '3.0')
+from gi.repository import Gtk
+from gi.repository import AppIndicator3
+ 
+class SyncropIcon:
+	def __init__(self):
+		self.ind = AppIndicator3.Indicator.new ("Syncrop", "", AppIndicator3.IndicatorCategory.APPLICATION_STATUS)
+		self.ind.set_status (AppIndicator3.IndicatorStatus.ACTIVE)
+		self.ind.set_attention_icon ("Syncrop")
+		self.ind.set_icon("/usr/share/pixmaps/syncrop.png")
+		self.createMenu()	
+		self.menu.show()
+		self.ind.set_menu(self.menu)
+ 
+	def quit(self, widget, data=None):
+		Gtk.main_quit()
+	def openLogFile(self,type):
+		system("xdg-open $HOME/.syncrop/syncrop.log &")
+	def openGUI(self,type):
+ 		system("syncrop --gui")
+	def createMenu(self):
+		# create a menu
+		self.menu = Gtk.Menu()
+		self.addMenuItem("Open GUI",self.openGUI)
+		self.addMenuItem("Open log file",self.openLogFile)
+		self.addMenuItem("Quit",self.quit)
+
+	def addMenuItem(self,text,activate):
+		item = Gtk.MenuItem(text)
+		item.show()
+		item.connect("activate", activate)
+		self.menu.append(item)
+def main():
+	Gtk.main()
+	return 0
+ 
+if __name__ == "__main__":
+	indicator = SyncropIcon()
+	main()
+

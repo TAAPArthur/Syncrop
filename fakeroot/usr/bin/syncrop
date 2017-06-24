@@ -3,7 +3,7 @@
 start()
 {
     memory="15M"
-    if [ "$1" == "--cloud" ]; then
+    if [ "$1" == "--cloud" || "$1" == "--gui"  ]; then
         memory="30M"
     fi
 
@@ -42,7 +42,12 @@ case "$command" in
     "--open-log")
         xdg-open "$HOME/.syncrop/syncrop.log"
         ;;
-    
+    "--open-settings")
+        xdg-open "$HOME/.syncrop/syncrop.settings"
+        ;;
+    "--gui")
+        start $command $@
+        ;;
 	*)
 		echo $"Usage: $0 {start|stop|restart|reload|status}"
 	        exit 1

@@ -60,14 +60,17 @@ public class SyncropGUI extends Syncrop implements ActionListener{
 					instance=s.substring(2).trim();
 		new SyncropGUI(instance);
 	}
-	public static void stop(){
-		System.exit(0);
+	public static void quit(){
+		frame.dispose();
 	}
 	public SyncropGUI() throws IOException{
 		this("");
 	}
 	public SyncropGUI(String instance) throws IOException{
-		super(instance);
+		this(instance,false);
+	}
+	public SyncropGUI(String instance,boolean runAsCloud) throws IOException{
+		super(instance,runAsCloud);
 		
 		SyncropGUI.tabs=new SyncropTab[]{new AccountTab(),new FileSharingTab(),new FilesTab(),new ScriptsTab(),new SettingsTab(),new Optimization()};
 		SyncropGUI.syncropCommunicationThread=new SyncropCommunicationThread();
@@ -183,6 +186,7 @@ public class SyncropGUI extends Syncrop implements ActionListener{
 			}
 		} catch (IOException e1) {
 			logger.logError(e1);
+			
 		}
 	}
 	public static SyncropCommunicationThread getSyncropCommunicationThread(){
