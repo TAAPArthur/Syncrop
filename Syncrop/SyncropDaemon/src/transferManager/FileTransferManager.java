@@ -11,7 +11,6 @@ import static file.SyncROPItem.INDEX_OWNER;
 import static file.SyncROPItem.INDEX_PATH;
 import static file.SyncROPItem.INDEX_SIZE;
 import static file.SyncROPItem.INDEX_SYMBOLIC_LINK_TARGET;
-import static notification.Notification.displayNotification;
 import static syncrop.ResourceManager.getFile;
 import static syncrop.Syncrop.isNotWindows;
 import static syncrop.Syncrop.logger;
@@ -19,6 +18,7 @@ import static syncrop.Syncrop.logger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 
 import daemon.SyncDaemon;
 import daemon.client.SyncropClientDaemon;
@@ -144,13 +144,13 @@ public class FileTransferManager extends Thread{
 	public final static String HEADER_REQUEST_FILE_UPLOAD="request file upload";
 
 	
-	volatile int uploadCount;
-	volatile int downloadCount;
+	LinkedHashSet<String>downloadedFiles=new LinkedHashSet<>();
+	LinkedHashSet<String>uploadedFiles=new LinkedHashSet<>();
 	volatile boolean keepRecord=true;
 	/**
 	 * The name of the first file uploaded/downloaded since the last save
 	 */
-	String downloadNameOfFirstFile,uploadNameOfFirstFile;
+	private String nameOfDownloadFile,nameOfUploadedFile;
 	
 	private volatile long timeOfLastCompletedFileTransfer;
 	/**
@@ -228,9 +228,10 @@ public class FileTransferManager extends Thread{
 	 *  These values are used for notifications
 	 */
 	public void resetTransferRecord(){
-		uploadCount=downloadCount=0;
+		uploadedFiles.clear();
+		downloadedFiles.clear();
 		timeOfLastCompletedFileTransfer=0;
-		uploadNameOfFirstFile=downloadNameOfFirstFile=null;
+		nameOfUploadedFile=nameOfDownloadFile=null;
 	}
 	
 	
@@ -348,11 +349,8 @@ public class FileTransferManager extends Thread{
 	public void updateDownloadFileTransferStatistics(String path)
 	{
 		timeOfLastCompletedFileTransfer=System.currentTimeMillis();
-		if(Settings.showNotifications()){
-			if(downloadCount==0)
-				downloadNameOfFirstFile=path;
-			downloadCount++;
-		}
+		downloadedFiles.add(path);
+		nameOfDownloadFile=path;
 	}
 	public void onSuccessfulFileUpload(Message message){
 		Object []o=(Object[]) message.getMessage();
@@ -378,12 +376,8 @@ public class FileTransferManager extends Thread{
 	private void updateUploadFileTransferStatistics(String path)
 	{
 		timeOfLastCompletedFileTransfer=System.currentTimeMillis();
-		if(Settings.showNotifications())
-		{
-			if(uploadCount==0)
-				uploadNameOfFirstFile=path;
-			uploadCount++;
-		}
+		uploadedFiles.add(path);
+		nameOfUploadedFile=path;
 		logger.log("File upload success:"+path);
 		
 		outStandingFiles--;
@@ -477,7 +471,7 @@ public class FileTransferManager extends Thread{
 		return System.currentTimeMillis()-timeOfLastCompletedFileTransfer;
 	}
 	public boolean haveAllFilesFinishedTranferring(){
-		return daemon.isConnectionAccepted()&&isEmpty()&&getOutstandingFiles()==0;
+		return isEmpty()&&getOutstandingFiles()==0;
 	}
 	public int getOutstandingFiles(){return outStandingFiles;}
 	
@@ -560,38 +554,6 @@ public class FileTransferManager extends Thread{
 		return false;
 	}
 		
-	public void notifyUser()
-	{
-		String prefix="",suffix="";
-		if(haveAllFilesFinishedTranferring()){
-			//prefix="All files finished transferring\n";
-			suffix="\n\nAll files finished transferring";
-		}
-		String notification="";
-		if(uploadCount!=0)
-			if(uploadCount==1)
-				notification+=uploadNameOfFirstFile+" was uploaded to cloud";
-			else notification+=uploadNameOfFirstFile+" and "+(uploadCount-1)+
-					" other file"+(uploadCount-1==1?"":"s")+" were uploaded to cloud";
-		if(downloadCount!=0){
-			if(!notification.isEmpty())notification+="\n\n";
-			if(downloadCount==1)
-				notification+=downloadNameOfFirstFile+" was downloaded from cloud";
-			else notification+=downloadNameOfFirstFile+" and "+(downloadCount-1)+
-					" other file"+(downloadCount-1==1?"":"s")+" were downloaded from cloud";
-		}
-		displayNotification(prefix+notification+suffix);
-		if(haveAllFilesFinishedTranferring())
-		{
-			if(logger.isDebugging())
-				logger.log("All files finished transferring");
-			if(Settings.autoQuit()){
-				logger.log("auto quitting");
-				System.exit(0);
-			}
-		}
-		resetTransferRecord();			
-	}
 	
 	public void uploadRequest(Message message){
 		final String header=message.getHeader();
@@ -693,8 +655,8 @@ public class FileTransferManager extends Thread{
 				break;
 		}
 	}
-	public int getDownloadCount(){return downloadCount;}
-	public int getUploadCount(){return uploadCount;}
+	public int getDownloadCount(){return downloadedFiles.size();}
+	public int getUploadCount(){return uploadedFiles.size();}
 	
 	
 	public static byte[]getHash(byte[]bytes){
@@ -706,6 +668,14 @@ public class FileTransferManager extends Thread{
 			e.printStackTrace();
 		}
 		return null;
+	}
+
+	public String getNameOfDownloadFile() {
+		return nameOfDownloadFile;
+	}
+
+	public String getNameOfUploadedFile() {
+		return nameOfUploadedFile;
 	}
 
 	

@@ -258,6 +258,7 @@ public abstract class Syncrop {
 	 * This is a convince method for {@link Thread#sleep(long)} that suppress the error
 	 */
 	public static void sleep(){sleep(100);}
+	
 	/**
 	 * Sleeps the current thread. This method should be used when a 
 	 * loop needs to be run after a large, arbitrary amount a time  

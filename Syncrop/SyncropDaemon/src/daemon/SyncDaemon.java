@@ -651,7 +651,7 @@ public abstract class SyncDaemon extends Syncrop{
 		return uploadLargeFileThread!=null&&uploadLargeFileThread.isAlive();
 	}
 	public FileTransferManager getFileTransferManager(){return fileTransferManager;}
-	public boolean isConnectionAccepted(){return mainClient==null||mainClient.isConnectionAccepted();}
+	public boolean isConnectionAccepted(){return mainClient!=null&&mainClient.isConnectionAccepted();}
 	public void printMessage(Object m,String header){
 		printMessage(m, header,null);
 	}

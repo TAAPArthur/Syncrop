@@ -68,7 +68,7 @@ public class UploadLargeFileThread extends Thread
 			
 			for(int i=0;i<size;i+=offset){	
 				if(SyncropClientDaemon.isConnectionActive());
-				if(Math.random()>.9){
+				if(Settings.isLimitingCPU()&&Math.random()>.9){
 					if(file.getDateModified()!=dateMod||file.getSize()!=size){
 						fileTransferManager.cancelUpload(target, path, true);
 						logger.log("large file has been updated during upload");

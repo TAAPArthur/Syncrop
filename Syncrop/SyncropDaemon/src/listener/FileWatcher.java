@@ -17,6 +17,7 @@ import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
@@ -120,86 +121,82 @@ public class FileWatcher extends Thread{
 		logger.log("finshed checking files");
 	}
 
-	void checkFiles(Account a,final String path,boolean removable){
+	void checkFiles(Account a,final String baseDir,boolean removable){
+		LinkedList<String> queue=new LinkedList<>();
+		
+		queue.add(baseDir);
 
-		if(Syncrop.isShuttingDown())
-			throw new SyncropCloseException();
+		while(!queue.isEmpty()){
+			if(Syncrop.isShuttingDown())
+				throw new SyncropCloseException();
+			String path=queue.pop();
+			if(!a.isPathEnabled(path))continue;
+			if(Settings.isLimitingCPU()&&Math.random()>.95)
+				Syncrop.sleep();
+			File file=new File(ResourceManager.getHome(a.getName(),removable),path);
+			
+			SyncROPItem item=ResourceManager.getFile(path, a.getName());
 		
-		if(!a.isPathEnabled(path))return;
-		
-		if(Math.random()>.95)
-			Syncrop.sleep();
-		
-		File file=new File(ResourceManager.getHome(a.getName(),removable),path);
-		
-		SyncROPItem item=ResourceManager.getFile(path, a.getName());
-	
-		logger.log("Checking "+path,SyncropLogger.LOG_LEVEL_ALL);
-		
-		if(!ResourceManager.isLocked(path,a.getName())){
-			if(Files.isSymbolicLink(file.toPath())){
-				if(item==null){
-					
+			logger.log("Checking "+path,SyncropLogger.LOG_LEVEL_ALL);
+			
+			if(!ResourceManager.isLocked(path,a.getName())){
+				if(Files.isSymbolicLink(file.toPath())){
+					if(item==null){	
+						try {
+							item=SyncROPSymbolicLink.getInstance(path, a.getName(), file);
+						} catch (IOException e) {
+							logger.logError(e);
+							return;
+						}
+						if(!item.isEnabled()){
+							logger.log(item+" is not enabled");
+							return;
+						}
+						logger.logTrace("detected new file "+path);
+					}		
+				}
+				if(Files.isDirectory(file.toPath())){
 					try {
-						item=SyncROPSymbolicLink.getInstance(path, a.getName(), file);
-					} catch (IOException e) {
-						logger.logError(e);
-						return;
+						Syncrop.sleepVeryShort();
+						String files[]=file.list();
+						//IF cannot read sub dirs
+						if(files==null)continue;
+						if(item==null){
+							item=new SyncROPDir(path,a.getName(),file.lastModified());
+						}					
+						register(file.toPath(),path,a, removable);
+						for(String f:file.list())
+							queue.add(path+((path.isEmpty()&&!removable)||path.equals(File.separator)?"":File.separator)+f);
+							
+					} catch (IOException e) {		
+						logger.logError(e, "occured when trying to register dir: "+file);
 					}
-					if(!item.isEnabled()){
-						logger.log(item+" is not enabled");
-						return;
-					}
+				}
+				else if(item==null){	
+					item=new SyncROPFile(path,a.getName());
+					if(!item.isEnabled())return;
 					logger.logTrace("detected new file "+path);
 				}
 				
-			}
-			if(Files.isDirectory(file.toPath())){
-				try {
-					Syncrop.sleepVeryShort();
-					String files[]=file.list();
-					//IF cannot read sub dirs
-					if(files==null)return;
-						
-					if(item==null){
-						item=new SyncROPDir(path,a.getName(),file.lastModified());
-					}					
-					register(file.toPath(),path,a, removable);
+				if(item.hasBeenUpdated()){
+					onFileChange(item,item.getAbsPath());
+				
+					if(SyncDaemon.isInstanceOfCloud()&&item instanceof SyncROPFile)
+						((SyncROPFile)item).updateKey();
+					item.save();
 					
-					for(String f:file.list())
-						checkFiles(a,path+((path.isEmpty()&&!removable)
-							||path.equals(File.separator)?
-							"":
-								File.separator)+f,removable);
-				} catch (IOException e) {		
-					logger.logError(e, "occured when trying to register dir: "+file);
+					if(daemon!=null){
+						daemon.addToSendQueue(item);
+					}
+					if(file.exists()){
+						if(item.hasBeenUpdated())
+							updateAccountSize(a, file, item);
+						//if(Syncrop.isInstanceOfCloud())daemon.setPropperPermissions(item, null);
+					}
 				}
-			}
-			else if(item==null){	
-				item=new SyncROPFile(path,a.getName());
-				if(!item.isEnabled())return;
-				logger.logTrace("detected new file "+path);
-				
-			}
-			
-			if(item.hasBeenUpdated()){
-				onFileChange(item,item.getAbsPath());
-			
-				if(SyncDaemon.isInstanceOfCloud()&&item instanceof SyncROPFile)
-					((SyncROPFile)item).updateKey();
-				item.save();
-				
-				if(daemon!=null){
-					daemon.addToSendQueue(item);
-				}
-				if(file.exists()){
-					if(item.hasBeenUpdated())
-						updateAccountSize(a, file, item);
-					//if(Syncrop.isInstanceOfCloud())daemon.setPropperPermissions(item, null);
-				}
-			}
-		}	
-		//else updateAccountSize(a, file, item);
+			}	
+			//else updateAccountSize(a, file, item);
+		}
 	}
 	
 	
@@ -219,19 +216,16 @@ public class FileWatcher extends Thread{
 		
 		while(!SyncropClientDaemon.isShuttingDown())
 			try {
-				
-				while(!eventQueue.isEmpty()){
 					logger.logTrace("Event queue is: "+eventQueue.size());
 					listenForDirectoryChanges();
 					EventQueueMember member=eventQueue.peek();
 					
-					if(member.isStable())
+					if(member!=null&&member.isStable()){
 						reactToDirectoryChanges(eventQueue.poll());
-					if(daemon!=null&&SyncDaemon.isConnectionActive())
-						Thread.sleep(daemon.getExpectedFileTransferTime());
-					else if(Math.random()>.90)
-						Syncrop.sleepShort();
-				}
+						if(daemon!=null&&SyncDaemon.isConnectionActive())
+							Thread.sleep(daemon.getExpectedFileTransferTime());
+					}
+					else Thread.sleep(1000);
 			} catch (InterruptedException x) {
 				continue;
 			}

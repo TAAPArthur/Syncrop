@@ -43,7 +43,7 @@ public class GenericClient implements Messenger{
 	 * the time internal in miliseconds that read methods will check to see if there is 
 	 * a message to forward
 	 */
-	private static long waitTime=20;
+	private static long waitTime=50;
 	
 	/**
 	 * How many messages have been sent or received<br/>
@@ -408,8 +408,6 @@ public class GenericClient implements Messenger{
 						connectionInfo.add(message);
 					else {
 						main.add(message);
-						if(Math.random()>.5)
-							Thread.sleep(waitTime);
 					}
 				}
 				catch (EOFException e)

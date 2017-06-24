@@ -47,6 +47,8 @@ public class Settings {
 	private static String encryptionAlgorithm="AES";
 	private static boolean sslConnection=false;
 	
+	private static boolean limitCPUUsage=false;
+	
 	
 	/**
 	 * Allows for multiple instances of syncrop to be run simultaneously. 
@@ -194,6 +196,12 @@ public class Settings {
 	}
 	public static void setCloudHomeDir(String cloudHomeDir) {
 		Settings.cloudHomeDir = cloudHomeDir;
+	}
+	public static boolean isLimitingCPU() {
+		return limitCPUUsage;
+	}
+	public static void setIsLimitingCPU(boolean limitCPUUsage) {
+		Settings.limitCPUUsage = limitCPUUsage;
 	}
 	
 }

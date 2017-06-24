@@ -25,16 +25,20 @@ public class Notification {
 	 * <br/><b>Only works with Linux and Windows</b>
 	 * @param message -the notification message
 	 */
-	public static void displayNotification(String message)
+	public static synchronized void displayNotification(String summary){
+		displayNotification(summary,"");
+	}
+	public static synchronized void displayNotification(String summary,String body)
 	{
 		if(!Settings.showNotifications())return;
-		logger.log("Notification: "+message);
+		logger.log("Notification: "+summary+" body:"+body);
 		if(isNotWindows())
 			try {
-				Runtime.getRuntime().exec(new String []{"notify-send","-i",pathToImage,Syncrop.APPLICATION_NAME+" "+getInstance(),message});
+				Runtime.getRuntime().exec(new String []{"notify-send","--app-name",Syncrop.APPLICATION_NAME+" "+getInstance(),"-i",pathToImage,
+						summary,body});
 			} catch (IOException|NullPointerException e) {
 				Settings.setShowNotifications(false);
-				logger.log("can't notify user of message: '"+message+
+				logger.log("can't notify user of message: '"+body+
 						"'. Notifications will now be turned off");				
 			}
 	}
