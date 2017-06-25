@@ -52,13 +52,20 @@ public class SettingsTab extends JPanel implements SyncropTab,ActionListener {
 
 	@Override
 	public void reload() {
+		
 		removeAll();
 		for(Options option:Options.values()){
+			try {
 			SettingsField field=new SettingsField(option);
 			fields.add(field);
 			add(field);
+			} catch (IllegalArgumentException e) {
+				System.err.println("value error for "+option);
+				throw e;
+			}
 		}
 		add(save);
+	
 		
 	}
 

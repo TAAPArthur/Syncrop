@@ -46,8 +46,8 @@ public class SyncropGUI extends Syncrop implements ActionListener{
 	private static final JButton startSyncropClient=new JButton("Start Syncrop");
 	private static final JButton stopSyncropClient=new JButton("Stop Syncrop");
 	
-	public static final int WIDTH=512;
-	public static final int HEIGHT=512;
+	public static final int WIDTH=600;
+	public static final int HEIGHT=600;
 			
 	
 	public static void main (String args[]) throws IOException
@@ -76,6 +76,7 @@ public class SyncropGUI extends Syncrop implements ActionListener{
 		SyncropGUI.syncropCommunicationThread=new SyncropCommunicationThread();
 		logger.logTrace("Starting GUI");
 		frame=new JFrame("Syncrop"+instance+" Settings");
+		frame.setResizable(true);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
 		frame.setVisible(true);
@@ -88,6 +89,7 @@ public class SyncropGUI extends Syncrop implements ActionListener{
 		startSyncropClient.addActionListener(this);
 		stopSyncropClient.addActionListener(this);
 		JTabbedPane tabbedPane= new JTabbedPane();
+		
 		for(SyncropTab tab:tabs)
 			tabbedPane.add(tab.getName(), (Component) tab);
 		
@@ -95,6 +97,7 @@ public class SyncropGUI extends Syncrop implements ActionListener{
 		//frame.add(new FileTree(ResourceManager.getAccount()));
 		
 		frame.add(tabbedPane,BorderLayout.CENTER);
+		
 		
 		frame.revalidate();
 		frame.pack();

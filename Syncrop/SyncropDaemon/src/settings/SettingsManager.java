@@ -31,17 +31,17 @@ public class SettingsManager {
 		HOST("Host",String.class,"getHost","setHost",TYPE_ADVANCED),
 		PORT("Port",int.class,"getPort","setPort",TYPE_ADVANCED),
 		
-		SSL_CONNECTION("Host",boolean.class,"isSSLConnection","setSSLConnection",TYPE_ADVANCED),
+		SSL_CONNECTION("SSL Connection",boolean.class,"isSSLConnection","setSSLConnection",TYPE_ADVANCED),
 		SSL_PORT("SSL Port",int.class,"getSSLPort","setSSLPort",TYPE_ADVANCED),
 		
 		LOG_LEVEL("Log Level",int.class,"getLogLevel","setLogLevel",TYPE_SIMPLE),
-		NOTIFICATIONS_LEVEL("Show Notifications",int.class,"getNotificationsLevel","getNotificationsLevel",TYPE_SIMPLE),
+		NOTIFICATIONS_LEVEL("Show Notifications",int.class,"getNotificationLevel","setNotificationLevel",TYPE_SIMPLE),
 		
 		MAX_ACCOUNT_SIZE("Max Account Size (MB)",long.class,"getMaxAccountSize","setMaxAccountSize",TYPE_ADVANCED),
 		MAX_FILE_SIZE("Max File Size (MB)",long.class,"getMaxFileSize","setMaxFileSize",TYPE_ADVANCED),
 		MAX_TRANSFER_SIZE("Max Transfer Size (MB)",long.class,"getMaxTransferSize","setMaxTransferSize",TYPE_ADVANCED),
 		
-		MULTIPLE_INSTANCES("Multiple Instances",boolean.class,"allowMultipleInstances","setMultipleInstances",TYPE_ADVANCED),
+		
 		AUTO_QUIT("Auto Quit",boolean.class,"autoQuit","setAutoQuit",TYPE_ADVANCED),
 		WINDOWS_COMPATIBLE("Windows Compatible",boolean.class,"isWindowsCompatible","setWindowsCompatible",TYPE_ADVANCED),
 		ALLOW_SCRIPTS("Allow Scripts",boolean.class,"allowScripts","setAllowScripts",TYPE_ADVANCED),
@@ -69,7 +69,9 @@ public class SettingsManager {
 			this.setterName=setterName;
 			this.type=type;
 		}
-		
+		public String toString(){
+			return getName()+":"+getFormattedValue();
+		}
 		public String getName(){return name();}
 		public String getTitle(){return title;}
 		public Class<?> getDataType(){return clazz;}
@@ -86,6 +88,19 @@ public class SettingsManager {
 				logger.log(e.toString()+";Error setting value:"+value+" "+setterName);
 			}
 		}
+		private String getFormattedValue(){
+			Object unformattedValue=getValue();
+			if(getDataType().equals(long.class)){
+				long value=(long)unformattedValue;
+				if(value>GIGABYTE)
+					return  (int)(value/GIGABYTE)+"G";
+				else if(value>MEGABYTE)
+					return  (int)(value/MEGABYTE)+"M";
+				else if(value>KILOBYTE);
+					return  (int)(value/KILOBYTE)+"K";
+			}
+			return unformattedValue+"";
+		}
 		public Object getValue(){
 			try {
 				Method getter=Settings.class.getMethod(getterName);
@@ -94,8 +109,9 @@ public class SettingsManager {
 					| IllegalAccessException | IllegalArgumentException
 					| InvocationTargetException e) {
 				logger.logError(e);
+				throw new RuntimeException(e.toString());
 			}
-			return null;
+			
 		}
 		
 	}
@@ -211,18 +227,7 @@ public class SettingsManager {
 		}
 		else logger.log("Unrecognized option when parsing settings: "+s[0],LOG_LEVEL_WARN);		
 	}
-	private String formatValue(Options option){
-		if(option.getDataType().equals(long.class)){
-			long value=(long)option.getValue();
-			if(value>GIGABYTE)
-				return  (int)(value/GIGABYTE)+"G";
-			else if(value>MEGABYTE)
-				return  (int)(value/MEGABYTE)+"M";
-			else if(value>KILOBYTE);
-				return  (int)(value/KILOBYTE)+"K";
-		}
-		return option.getValue()+"";
-	}
+	
 	public void saveSettings() throws FileNotFoundException{
 		saveSettings(false);
 	}
@@ -231,7 +236,7 @@ public class SettingsManager {
 		PrintWriter out=new PrintWriter(getSettingsFile());
 		for(Options option:Options.values())
 			if(option.getOptionType()!=TYPE_CLOUD)
-				out.println((comment?"#":"")+option.name()+":"+formatValue(option));
+				out.println((comment?"#":"")+option.name()+":"+option.getFormattedValue());
 		out.close();
 	}
 	

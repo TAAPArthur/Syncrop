@@ -35,7 +35,7 @@ public class Directory
 	public boolean equals(Directory dir){return dir.equals(dir.dir);}
 	
 	public String toString(){
-		return "dir:"+literalDir;
+		return literalDir;
 	}
 	/**
 	 * @return if the dir should be taken literally or as a pattern
