@@ -3,6 +3,7 @@ package notification;
 import static notification.Notification.displayNotification;
 import static syncrop.Syncrop.logger;
 
+import logger.Logger;
 import settings.Settings;
 import syncrop.Syncrop;
 import transferManager.FileTransferManager;
@@ -18,19 +19,18 @@ public class NotificationManager extends Thread {
 	@Override
 	public void run() {
 		int timeSinceFirstFileTransfered=0;
-		while(!Syncrop.isShuttingDown())
+		while(!Syncrop.isShuttingDown()&&Settings.isShowingNotifications(Logger.LOG_LEVEL_INFO))
 		{
 			Syncrop.sleep(1000);
 			int sum=transferManager.getDownloadCount()+transferManager.getUploadCount();
 			if(sum==0)continue;
-			timeSinceFirstFileTransfered++;
-			if(Settings.showNotifications())
-				if(timeSinceFirstFileTransfered==60||transferManager.haveAllFilesFinishedTranferring()
-					&&transferManager.getTimeFromLastCompletedFileTransfer()>2){
-					notifyUser();
-					timeSinceFirstFileTransfered=0;
-				}		
-			
+			timeSinceFirstFileTransfered++;		
+			if(timeSinceFirstFileTransfered==60||transferManager.haveAllFilesFinishedTranferring()
+				&&transferManager.getTimeFromLastCompletedFileTransfer()>2){
+				notifyUser();
+				timeSinceFirstFileTransfered=0;
+			}		
+		
 		}		
 	}
 	public void notifyUser()
@@ -53,7 +53,7 @@ public class NotificationManager extends Thread {
 			else notification+=transferManager.getNameOfDownloadFile()+" and "+(transferManager.getDownloadCount()-1)+
 					" other file"+(transferManager.getDownloadCount()-1==1?"":"s")+" were downloaded from cloud";
 		}
-		displayNotification(summary,notification);
+		displayNotification(Logger.LOG_LEVEL_INFO,summary,notification);
 		if(transferManager.haveAllFilesFinishedTranferring())
 		{
 			if(logger.isDebugging())

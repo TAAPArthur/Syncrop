@@ -6,6 +6,7 @@ import static syncrop.Syncrop.logger;
 
 import java.io.IOException;
 
+import logger.Logger;
 import settings.Settings;
 import syncrop.Syncrop;
 
@@ -14,10 +15,8 @@ public class Notification {
 	private static String pathToImage=null;
 	
 	public static void initilize(){
-
-		//setup notifications
-		if(Settings.showNotifications())//loads Realmofpi symbol for notifications
-			pathToImage="/usr/share/pixmaps/syncrop.png";
+		//loads Realmofpi symbol for notifications
+		pathToImage="/usr/share/pixmaps/syncrop.png";
 	}
 	
 	/**
@@ -26,18 +25,21 @@ public class Notification {
 	 * @param message -the notification message
 	 */
 	public static synchronized void displayNotification(String summary){
-		displayNotification(summary,"");
+		displayNotification(Logger.LOG_LEVEL_INFO,summary,"");
 	}
-	public static synchronized void displayNotification(String summary,String body)
+	public static synchronized void displayNotification(int logLevel,String summary){
+		displayNotification(logLevel,summary,"");
+	}
+	public static synchronized void displayNotification(int logLevel,String summary,String body)
 	{
-		if(!Settings.showNotifications())return;
+		if(!Settings.isShowingNotifications(logLevel))return;
 		logger.log("Notification: "+summary+" body:"+body);
 		if(isNotWindows())
 			try {
 				Runtime.getRuntime().exec(new String []{"notify-send","--app-name",Syncrop.APPLICATION_NAME+" "+getInstance(),"-i",pathToImage,
 						summary,body});
 			} catch (IOException|NullPointerException e) {
-				Settings.setShowNotifications(false);
+				Settings.setNotificationLevel(-1);
 				logger.log("can't notify user of message: '"+body+
 						"'. Notifications will now be turned off");				
 			}

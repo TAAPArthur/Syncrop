@@ -14,6 +14,7 @@ import daemon.SyncDaemon;
 import daemon.cloud.SyncropCloud;
 import file.Directory;
 import file.SyncROPItem;
+import logger.Logger;
 import message.Message;
 import settings.Settings;
 import syncrop.FileMetadataManager;
@@ -272,7 +273,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 				a.setAuthenticated(false);
 				String message="This account failed to be authenticated: "+a.getName()+
 						" Please update the password for these accounts";
-				displayNotification(message);
+				displayNotification(Logger.LOG_LEVEL_WARN,message);
 				logger.log(message);
 			}
 		}

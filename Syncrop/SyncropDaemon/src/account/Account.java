@@ -23,6 +23,7 @@ import file.Directory;
 import file.RemovableDirectory;
 import file.Restriction;
 import file.SyncROPItem;
+import logger.Logger;
 import settings.Settings;
 import syncrop.RecursiveDeletionFileVisitor;
 import syncrop.ResourceManager;
@@ -467,13 +468,13 @@ public class Account
 		if(warning!=2&&this.recordedSize/Settings.getMaxAccountSize()>1.0)
 		{
 			warning=2;
-			displayNotification("Account "+getName()+
+			displayNotification(Logger.LOG_LEVEL_WARN,"Account "+getName()+
 					" is can no longer be synced because it is too large");
 		}
 		else if(warning!=1&&this.recordedSize/Settings.getMaxAccountSize()>.9)
 		{
 			warning=1;
-			displayNotification("Account "+getName()+
+			displayNotification(Logger.LOG_LEVEL_WARN,"Account "+getName()+
 					" over 90% full! When it exceeds 100% the account will be disabled");
 		}
 		else warning=0;

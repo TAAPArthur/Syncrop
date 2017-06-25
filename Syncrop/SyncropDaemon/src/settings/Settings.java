@@ -1,64 +1,62 @@
 package settings;
 
-import static syncrop.Syncrop.GIGABYTE;
-import static syncrop.Syncrop.MEGABYTE;
-
-import java.io.File;
-
 import syncrop.Syncrop;
 
 
 public class Settings {
 
+	static final String settingsFileName="syncrop.settings";
+	static final String cloudSettingsFileName="syncrop-cloud.settings";
 	
-	private static String cloudHomeDir=File.separatorChar+"home/syncrop"+File.separatorChar;
+	
+	
+	public static final int DEFAULT=0;
+	public static final int LOCAL_FILE_ALWAYS_WINS=1;
+	public static final int LOCAL_FILE_ALWAYS_LOSES=-1;
+	
+	private static String cloudHomeDir;
 	/**
 	 * the maximum size of a file that can be sent. A file with a larger size will 
 	 * be considered disabled until its size is less than {@value #MAX_FILE_SIZE}
 	 */
-	private static long maxFileSize=Integer.MAX_VALUE;
+	private static long maxFileSize;
 	/**
 	 * The maxium size of an account measured in bytes
 	 */
-	private static long maximumAccountSize=4L*GIGABYTE;
+	private static long maximumAccountSize;
 	/**
 	 * the maximum package size of a file being transfered. If the file size is less
 	 * than this value, {@value #transferSize}, the entire file will be sent at once.
 	 * 
 	 * The highest value this can be is {@link Integer#MAX_VALUE}
 	 */
-	private static long transferSize=MEGABYTE;
+	private static long transferSize;
 	
 	/**
 	 * Encoding to use to read configuration values
 	 */
 	private static final String ENCODING="UTF-8";
 		
-	private static boolean showNotifications=true;
+	private static int notificationLevel;
 	
 	/**
 	 * if true Syncrop will exit after initial syncing is complete
 	 */
-	static private boolean autoQuit=false;
-	static private boolean windowsCompatible=true;
-	static private boolean allowScripts=false;
+	static private boolean autoQuit;
+	static private boolean windowsCompatible;
+	static private boolean allowScripts;
 	
-	private static boolean allowEncription=false;
-	private static String encryptionAlgorithm="AES";
-	private static boolean sslConnection=false;
+	private static boolean allowEncription;
+	private static String encryptionAlgorithm;
+	private static boolean sslConnection;
 	
-	private static boolean limitCPUUsage=false;
+	private static boolean limitCPUUsage;
 	
 	
-	/**
-	 * Allows for multiple instances of syncrop to be run simultaneously. 
-	 *  
-	 */
-	static private boolean multipleInstances=false;
 	/**
 	 * Allows for hidden files to be synced
 	 */
-	static private boolean syncHiddenFiles=true;
+	static private boolean syncHiddenFiles;
 	
 	/**
 	 * The server to connect to
@@ -70,18 +68,14 @@ public class Settings {
 	static private int port;
 	static private int sslPort;
 	
-	static final String settingsFileName="syncrop.settings";
-	static final String cloudSettingsFileName="syncrop-cloud.settings";
 	
-	
-	
-	public static final int DEFAULT=0;
-	public static final int LOCAL_FILE_ALWAYS_WINS=1;
-	public static final int LOCAL_FILE_ALWAYS_LOSES=-1;
 	static int conflictResolution=0;
+	
+	static boolean allowConflicts=true;
+	
 	public static int getConflictResolution(){return conflictResolution;}
 	public static void setConflictResolution(int conflictResolution){Settings.conflictResolution=conflictResolution;}
-	static boolean allowConflicts=true;
+	
 	public static boolean isConflictsAllowed(){return allowConflicts;}
 	public static void setConflictsAllowed(boolean conflictsAllowed){allowConflicts=conflictsAllowed;}
 	
@@ -121,17 +115,6 @@ public class Settings {
 	
 	public static boolean isWindowsCompatible() {return windowsCompatible;}
 	public static void setWindowsCompatible(boolean windowsCompatible) {Settings.windowsCompatible=windowsCompatible;}
-	
-	
-
-	/**
-	 * 
-	 * @return true if and only if multiple instances of Syncrop are allowed to run
-	 */
-	public static boolean allowMultipleInstances() {return multipleInstances;}
-	public static boolean setMultipleInstances(boolean b) {return multipleInstances=b;}
-
-	
 
 	/**
 	 * 
@@ -165,10 +148,13 @@ public class Settings {
 	}
 		
 	
-	public static boolean showNotifications(){
-		return showNotifications;
+	public static int getNotificationLevel(){
+		return notificationLevel;
 	}
-	public static void setShowNotifications(boolean b){showNotifications=b;}
+	public static void setNotificationLevel(int i){notificationLevel=i;}
+	public static boolean isShowingNotifications(int i){
+		return notificationLevel!=-1&&i>=notificationLevel;
+	}
 	
 	public static String getEncoding(){return ENCODING;}
 	public static String getEncryptionAlgorithm() {

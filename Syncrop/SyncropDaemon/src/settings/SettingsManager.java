@@ -1,4 +1,5 @@
 package settings;
+import static syncrop.Syncrop.KILOBYTE;
 import static syncrop.Syncrop.GIGABYTE;
 import static syncrop.Syncrop.MEGABYTE;
 import static logger.Logger.LOG_LEVEL_WARN;
@@ -33,7 +34,8 @@ public class SettingsManager {
 		SSL_CONNECTION("Host",boolean.class,"isSSLConnection","setSSLConnection",TYPE_ADVANCED),
 		SSL_PORT("SSL Port",int.class,"getSSLPort","setSSLPort",TYPE_ADVANCED),
 		
-		LOG_LEVEL("Log Level",int.class,"getLogLevel","setLogLevel",TYPE_ADVANCED),
+		LOG_LEVEL("Log Level",int.class,"getLogLevel","setLogLevel",TYPE_SIMPLE),
+		NOTIFICATIONS_LEVEL("Show Notifications",int.class,"getNotificationsLevel","getNotificationsLevel",TYPE_SIMPLE),
 		
 		MAX_ACCOUNT_SIZE("Max Account Size (MB)",long.class,"getMaxAccountSize","setMaxAccountSize",TYPE_ADVANCED),
 		MAX_FILE_SIZE("Max File Size (MB)",long.class,"getMaxFileSize","setMaxFileSize",TYPE_ADVANCED),
@@ -47,7 +49,7 @@ public class SettingsManager {
 		
 		CLOUD_HOME("Cloud Home Dir",String.class,"getCloudHomeDir","setCloudHomeDir",TYPE_CLOUD),
 		
-		SHOW_NOTIFICATIONS("Show Notifications",boolean.class,"showNotifications","setShowNotifications",TYPE_SIMPLE),
+		
 		SYNC_HIDDEN_FILES("Sync Hidden Files",boolean.class,"canSyncHiddenFiles","setSyncHiddenFiles",TYPE_SIMPLE),
 		ALLOW_CONFLICTS("Allow Conflicts",boolean.class,"isConflictsAllowed","setConflictsAllowed",TYPE_ADVANCED),
 		CONFLICT_RESOLUTION("Conflict Resolution",int.class,"getConflictResolution","setConflictResolution",TYPE_ADVANCED),
@@ -103,9 +105,25 @@ public class SettingsManager {
 	 * Sets default settings
 	 */
 	private void loadDefaultSettings(){
-		
-		Settings.setPort(GenericClient.DEFAULT_PORT);
 		Settings.setHost(isInstanceOfCloud()?"localhost":GenericClient.DEFAULT_HOST);
+		Settings.setPort(GenericClient.DEFAULT_PORT);
+		Settings.setSSLPort(GenericClient.DEFAULT_SSL_PORT);
+		Settings.setSSLConnection(true);
+		
+		Settings.setCloudHomeDir(File.separatorChar+"home/syncrop"+File.separatorChar);
+		Settings.setMaxFileSize(Integer.MAX_VALUE);
+		Settings.setMaxAccountSize(4*syncrop.Syncrop.GIGABYTE);
+		Settings.setMaxTransferSize(MEGABYTE);
+		Settings.setNotificationLevel(SyncropLogger.LOG_LEVEL_INFO);
+		Settings.setAutoQuit(false);
+		Settings.setWindowsCompatible(false);
+		Settings.setAllowScripts(false);
+		Settings.setAllowEncription(false);
+		Settings.setEncryptionAlgorithm("AES");
+		Settings.setIsLimitingCPU(false);
+		Settings.setSyncHiddenFiles(true);
+		Settings.setConflictResolution(Settings.DEFAULT);
+		Settings.setConflictsAllowed(true);
 	}
 	
 	public File getSettingsFile(){
@@ -179,6 +197,8 @@ public class SettingsManager {
 					formattedValue=MEGABYTE*Long.parseLong(value.substring(0, value.length()-1));
 				else if( value.endsWith("g")|| value.endsWith("G"))
 					formattedValue=GIGABYTE*Long.parseLong(value.substring(0, value.length()-1));
+				else if( value.endsWith("k")|| value.endsWith("K"))
+					formattedValue=KILOBYTE*Long.parseLong(value.substring(0, value.length()-1));
 				else 
 					formattedValue=Long.parseLong(value);
 			else if(option.getDataType().equals(int.class))
@@ -191,7 +211,18 @@ public class SettingsManager {
 		}
 		else logger.log("Unrecognized option when parsing settings: "+s[0],LOG_LEVEL_WARN);		
 	}
-	
+	private String formatValue(Options option){
+		if(option.getDataType().equals(long.class)){
+			long value=(long)option.getValue();
+			if(value>GIGABYTE)
+				return  (int)(value/GIGABYTE)+"G";
+			else if(value>MEGABYTE)
+				return  (int)(value/MEGABYTE)+"M";
+			else if(value>KILOBYTE);
+				return  (int)(value/KILOBYTE)+"K";
+		}
+		return option.getValue()+"";
+	}
 	public void saveSettings() throws FileNotFoundException{
 		saveSettings(false);
 	}
@@ -200,7 +231,7 @@ public class SettingsManager {
 		PrintWriter out=new PrintWriter(getSettingsFile());
 		for(Options option:Options.values())
 			if(option.getOptionType()!=TYPE_CLOUD)
-				out.println((comment?"#":"")+option.name()+":"+option.getValue());
+				out.println((comment?"#":"")+option.name()+":"+formatValue(option));
 		out.close();
 	}
 	

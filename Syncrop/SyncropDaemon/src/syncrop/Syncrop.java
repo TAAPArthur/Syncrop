@@ -178,7 +178,10 @@ public abstract class Syncrop {
 		
 		//logs basic config info
 		logger.log("Version: "+VERSION_ID+":"+METADATA_VERSION+"; Encoding: "+System.getProperty("file.encoding")+
-				"; OS: "+System.getProperty("os.name")+"; host "+Settings.getHost()+":"+Settings.getPort()+" log level "+logger.getLogLevel());
+				"; OS: "+System.getProperty("os.name")+
+				"; host"+(Settings.isSSLConnection()?" (SSL)":" ")+Settings.getHost()+":"+
+				(Settings.isSSLConnection()?Settings.getSSLPort():Settings.getPort())+
+				" log level "+logger.getLogLevel());
 		if(Settings.isSSLConnection())
 			logger.log("Using SSL conenction");
 		

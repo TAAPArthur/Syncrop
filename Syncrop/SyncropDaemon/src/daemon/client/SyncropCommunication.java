@@ -116,11 +116,7 @@ public class SyncropCommunication extends Thread
 				serverSocket.close();
 			serverSocket = new ServerSocket(Settings.getPort(),1);
 		}catch(BindException e){
-			Syncrop.logger.logError(e, ". There is probably another instance of Syncrop running."+
-					(Settings.allowMultipleInstances()?"":" Exiting"));
-			if(!Settings.allowMultipleInstances())
-				if(!SyncropClientDaemon.isShuttingDown())
-					System.exit(0);
+			Syncrop.logger.logError(e, ". There is probably another instance of Syncrop running. Exiting");
 		}
 		catch (IOException e)
 		{

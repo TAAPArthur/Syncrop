@@ -28,11 +28,12 @@ public class GenericClient implements Messenger{
 	/**
 	 * the host name, or null for the loopback address.
 	 */
-	public static final String DEFAULT_HOST="https://taaparthur.no-ip.org";
+	public static final String DEFAULT_HOST="taaparthur.no-ip.org";
 	/**
 	 * The port to connect to
 	 */
-	public static final int DEFAULT_PORT=50001;
+	public static final int DEFAULT_PORT=50002;
+	public static final int DEFAULT_SSL_PORT=50001;
 	
 	/**
 	 * The reason the client closed  
