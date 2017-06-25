@@ -53,7 +53,7 @@ public class SettingsManager {
 		SYNC_HIDDEN_FILES("Sync Hidden Files",boolean.class,"canSyncHiddenFiles","setSyncHiddenFiles",TYPE_SIMPLE),
 		ALLOW_CONFLICTS("Allow Conflicts",boolean.class,"isConflictsAllowed","setConflictsAllowed",TYPE_ADVANCED),
 		CONFLICT_RESOLUTION("Conflict Resolution",int.class,"getConflictResolution","setConflictResolution",TYPE_ADVANCED),
-		DELETING_FILES_NOT_ON_CLIENT("Conflict Resolution",boolean.class,"isDeletingFilesNotOnClient","setDeletingFilesNotOnClient",TYPE_ADVANCED);
+		DELETING_FILES_NOT_ON_CLIENT("Delete Files not on clinet",boolean.class,"isDeletingFilesNotOnClient","setDeletingFilesNotOnClient",TYPE_ADVANCED);
 		
 		
 		int type;
@@ -92,11 +92,11 @@ public class SettingsManager {
 			Object unformattedValue=getValue();
 			if(getDataType().equals(long.class)){
 				long value=(long)unformattedValue;
-				if(value>GIGABYTE)
+				if(value>=GIGABYTE)
 					return  (int)(value/GIGABYTE)+"G";
-				else if(value>MEGABYTE)
+				else if(value>=MEGABYTE)
 					return  (int)(value/MEGABYTE)+"M";
-				else if(value>KILOBYTE);
+				else if(value>=KILOBYTE);
 					return  (int)(value/KILOBYTE)+"K";
 			}
 			return unformattedValue+"";
