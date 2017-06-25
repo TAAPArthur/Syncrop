@@ -3,11 +3,15 @@
 start()
 {
     memory="15M"
-    if [ "$1" == "--cloud" || "$1" == "--gui"  ]; then
+    outputFile=daemon.out
+    if [ "$1" == "--gui" ]; then
+    	memory="30M"
+    	outputFile="gui.out"
+    elif [ "$1" == "--cloud" ]; then
         memory="30M"
     fi
 
-	taskset -c 0 nohup nice -n19 ulimit -m 20480 java -Dfile.encoding=UTF-8 -Xms"$memory" -Xmx"$memory" -jar /usr/lib/syncrop/Syncrop.jar $@ >~/.syncrop/daemon.out&
+	taskset -c 0 nohup nice -n19 java -Dfile.encoding=UTF-8 -Xms"$memory" -Xmx"$memory" -jar /usr/lib/syncrop/Syncrop.jar $@ >~/.syncrop/$outputFile&
 }
 
 stop()
@@ -50,7 +54,7 @@ case "$command" in
         ;;
 	*)
 		echo $"Usage: $0 {start|stop|restart|reload|status}"
-	        exit 1
+        exit 1
 esac
 
 exit 0
