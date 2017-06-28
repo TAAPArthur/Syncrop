@@ -1,16 +1,16 @@
 package transferManager;
 
 
-import static file.SyncROPItem.INDEX_BYTES;
-import static file.SyncROPItem.INDEX_DATE_MODIFIED;
-import static file.SyncROPItem.INDEX_EXISTS;
-import static file.SyncROPItem.INDEX_FILE_PERMISSIONS;
-import static file.SyncROPItem.INDEX_KEY;
-import static file.SyncROPItem.INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE;
-import static file.SyncROPItem.INDEX_OWNER;
-import static file.SyncROPItem.INDEX_PATH;
-import static file.SyncROPItem.INDEX_SIZE;
-import static file.SyncROPItem.INDEX_SYMBOLIC_LINK_TARGET;
+import static file.SyncropItem.INDEX_BYTES;
+import static file.SyncropItem.INDEX_DATE_MODIFIED;
+import static file.SyncropItem.INDEX_EXISTS;
+import static file.SyncropItem.INDEX_FILE_PERMISSIONS;
+import static file.SyncropItem.INDEX_KEY;
+import static file.SyncropItem.INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE;
+import static file.SyncropItem.INDEX_OWNER;
+import static file.SyncropItem.INDEX_PATH;
+import static file.SyncropItem.INDEX_SIZE;
+import static file.SyncropItem.INDEX_SYMBOLIC_LINK_TARGET;
 import static syncrop.ResourceManager.getFile;
 import static syncrop.Syncrop.isNotWindows;
 import static syncrop.Syncrop.logger;
@@ -23,8 +23,8 @@ import java.util.LinkedHashSet;
 import daemon.SyncDaemon;
 import daemon.client.SyncropClientDaemon;
 import daemon.cloud.SyncropCloud;
-import file.SyncROPFile;
-import file.SyncROPItem;
+import file.SyncropFile;
+import file.SyncropItem;
 import message.Message;
 import settings.Settings;
 import syncrop.ResourceManager;
@@ -99,7 +99,7 @@ public class FileTransferManager extends Thread{
 	 * Requests recipient to download a small file. A small fire is a file whose size is 
 	 * less than or equal to the transfer size, {@value SyncDaemon#transferSize}. <br/>
 	 * The message that should accompany this header is defined by 
-	 * {@link SyncROPItem#formatFileIntoSyncData(byte[])}
+	 * {@link SyncropItem#toSyncData(byte[])}
 	 */
 	public final static String HEADER_REQUEST_SYMBOLIC_LINK_DOWNLOAD="request symbolic link download";
 	
@@ -107,14 +107,14 @@ public class FileTransferManager extends Thread{
 	 * Requests recipient to download a small file. A small fire is a file whose size is 
 	 * less than or equal to the transfer size, {@value #transferSize}. <br/>
 	 * The message that should accompany this header is defined by 
-	 * {@link SyncROPItem#formatFileIntoSyncData(byte[])}
+	 * {@link SyncropItem#toSyncData(byte[])}
 	 */
 	public final static String HEADER_REQUEST_SMALL_FILE_DOWNLOAD="request small file download";
 	/**
 	 * Requests recipient to download a small file. A small fire is a file whose size is 
 	 * greater than the transfer size, {@value #transferSize}. <br/>
 	 * The message that should accompany this header is defined by 
-	 * {@link SyncROPItem#formatFileIntoSyncData(byte[])}
+	 * {@link SyncropItem#toSyncData(byte[])}
 	 */
 	public final static String HEADER_REQUEST_LARGE_FILE_DOWNLOAD="request large file download";
 	
@@ -124,7 +124,7 @@ public class FileTransferManager extends Thread{
 	 * tells the recipient that the a large download file has completed and that the 
 	 * temp file should be copied to the real file<br/>
 	 * The message that should accompany this header is defined by 
-	 * {@link #formatFileIntoSyncData(SyncROPFile, byte[])}
+	 * {@link #formatFileIntoSyncData(SyncropFile, byte[])}
 	 */
 	public final static String HEADER_REQUEST_END_LARGE_FILE_DOWNLOAD="end large file download";
 	
@@ -264,8 +264,8 @@ public class FileTransferManager extends Thread{
 	public void addToSendQueue(String path,String owner,String target)
 	{
 		if(!isNotWindows())
-			path=SyncROPFile.toWindowsPath(path);
-		SyncROPItem file=getFile(path, owner);
+			path=SyncropFile.toWindowsPath(path);
+		SyncropItem file=getFile(path, owner);
 		if(file==null)
 			logger.log(path +"cannot be added to send queue because there is no corrosponding file");
 		else addToSendQueue(file,target);
@@ -275,7 +275,7 @@ public class FileTransferManager extends Thread{
 	 * @param file -the file to send
 	 * @param targets -who to send it to
 	 */
-	public void addToSendQueue(SyncROPItem file,String target)
+	public void addToSendQueue(SyncropItem file,String target)
 	{
 		if(Syncrop.isShuttingDown()){
 			logger.log("Cannot add"+file.getPath()+" to queue because shutting down");
@@ -331,7 +331,7 @@ public class FileTransferManager extends Thread{
 	
 	private void sendFile(QueueMember member){
 		
-		SyncROPItem file=ResourceManager.getFile(member.getPath(),member.getOwner());
+		SyncropItem file=ResourceManager.getFile(member.getPath(),member.getOwner());
 		if(file.hasBeenUpdated()){
 			logger.logTrace("will not send file because file has recently been updated"+file.getPath());
 			return;
@@ -346,6 +346,7 @@ public class FileTransferManager extends Thread{
 	}
 	
 	
+	
 	public void updateDownloadFileTransferStatistics(String path)
 	{
 		timeOfLastCompletedFileTransfer=System.currentTimeMillis();
@@ -354,11 +355,11 @@ public class FileTransferManager extends Thread{
 	}
 	public void onSuccessfulFileUpload(Message message){
 		Object []o=(Object[]) message.getMessage();
-		SyncROPItem fileSent=ResourceManager.getFile((String)o[INDEX_PATH],(String) o[INDEX_OWNER]);
-		if(!SyncDaemon.isInstanceOfCloud()&& fileSent instanceof SyncROPFile){
+		SyncropItem fileSent=ResourceManager.getFile((String)o[INDEX_PATH],(String) o[INDEX_OWNER]);
+		if(!SyncDaemon.isInstanceOfCloud()&& fileSent instanceof SyncropFile){
 			
 			logger.log(fileSent.getPath()+" Changing key from "+fileSent.getKey()+" to "+o[INDEX_KEY]);
-			((SyncROPFile)fileSent).setKey((long) o[INDEX_KEY]);
+			((SyncropFile)fileSent).setKey((long) o[INDEX_KEY]);
 			if((long)o[INDEX_DATE_MODIFIED]!=fileSent.getDateModified())
 				fileSent.setModifiedSinceLastKeyUpdate(true);
 			fileSent.save();
@@ -387,12 +388,13 @@ public class FileTransferManager extends Thread{
 
 	public void cancelUpload(String id,String path,boolean localCommand)
 	{
-		outStandingFiles--;
-		if(localCommand)
-			//tells recipient to stop downloading the file that this client was uploading
+		
+		if(localCommand)//tells recipient to stop downloading the file that this client was uploading
 			cancel(path,HEADER_CANCEL_DOWNLOAD,id);
-		else 
+		else {
+			outStandingFiles--;
 			logger.log("Remote cancel upload;");
+		}
 	
 		logger.log("Upload failed: "+path);
 		if(path.equals(getPathOfLargeFileBeingSent(id)))
@@ -411,7 +413,7 @@ public class FileTransferManager extends Thread{
 	{	
 		if(localCommand)
 			//tells recipient to stop uploading the file that this client was downloading
-			cancel(path,	HEADER_CANCEL_UPLOAD,id);
+			cancel(path,HEADER_CANCEL_UPLOAD,id);
 		
 		if(!localCommand)logger.log("Remote cancel download: "+path);
 
@@ -475,14 +477,14 @@ public class FileTransferManager extends Thread{
 	}
 	public int getOutstandingFiles(){return outStandingFiles;}
 	
-	public boolean canDownloadPacket(SyncROPItem localFile, String id,String path,String owner, long dateModified, long key, byte[]bytes,long size){
+	public boolean canDownloadPacket(SyncropItem localFile, String id,String path,String owner, long dateModified, long key, byte[]bytes,long size){
 		return isFileEnabled(localFile,path,owner)&&!isFileSizeToLarge(bytes,path)
 				&&isRoomLeftInAccountAfterTransfer(id,path,owner, size)
 				&&!convertFileToDir(localFile, id,key)
 				&&!shouldConflictBeMadeForFileBeingSent(localFile, key, dateModified, id)
 				&&isValidOwner(localFile, owner);
 	}
-	private boolean isValidOwner(SyncROPItem localFile,String owner){
+	private boolean isValidOwner(SyncropItem localFile,String owner){
 		if(owner==null){
 			logger.logDebug("owner cannot be null");
 			return false;
@@ -495,7 +497,7 @@ public class FileTransferManager extends Thread{
 			return same;
 		}
 	}
-	private boolean isFileEnabled(SyncROPItem localFile,String path,String owner){
+	private boolean isFileEnabled(SyncropItem localFile,String path,String owner){
 		if(localFile!=null&&!localFile.isEnabled()){
 			logger.log("File is not enabled so it could not be downloaded; path="+path);
 			return false;
@@ -524,7 +526,7 @@ public class FileTransferManager extends Thread{
 		}
 		return true;
 	}
-	private boolean shouldConflictBeMadeForFileBeingSent(SyncROPItem localFile, long key,long modificationDate,String id){
+	private boolean shouldConflictBeMadeForFileBeingSent(SyncropItem localFile, long key,long modificationDate,String id){
 		if(localFile!=null&&localFile.exists())
 			if(key!=localFile.getKey()&&
 				modificationDate<localFile.getDateModified())
@@ -539,7 +541,7 @@ public class FileTransferManager extends Thread{
 		return false;
 	}
 	
-	private boolean convertFileToDir(SyncROPItem localFile,String id,long key){
+	private boolean convertFileToDir(SyncropItem localFile,String id,long key){
 		//if local file is dir and receiving file is not dir
 		if(localFile!=null&&localFile.isDir()&&key!=-1)
 			if(localFile.exists()){
@@ -563,7 +565,7 @@ public class FileTransferManager extends Thread{
 						
 		String path=isNotWindows()?
 				originalPath:
-				SyncROPItem.toWindowsPath(originalPath);
+				SyncropItem.toWindowsPath(originalPath);
 		
 		if(message.getHeader().equals(HEADER_FILE_SUCCESSFULLY_UPLOADED)){
 			Object[]syncropMetadata=(Object[]) message.getMessage();
@@ -590,7 +592,7 @@ public class FileTransferManager extends Thread{
 		String originalPath=(String)(message.getMessage() instanceof Object[]?
 				((Object[])message.getMessage())[INDEX_PATH]:message.getMessage());
 		String path=isNotWindows()?originalPath:
-			SyncROPItem.toWindowsPath(originalPath);
+			SyncropItem.toWindowsPath(originalPath);
 		String sender=message.getUserID();
 		if(message.getHeader().equals(HEADER_CANCEL_DOWNLOAD))
 			if(path!=null&&path.equals(getPathOfLargeFileBeingSent(message.getUserID()))){

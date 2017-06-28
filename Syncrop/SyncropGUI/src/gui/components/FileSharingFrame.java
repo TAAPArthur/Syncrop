@@ -11,7 +11,7 @@ import javax.swing.JPanel;
 import javax.swing.JTextArea;
 import javax.swing.filechooser.FileFilter;
 
-import file.SyncROPItem;
+import file.SyncropItem;
 import syncrop.ResourceManager;
 
 public class FileSharingFrame extends JFrame implements ActionListener{
@@ -49,8 +49,8 @@ public class FileSharingFrame extends JFrame implements ActionListener{
 				String path=ResourceManager.getRelativePath(f.getAbsolutePath(), 
 						ResourceManager.getAccount().getName(), removable.isSelected());
 				
-				return SyncROPItem.isFileEnabled(f)&&
-						SyncROPItem.isPathEnabled(path,ResourceManager.getAccount().getName());
+				return SyncropItem.isFileEnabled(f)&&
+						SyncropItem.isPathEnabled(path,ResourceManager.getAccount().getName());
 				
 			}
 		});

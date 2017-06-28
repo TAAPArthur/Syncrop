@@ -2,12 +2,12 @@ package transferManager.queue;
 
 import java.util.PriorityQueue;
 
-import file.SyncROPItem;
+import file.SyncropItem;
 
 public class SendQueue {
 	
 	PriorityQueue<QueueMember>queue=new PriorityQueue<QueueMember>();
-	public boolean add(SyncROPItem fileToAddToQueue,String target){
+	public boolean add(SyncropItem fileToAddToQueue,String target){
 		return add(new QueueMember(fileToAddToQueue, target));
 	}
 	public boolean add(QueueMember queueMember){

@@ -10,7 +10,9 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 
-public class SyncROPFile extends SyncROPItem 
+import syncrop.Syncrop;
+
+public class SyncropFile extends SyncropItem 
 {	
 	
 	/**
@@ -21,19 +23,19 @@ public class SyncROPFile extends SyncROPItem
 	private long key;
 	private long lastRecordedSize;
 	
-	public SyncROPFile(String path,String owner){
+	public SyncropFile(String path,String owner){
 		this(path, owner, 0);
 	}
 		
-	public SyncROPFile(String path, String owner,long key)
+	public SyncropFile(String path, String owner,long key)
 	{
 		this(path,owner,0, key,false,-1,"");
 	}
 	
-	public SyncROPFile(String path,String owner,long modificicationDate,long key,long lastRecordedSize){
+	public SyncropFile(String path,String owner,long modificicationDate,long key,long lastRecordedSize){
 		this(path, owner, modificicationDate, key,false,lastRecordedSize,"");
 	}
-	public SyncROPFile(String path,String owner,long modificicationDate,long key,boolean modifedSinceLastKeyUpdate,long lastRecordedSize,String filePermisions)
+	public SyncropFile(String path,String owner,long modificicationDate,long key,boolean modifedSinceLastKeyUpdate,long lastRecordedSize,String filePermisions)
 	{
 		super(path, owner, modificicationDate,modifedSinceLastKeyUpdate,lastRecordedSize,filePermisions);
 		
@@ -119,12 +121,14 @@ public class SyncROPFile extends SyncROPItem
 	 * Handles conflicts. The name of the file is renamed to file.getName()+".SYNCROPconflict"+i
 	 * where is i is an integer that denotes the number of conflicts for this file<br/>
 	 * 
-	 * After every call, {@link daemon.cloud.SyncropCloud#updateAllClients(SyncROPFile, String, String[], String)}
+	 * After every call, {@link daemon.cloud.SyncropCloud#updateAllClients(SyncropFile, String, String[], String)}
 	 * should be called to update other Clients
 	 * @throws IOException
 	 */
 	public void makeConflict() throws IOException
 	{
+		if(!exists())return;
+		
 		logger.log("Conflict occurred path="+path);
 		String baseName=file.getAbsolutePath()+CONFLICT_ENDING;
 		
@@ -148,23 +152,7 @@ public class SyncROPFile extends SyncROPItem
 		}
 		return i;
 	}
-	public boolean shouldMakeConflict(long dateMod,long key,boolean modifiedSinceLastUpdate,long fileSize,String targetOfLink){
-		if(!exists())return false;
-				
-		if(targetOfLink!=null&&this instanceof SyncROPSymbolicLink)
-			return !targetOfLink.equals(((SyncROPSymbolicLink)this).getTargetPath());
-		if(targetOfLink!=null&&!(this instanceof SyncROPSymbolicLink)||targetOfLink==null&&(this instanceof SyncROPSymbolicLink))
-			return true;
-			
-		if(isDiffrentVersionsOfSameFile(fileSize,key, modifiedSinceLastUpdate)){
-			logger.logDebug("diffrent versions of same file");
-			return false;
-		}
-		//if(Math.abs(dateMod-this.dateModified)>1000||getSize()!=fileSize)return true;
-				
-		logger.logDebug("Conflict avoided because file metadata is the same");
-		return true;
-	}
+	
 	@Override
 	public boolean isEmpty(){return true;}
 	public boolean updateSize(){
@@ -178,5 +166,12 @@ public class SyncROPFile extends SyncROPItem
 	}
 	public long getLastKnownSize(){
 		return lastRecordedSize;
+	}
+	void mergeMetadata(long remoteDateMod,long remoteKey){
+		setDateModified(remoteDateMod);
+		if(Syncrop.isInstanceOfCloud())
+			updateKey();
+		else 
+			setKey(remoteKey);
 	}
 }

@@ -1,5 +1,6 @@
 package file;
 
+
 import static java.nio.file.attribute.PosixFilePermission.GROUP_EXECUTE;
 import static java.nio.file.attribute.PosixFilePermission.GROUP_READ;
 import static java.nio.file.attribute.PosixFilePermission.GROUP_WRITE;
@@ -19,6 +20,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -33,7 +35,7 @@ import syncrop.ResourceManager;
 import syncrop.Syncrop;
 import syncrop.SyncropLogger;
 
-public abstract class SyncROPItem 
+public abstract class SyncropItem 
 {
 	/**
 	 * An array of illegal chars
@@ -70,7 +72,7 @@ public abstract class SyncROPItem
 	
 	
 	
-	public SyncROPItem(String path,String owner,long modificicationDate,boolean modifedSinceLastKeyUpdate,long lastRecordedSize,String filePermissions) 
+	public SyncropItem(String path,String owner,long modificicationDate,boolean modifedSinceLastKeyUpdate,long lastRecordedSize,String filePermissions) 
 	{
 		for(String c:illegalChars)
 			if(path.contains(c)&&!File.separator.equals(c))
@@ -335,8 +337,8 @@ public abstract class SyncROPItem
 		
 		dateModified=dateOfDelection;
 		if(exists()&&!
-				((this instanceof SyncROPFile&&file.isFile())||
-				(this instanceof SyncROPDir&&file.isDirectory()))&&
+				((this instanceof SyncropFile&&file.isFile())||
+				(this instanceof SyncropDir&&file.isDirectory()))&&
 				!Files.isSymbolicLink(file.toPath()))
 		{
 			logger.logError(new IllegalArgumentException("Type of SyncropItem does not match file type"),"");
@@ -482,16 +484,14 @@ public abstract class SyncROPItem
 	
 	public boolean deleteMetadata(){return ResourceManager.deleteFile(this);}
 	
-	
-	
-	
+		
 	public String getTargetPath(){return null;}
 	/**
 	 * Saves key information of file to an object array
 	 * @param file the SyncROPItem to format
 	 * @return an object array with defining information of the file
 	 */
-	public Object[] formatFileIntoSyncData()
+	public Object[] toSyncData()
 	{
 		Object[] syncData=new Object[INDEX_LENGTH];
 		setSyncData(syncData);
@@ -503,7 +503,7 @@ public abstract class SyncROPItem
 	 * @param file the SyncROPItem to format
 	 * @return an object array with defining information of the file
 	 */
-	public Object[] formatFileIntoSyncData(byte[] bytes)
+	public Object[] toSyncData(byte[] bytes)
 	{
 		Object[] syncData=new Object[INDEX_LENGTH_EXTENDED];
 		setSyncData(syncData);
@@ -513,7 +513,7 @@ public abstract class SyncROPItem
 	private void setSyncData(Object[] syncData){
 		syncData[INDEX_PATH]=isNotWindows()?
 				getPath():
-				SyncROPItem.toLinuxPath(getPath());
+				SyncropItem.toLinuxPath(getPath());
 		syncData[INDEX_OWNER]=owner;
 		syncData[INDEX_DATE_MODIFIED]=getDateModified();
 		syncData[INDEX_KEY]=getKey();
@@ -551,14 +551,13 @@ public abstract class SyncROPItem
 				" exits:"+file.exists()+" deletion recorded "+isDeletionRecorded()+
 				" removeable:"+isRemovable()+" isDir:"+file.isDirectory();
 	}
-	
-	public boolean isDiffrentVersionsOfSameFile(long key,long size,boolean modifiedSinceLastKeyUpdate){
-		if(this.getSize()!=size)return false;
+	public boolean isInConflictWith(long key,long size,boolean modifiedSinceLastKeyUpdate){
 		if(modifiedSinceLastKeyUpdate||this.modifiedSinceLastKeyUpdate)
-			return this.getKey()==key;
-		else return true;
-		
+			return this.getKey()!=key;
+		else 
+			return false;
 	}
+	
 	public boolean isNewerThan(long dateModified){
 		return (this.dateModified-dateModified)>1000;
 	}
@@ -571,9 +570,139 @@ public abstract class SyncROPItem
 	
 	public boolean isLocked(){
 		return ResourceManager.isLocked(path,getOwner());
-	}	
-	public static String generateShareKey(String path,String owner){
-		return Integer.toString((path+owner).hashCode(),36)+
-				Long.toString(System.currentTimeMillis()%(1000*3600*24*365), 36);
+	}
+	public static enum SyncropPostCompare{
+		SKIP,SYNCED,DOWNLOAD_REMOTE_FILE,SEND_LOCAL_FILE,SYNC_METADATA;
+	};
+	
+	public static SyncropPostCompare compare(SyncropItem localFile,Object[] syncData) throws IOException{
+		
+		final String path=(String)syncData[INDEX_PATH];
+		//SyncropItem localFile=ResourceManager.getFile(path,owner);
+		
+		if(!SyncropFile.isValidFileName(path)||(localFile!=null&&!localFile.isEnabled()))
+		{
+			logger.logWarning("Checking remote files; File is not synced because it is not enabled"+localFile); 
+			return SyncropPostCompare.SKIP;
+		}		
+		
+		logger.log("Comparing "+path,SyncropLogger.LOG_LEVEL_ALL);
+		String owner=(String)syncData[INDEX_OWNER];
+		Long remoteDateMod=(Long)syncData[INDEX_DATE_MODIFIED];
+		long remoteKey=(Long)syncData[INDEX_KEY];
+		boolean remoteFileExists=(Boolean)(syncData[INDEX_EXISTS]);
+		String linkTarget=(String)(syncData[INDEX_SYMBOLIC_LINK_TARGET]);
+		boolean remoteUpdatedSinceLastUpdate=(boolean)syncData[INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE];
+		long remoteLength=(long)syncData[INDEX_SIZE];
+		String remoteFilePermissions=(String)syncData[INDEX_FILE_PERMISSIONS];
+		
+		byte[]bytes=null;
+		if(syncData.length>INDEX_BYTES)
+			bytes=(byte[])syncData[INDEX_BYTES];
+		
+		return SyncropItem.compare(localFile, path, owner, remoteDateMod, remoteKey, remoteUpdatedSinceLastUpdate, 
+				remoteFilePermissions, remoteFileExists, remoteLength,linkTarget,bytes);
+				
+	}
+	public static SyncropPostCompare compare(SyncropItem localFile,String path,String owner,long remoteDateMod,long remoteKey,
+			boolean remoteUpdatedSinceLastUpdate,String remoteFlePermissions,boolean remoteFileExists,long remoteLength,String linkTarget,byte[]bytes) throws IOException{
+		boolean remoteDir=remoteKey==-1;
+		if(localFile==null)
+			if(remoteFileExists)
+				return SyncropPostCompare.DOWNLOAD_REMOTE_FILE;
+			else 
+				return SyncropPostCompare.SKIP;
+		
+		boolean isLocalFileOlderVersion=localFile.isNewerThan(remoteDateMod);
+		boolean isLocalFileNewerVersion=localFile.isOlderThan(remoteDateMod);
+		
+		if(!localFile.exists()&&!remoteFileExists){//both files don't exist
+			if(isLocalFileOlderVersion){
+				if(localFile instanceof SyncropFile)
+					((SyncropFile) localFile).mergeMetadata(remoteDateMod, remoteKey);
+				return SyncropPostCompare.SYNCED;
+			}
+			else if(isLocalFileNewerVersion)
+				return SyncropPostCompare.SYNC_METADATA;
+			else return SyncropPostCompare.SKIP;
+		}
+		else if(localFile.isSymbolicLink()&&linkTarget!=null)
+				return merger(localFile, remoteFileExists, remoteDateMod, remoteKey, linkTarget, isLocalFileOlderVersion, isLocalFileNewerVersion);
+			
+		else if(localFile.isDir()!=remoteDir){
+			if(localFile.exists()&&remoteFileExists)
+				if(remoteDir){//local file is non dir
+					((SyncropFile)localFile).makeConflict();
+					return SyncropPostCompare.DOWNLOAD_REMOTE_FILE;
+				}
+				else return SyncropPostCompare.SEND_LOCAL_FILE;
+			else if(localFile.exists())
+				return SyncropPostCompare.SEND_LOCAL_FILE;
+			else 
+				return SyncropPostCompare.DOWNLOAD_REMOTE_FILE;
+		}
+		if(remoteDir)//if both files are dirs
+			if(localFile.exists()&&remoteFileExists)
+				if (isLocalFileNewerVersion)
+					return SyncropPostCompare.SYNC_METADATA;
+				else if(isLocalFileOlderVersion){
+					localFile.setDateModified(remoteDateMod);
+					return SyncropPostCompare.SYNCED;
+				}
+				else 
+					return SyncropPostCompare.SKIP;
+			else if(localFile.exists()&&!isLocalFileOlderVersion||!localFile.exists()&&!isLocalFileOlderVersion)
+				return SyncropPostCompare.SYNC_METADATA;
+			else
+				if (remoteFileExists)//local doesn't
+					return SyncropPostCompare.DOWNLOAD_REMOTE_FILE;
+				else {
+					localFile.delete(remoteDateMod);
+					return SyncropPostCompare.SYNCED;
+				}
+		else if(localFile.isInConflictWith(remoteKey,remoteLength,remoteUpdatedSinceLastUpdate)){
+			if(Settings.getConflictResolution()!=Settings.LOCAL_FILE_ALWAYS_WINS&&
+					(Settings.getConflictResolution()==Settings.LOCAL_FILE_ALWAYS_LOSES||
+					isLocalFileOlderVersion)){
+				
+				if(bytes!=null&&Arrays.equals(localFile.readAllBytesFile(),bytes)){
+					if(localFile instanceof SyncropFile)
+						((SyncropFile) localFile).mergeMetadata(remoteDateMod, remoteKey);
+					return SyncropPostCompare.SYNCED;
+				}
+				((SyncropFile)localFile).makeConflict();
+				return SyncropPostCompare.DOWNLOAD_REMOTE_FILE;
+			}
+			else 
+				return SyncropPostCompare.SEND_LOCAL_FILE;
+		}
+		else 
+			return merger(localFile, remoteFileExists, remoteDateMod, remoteKey, linkTarget, isLocalFileOlderVersion, isLocalFileNewerVersion);
+		
+		
+		
+	}
+	private static SyncropPostCompare merger(SyncropItem localFile,boolean remoteFileExists,long remoteDateMod,long remoteKey,String linkTarget,boolean isLocalFileOlderVersion,boolean isLocalFileNewerVersion){
+		//create files incase of tie
+		if(remoteFileExists&&localFile.exists()){
+			if(isLocalFileOlderVersion)//remote is "newer" copy
+				return SyncropPostCompare.DOWNLOAD_REMOTE_FILE;
+			else if (isLocalFileNewerVersion)
+				return SyncropPostCompare.SEND_LOCAL_FILE;
+			else return SyncropPostCompare.SKIP;
+		}
+		//only one exists
+		else 
+			if(remoteFileExists)
+				if(!isLocalFileNewerVersion)//remote is "newer" copy
+					return SyncropPostCompare.DOWNLOAD_REMOTE_FILE;
+				else return SyncropPostCompare.SEND_LOCAL_FILE;
+			else //local file exists
+				if(!isLocalFileOlderVersion)//local is "newer" copy
+					return SyncropPostCompare.SEND_LOCAL_FILE;
+				else {
+					localFile.delete(remoteDateMod);
+					return SyncropPostCompare.DOWNLOAD_REMOTE_FILE;
+				}
 	}
 }

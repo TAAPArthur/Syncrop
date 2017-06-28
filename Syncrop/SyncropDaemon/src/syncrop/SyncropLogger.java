@@ -16,6 +16,7 @@ import java.util.logging.LogRecord;
 import java.util.logging.SimpleFormatter;
 
 import daemon.client.SyncropClientDaemon;
+import notification.Notification;
 
 public class SyncropLogger implements logger.Logger{
     
@@ -121,6 +122,7 @@ public class SyncropLogger implements logger.Logger{
 	 */
 	public void logError(Throwable t,String description){
 		log(t.toString()+" occured when "+description,LOG_LEVEL_ERROR,t);
+		Notification.displayNotification(LOG_LEVEL_ERROR, t.getMessage(),description);
 	}
 	/**
 	 * 
@@ -130,6 +132,7 @@ public class SyncropLogger implements logger.Logger{
 	 */
 	public void logFatalError(Throwable t,String description){
 		log(t.toString()+" occured when "+description,LOG_LEVEL_FATAL,t);
+		Notification.displayNotification(LOG_LEVEL_FATAL, t.getMessage(),description);
 	}
 	
 	public void log(String message){
@@ -218,7 +221,8 @@ public class SyncropLogger implements logger.Logger{
 	
 	@Override
 	public void logError(Throwable t) {
-		logError(t, "");		
+		logError(t, "");
+		
 	}
 	
 	public SimpleDateFormat getDateTimeFormat(){return dateTimeFormat;}

@@ -1,13 +1,6 @@
 package daemon.cloud;
 
-
-import static file.SyncROPItem.INDEX_DATE_MODIFIED;
-import static file.SyncROPItem.INDEX_EXISTS;
-import static file.SyncROPItem.INDEX_KEY;
-import static file.SyncROPItem.INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE;
-import static file.SyncROPItem.INDEX_PATH;
-import static file.SyncROPItem.INDEX_SIZE;
-import static file.SyncROPItem.INDEX_SYMBOLIC_LINK_TARGET;
+import static file.SyncropItem.INDEX_PATH;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,10 +22,8 @@ import account.Account;
 import authentication.Authenticator;
 import daemon.SyncDaemon;
 import daemon.client.SyncropClientDaemon;
-import file.SyncROPDir;
-import file.SyncROPFile;
-import file.SyncROPItem;
-import file.SyncROPSymbolicLink;
+import file.SyncropFile;
+import file.SyncropItem;
 import listener.FileWatcher;
 import message.Message;
 import server.InternalServer;
@@ -214,8 +205,8 @@ public final class SyncropCloud extends SyncDaemon
 	}
 
 	
-	
-	public void updateAllClients(SyncROPItem file,String targetToExclude){
+	@Override
+	public void updateAllClients(SyncropItem file,String targetToExclude){
 		if(!isConnectionActive())
 			return;
 		logger.logTrace("Updating to all clients "+file.getPath()+" excluding "+targetToExclude+" out of "+clients.size()+" users");
@@ -224,7 +215,7 @@ public final class SyncropCloud extends SyncDaemon
 			if(!key.equals(targetToExclude)&&file.getOwner().equals(clients.get(key).getAccountName()))
 				if(!clients.get(key).isPathRestricted(file.getPath())){
 					if(!updatedKey){
-						((SyncROPFile)file).updateKey();
+						((SyncropFile)file).updateKey();
 						file.save();
 						updatedKey=true;
 						
@@ -287,8 +278,8 @@ public final class SyncropCloud extends SyncDaemon
 		boolean removable=false;
 		//change standards; metadata in home"
 		while(removable=!removable){//regular vs removable
-			Iterable<SyncROPItem>items=FileMetadataManager.iterateThroughAllFileMetadata(user.getAccountName());
-			for (SyncROPItem item:items)
+			Iterable<SyncropItem>items=FileMetadataManager.iterateThroughAllFileMetadata(user.getAccountName());
+			for (SyncropItem item:items)
 				if(item.isEnabled())
 					syncFilesToClient(message.getUserID(),user,item);
 		}
@@ -297,7 +288,7 @@ public final class SyncropCloud extends SyncDaemon
 		
 	}
 		
-	void syncFilesToClient(final String id,SyncropUser user,SyncROPItem file){
+	void syncFilesToClient(final String id,SyncropUser user,SyncropItem file){
 		
 		if(!file.exists()||syncedFiles.get(id).contains(file.getPath())){
 			logger.logTrace("File would have already been synced"+file.getPath());
@@ -364,123 +355,28 @@ public final class SyncropCloud extends SyncDaemon
 			try {
 				final String path=(String)files[i][INDEX_PATH];
 				if(path==null)break;
+				ResourceManager.lockFile(path, owner);
 				if(syncedFiles.get(id).contains(path)){
 					logger.log("path has already been added to synced paths; path="+path);
 					continue;
 				}
-				SyncROPItem localFile=ResourceManager.getFile(path,owner);
-				if(!SyncROPFile.isValidFileName(path)||
-						(localFile!=null&&!localFile.isEnabled()))
-				{
-					logger.logWarning("Checking client files; File is not synced because it is not enabled"+localFile); 
-					continue;
-				}
-				logger.log("Comparing "+path,SyncropLogger.LOG_LEVEL_ALL);
-				
-				
-				Long clientDateMod=(Long)files[i][INDEX_DATE_MODIFIED];
-				long clientKey=(Long)files[i][INDEX_KEY];
-				boolean clientFileExists=(Boolean)(files[i][INDEX_EXISTS]);
-				String linkTarget=(String)(files[i][INDEX_SYMBOLIC_LINK_TARGET]);
-				boolean clientUpdatedSinceLastUpdate=(boolean)files[i][INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE];
-				long size=(long)files[i][INDEX_SIZE];
-				
-				boolean clientDir=clientKey==-1;
-				
-				
-				ResourceManager.lockFile(path, owner);
-				
-				if(localFile!=null &&localFile.isSymbolicLink()){
-					logger.log(localFile.toString());
-					logger.log(Arrays.asList(files[i]).toString());
-				}
-				boolean isLocalFileOlderVersion=isLocalFileOlderVersion(id,localFile, clientDateMod, clientKey, clientUpdatedSinceLastUpdate, linkTarget);
-				boolean isLocalFileNewerVersion=isLocalFileNewerVersion(id,localFile, clientDateMod, clientKey, clientUpdatedSinceLastUpdate, linkTarget);
-				//if client file is existing symbolic link
-				//and local file is non symbolic dir
-				//then do nothing
-				if(new File(ResourceManager.getAbsolutePath(path,owner)).isDirectory()&&
-						linkTarget!=null&&clientFileExists){}
-				//same thing but for client
-				else if(localFile!=null&&localFile.isSymbolicLink()&&
-						((SyncROPSymbolicLink)localFile).isTargetDir()&&
-						clientDir&&clientFileExists){}
-				//if both files exists and are links and point to same file
-				else if(localFile!=null&&localFile.exists()&&localFile.isSymbolicLink()&&
-						localFile.getTargetPath().equals(linkTarget)&&clientFileExists){}
-				else if(localFile!=null&&clientFileExists^localFile.exists()){
-					//create files incase of tie
-					if(clientFileExists)
-						if(!isLocalFileNewerVersion)//client is "newer" copy
-							if(clientDir){
-								localFile.createFile(clientDateMod);
-								localFile.save();
-								updateAllClients(localFile,id);
-							}
-							else filesToAddToDownload.add(path);
-						else filesToAddToDownload.add(path);
-					else //local file exists
-						if(!isLocalFileOlderVersion)//local is "newer" copy
-							fileTransferManager.addToSendQueue(localFile, id);
-						else if(localFile.isEmpty()){
-							localFile.delete(clientDateMod);
-							localFile.save();
-							updateAllClients(localFile,id);
-						}
-						else{
-							logger.log("Dir"+path+" would be deleted but it is no empty so perserving");
-							fileTransferManager.addToSendQueue(localFile, id);
-						}
-				}
-				else if(clientDir){
-					//keys do not need to be updated because dirs don't have keys
-					if(localFile==null)
-						localFile=new SyncROPDir(path, owner,clientDateMod);
-				
-					if(localFile instanceof SyncROPDir){
-						if(isLocalFileOlderVersion){
-							localFile.setDateModified(clientDateMod);
-							localFile.save();
-							updateAllClients(localFile,id);
-						}
-						else if(isLocalFileNewerVersion) 
-							fileTransferManager.addToSendQueue(localFile, id);
-					}
-					else {
-						logger.log("File/Directory conflict; "
-								+ "file is being made into a syncrop conflict path="+path);
-						((SyncROPFile) localFile).makeConflict();
-						localFile=new SyncROPDir(path, owner,clientDateMod);
-						localFile.createFile(clientDateMod);
+				SyncropItem localFile=ResourceManager.getFile(path,owner);
+				SyncropItem.SyncropPostCompare result= SyncropItem.compare(localFile, files[i]);
+				switch(result){
+					case SKIP:
+						continue;
+					case SYNC_METADATA:
+						sendMetadata(localFile, id);
+					case SYNCED:
 						localFile.save();
-					}
-				}
-				else {//files
-					if(localFile==null){
-						if(clientFileExists){
-							filesToAddToDownload.add(path);
-							logger.logTrace("local file is null, downloading file"+path);
-						}
-					}
-					else if(!localFile.isDiffrentVersionsOfSameFile( clientKey,size,clientUpdatedSinceLastUpdate)){
-						logger.logTrace(path+" local file "+(localFile.exists()?"exists":"")+" is newer"+isLocalFileNewerVersion+" "+!isLocalFileOlderVersion+
-								" "+clientKey+"->"+localFile.getKey()+" "+clientUpdatedSinceLastUpdate+" "+localFile.modifiedSinceLastKeyUpdate());
-						if(isLocalFileNewerVersion)
-							fileTransferManager.addToSendQueue(localFile,id);//send file to client
-						else if(isLocalFileOlderVersion)
-							if(clientFileExists)
-								filesToAddToDownload.add(path);
-							else {
-								localFile.delete(clientDateMod);
-								localFile.save();
-								updateAllClients(localFile, id);
-							}
-					}
-					else 
-						if(isLocalFileNewerVersion)
-							fileTransferManager.addToSendQueue(localFile,id);//send file to client
-						else if(isLocalFileOlderVersion)
-							filesToAddToDownload.add(path);
+						updateAllClients(localFile, id);
+						break;
+					case DOWNLOAD_REMOTE_FILE:
+						filesToAddToDownload.add(path);
+						break;
+					case SEND_LOCAL_FILE:
+						fileTransferManager.addToSendQueue(localFile, id);
+						break;
 				}
 				ResourceManager.unlockFile(path, owner);
 				listOfClientFiles.add(path);
@@ -595,7 +491,7 @@ public final class SyncropCloud extends SyncDaemon
 	
 	}
 	@Override
-	public void setPropperPermissions(SyncROPItem item,String filePermissions){
+	public void setPropperPermissions(SyncropItem item,String filePermissions){
 		try {
 			if(item==null){
 				logger.logWarning("item is null when trying to set permissions");
@@ -603,8 +499,6 @@ public final class SyncropCloud extends SyncDaemon
 			}
 			if(!item.exists())
 				return;	
-			if(item.isSymbolicLink())return;
-			//TODO check dir permission
 			
 			Set<PosixFilePermission>currentPermissions=Files.getPosixFilePermissions(item.getFile().toPath(),
 					LinkOption.NOFOLLOW_LINKS);

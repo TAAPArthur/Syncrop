@@ -1,6 +1,6 @@
 package transferManager.queue;
 
-import file.SyncROPItem;
+import file.SyncropItem;
 import settings.Settings;
 
 public class QueueMember implements Comparable<QueueMember>{
@@ -11,7 +11,7 @@ public class QueueMember implements Comparable<QueueMember>{
 	private long dateModified;
 	private int fileSizeTier;
 	
-	public QueueMember(SyncROPItem fileToAddToQueue,String target){
+	public QueueMember(SyncropItem fileToAddToQueue,String target){
 		this(fileToAddToQueue.getPath(),fileToAddToQueue.getOwner(),fileToAddToQueue.getDateModified(), target,fileToAddToQueue.getSize());
 	}
 	private QueueMember(String path,String owner,long dateModifed,String target,long size){

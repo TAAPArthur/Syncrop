@@ -70,7 +70,7 @@ public class SettingsManager {
 			this.type=type;
 		}
 		public String toString(){
-			return getName()+":"+getFormattedValue();
+			return getName()+"="+getFormattedValue();
 		}
 		public String getName(){return name();}
 		public String getTitle(){return title;}
@@ -193,7 +193,7 @@ public class SettingsManager {
 		if(line.contains("#"))
 			line=line.substring(0,line.indexOf("#"));
 		if(line.isEmpty())return;
-		String s[]=line.split(":",2);
+		String s[]=line.split("=",2);
 		if(s.length==1)return;
 		s[0]=s[0].trim().toUpperCase();		
 		s[1]=s[1].trim();
@@ -236,7 +236,7 @@ public class SettingsManager {
 		PrintWriter out=new PrintWriter(getSettingsFile());
 		for(Options option:Options.values())
 			if(option.getOptionType()!=TYPE_CLOUD)
-				out.println((comment?"#":"")+option.name()+":"+option.getFormattedValue());
+				out.println((comment?"#":"")+option.name()+"="+option.getFormattedValue());
 		out.close();
 	}
 	

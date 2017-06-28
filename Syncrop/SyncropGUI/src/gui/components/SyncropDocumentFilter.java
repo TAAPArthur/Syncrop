@@ -6,7 +6,7 @@ import javax.swing.text.AttributeSet;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.DocumentFilter;
 
-import file.SyncROPItem;
+import file.SyncropItem;
 
 public class SyncropDocumentFilter extends DocumentFilter {
 	
@@ -35,7 +35,7 @@ public class SyncropDocumentFilter extends DocumentFilter {
 			Toolkit.getDefaultToolkit().beep();
 	}
 	boolean isValidInput(String str){
-		return !validateInput||SyncROPItem.isValidFileName(str);
+		return !validateInput||SyncropItem.isValidFileName(str);
 	}
 	String formatInput(String str){
 		if(!allowWhiteSpace)

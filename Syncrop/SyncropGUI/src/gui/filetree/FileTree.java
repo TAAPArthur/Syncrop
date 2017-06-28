@@ -30,7 +30,7 @@ import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
 
 import account.Account;
-import file.SyncROPItem;
+import file.SyncropItem;
 import syncrop.ResourceManager;
 
 
@@ -357,7 +357,7 @@ class SyncropTreeCellRender extends DefaultTreeCellRenderer{
 		boolean removable=false;
 		if(!account.getHome(true).startsWith(file.getAbsolutePath())&&!account.getHome(false).startsWith(file.getAbsolutePath()))
 			do{
-				if(!SyncROPItem.isValidFileName(file.getAbsolutePath())||account.isPathContainedInDirectory(file.getAbsolutePath().substring(account.getHome(removable).length()), removable)&&
+				if(!SyncropItem.isValidFileName(file.getAbsolutePath())||account.isPathContainedInDirectory(file.getAbsolutePath().substring(account.getHome(removable).length()), removable)&&
 					!account.isPathEnabled(file.getAbsolutePath().substring(account.getHome(removable).length()))){
 					c.setForeground(Color.RED);
 					break;

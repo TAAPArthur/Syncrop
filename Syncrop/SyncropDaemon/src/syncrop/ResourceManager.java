@@ -28,7 +28,7 @@ import org.json.simple.parser.ParseException;
 
 import account.Account;
 import file.Directory;
-import file.SyncROPItem;
+import file.SyncropItem;
 import settings.Settings;
 
 /** 
@@ -252,9 +252,9 @@ public class ResourceManager
 						String username=s[0];//name of account
 						String email=s[1];//email of account
 						boolean enabled=Boolean.parseBoolean(s[2]);
-						if(!SyncROPItem.isValidFileName(username))
+						if(!SyncropItem.isValidFileName(username))
 							logger.log("Account name:"+username+"  has an invalid char",SyncropLogger.LOG_LEVEL_WARN);
-						else if(!SyncROPItem.isValidFileName(email))
+						else if(!SyncropItem.isValidFileName(email))
 							logger.log("Account name:"+email+"  has an invalid char",SyncropLogger.LOG_LEVEL_WARN);
 						else {
 							File f=new File(getHome(username, false));
@@ -268,11 +268,11 @@ public class ResourceManager
 						String username=in.readLine();//name of account
 						String email=in.readLine();//email of account
 						String authToken=in.readLine();
-						if(!SyncROPItem.isValidFileName(username))
+						if(!SyncropItem.isValidFileName(username))
 							logger.log("Account name:"+username+"  has an invalid char",SyncropLogger.LOG_LEVEL_WARN);
-						else if(!SyncROPItem.isValidFileName(email))
+						else if(!SyncropItem.isValidFileName(email))
 							logger.log("Account name:"+email+"  has an invalid char",SyncropLogger.LOG_LEVEL_WARN);
-						else if(!SyncROPItem.isValidFileName(authToken))
+						else if(!SyncropItem.isValidFileName(authToken))
 							logger.log("Account name:"+email+"  has an invalid char");
 						else 
 							accounts.add(new Account(
@@ -338,12 +338,12 @@ public class ResourceManager
 		
 	}
 	
-	public static SyncROPItem getFile(String relativePath,String owner){
+	public static SyncropItem getFile(String relativePath,String owner){
 		return FileMetadataManager.getFile(relativePath, owner);
 	}	
 	
 	
-	public static  boolean deleteFile(SyncROPItem file){
+	public static  boolean deleteFile(SyncropItem file){
 		return FileMetadataManager.deleteFileMetadata(file);
 	}
 		
@@ -362,7 +362,7 @@ public class ResourceManager
 	public static boolean isLocked(String path,String owner){
 		return owner.equals(lockedOwner)&&path.equals(lockedPath);
 	}
-	public static void writeFile(SyncROPItem item){
+	public static void writeFile(SyncropItem item){
 		FileMetadataManager.updateFileMetadata(item);
 	}
 	

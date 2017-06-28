@@ -30,10 +30,10 @@ import daemon.SyncDaemon;
 import daemon.client.SyncropClientDaemon;
 import file.Directory;
 import file.RemovableDirectory;
-import file.SyncROPDir;
-import file.SyncROPFile;
-import file.SyncROPItem;
-import file.SyncROPSymbolicLink;
+import file.SyncropDir;
+import file.SyncropFile;
+import file.SyncropItem;
+import file.SyncropSymbolicLink;
 import settings.Settings;
 import syncrop.FileMetadataManager;
 import syncrop.ResourceManager;
@@ -78,13 +78,13 @@ public class FileWatcher extends Thread{
     }
     
     public static void checkMetadataForAllFiles(boolean perserveMetadataForDeletedFiles) throws IOException{
-    	Iterable<SyncROPItem>items=FileMetadataManager.iterateThroughAllFileMetadata(null);
-    	for(SyncROPItem item:items){
+    	Iterable<SyncropItem>items=FileMetadataManager.iterateThroughAllFileMetadata(null);
+    	for(SyncropItem item:items){
     		checkFileMetadata(item,perserveMetadataForDeletedFiles);
     	}
     	
     }
-    public static void checkFileMetadata(SyncROPItem file,boolean perserveMetadataForDeletedFiles){
+    public static void checkFileMetadata(SyncropItem file,boolean perserveMetadataForDeletedFiles){
 		if(file==null)return;
 		if(!file.isEnabled()){
 			file.deleteMetadata();
@@ -135,7 +135,7 @@ public class FileWatcher extends Thread{
 				Syncrop.sleep();
 			File file=new File(ResourceManager.getHome(a.getName(),removable),path);
 			
-			SyncROPItem item=ResourceManager.getFile(path, a.getName());
+			SyncropItem item=ResourceManager.getFile(path, a.getName());
 		
 			logger.log("Checking "+path,SyncropLogger.LOG_LEVEL_ALL);
 			
@@ -143,7 +143,7 @@ public class FileWatcher extends Thread{
 				if(Files.isSymbolicLink(file.toPath())){
 					if(item==null){	
 						try {
-							item=SyncROPSymbolicLink.getInstance(path, a.getName(), file);
+							item=SyncropSymbolicLink.getInstance(path, a.getName(), file);
 						} catch (IOException e) {
 							logger.logError(e);
 							return;
@@ -162,7 +162,7 @@ public class FileWatcher extends Thread{
 						//IF cannot read sub dirs
 						if(files==null)continue;
 						if(item==null){
-							item=new SyncROPDir(path,a.getName(),file.lastModified());
+							item=new SyncropDir(path,a.getName(),file.lastModified());
 						}					
 						register(file.toPath(),path,a, removable);
 						for(String f:file.list())
@@ -173,7 +173,7 @@ public class FileWatcher extends Thread{
 					}
 				}
 				else if(item==null){	
-					item=new SyncROPFile(path,a.getName());
+					item=new SyncropFile(path,a.getName());
 					if(!item.isEnabled())return;
 					logger.logTrace("detected new file "+path);
 				}
@@ -181,8 +181,8 @@ public class FileWatcher extends Thread{
 				if(item.hasBeenUpdated()){
 					onFileChange(item,item.getAbsPath());
 				
-					if(SyncDaemon.isInstanceOfCloud()&&item instanceof SyncROPFile)
-						((SyncROPFile)item).updateKey();
+					if(SyncDaemon.isInstanceOfCloud()&&item instanceof SyncropFile)
+						((SyncropFile)item).updateKey();
 					item.save();
 					
 					if(daemon!=null){
@@ -290,7 +290,7 @@ public class FileWatcher extends Thread{
 		
 		File file=new File(ResourceManager.getHome(dir.getAccountName(), dir.isRemovable()),path);
 		
-		SyncROPItem item=ResourceManager.getFile(path, dir.getAccountName());
+		SyncropItem item=ResourceManager.getFile(path, dir.getAccountName());
 		//if(!(file.isDirectory()&&e.kind()==ENTRY_MODIFY)&&logger.isLogging(Logger.LOG_LEVEL_ALL))
 		//	logger.log("Detected change in file "+file+" "+e.kind(),Logger.LOG_LEVEL_ALL);
 		if(!dir.getAccount().isPathEnabled(path))return;
@@ -320,7 +320,7 @@ public class FileWatcher extends Thread{
 	
 	}
 
-	void onModify(WatchedDir dir,String path,File file,SyncROPItem item){
+	void onModify(WatchedDir dir,String path,File file,SyncropItem item){
 		if(item==null)
 			onCreate(dir, path, file, item);
 		else
@@ -331,12 +331,12 @@ public class FileWatcher extends Thread{
 				item.save();
 			}
 	}
-	void onCreate(WatchedDir dir,String path,File file,SyncROPItem item){
+	void onCreate(WatchedDir dir,String path,File file,SyncropItem item){
 		String owner=dir.getAccountName();
 		if(item==null){
 			if(Files.isSymbolicLink(file.toPath())){
 				try {
-					item=SyncROPSymbolicLink.getInstance(path,dir.getAccountName(), file);
+					item=SyncropSymbolicLink.getInstance(path,dir.getAccountName(), file);
 				} catch (IOException e) {
 					logger.logError(e);
 				}				
@@ -344,9 +344,9 @@ public class FileWatcher extends Thread{
 			}
 			else if(file.isDirectory()){
 				if(file.list().length==0)
-					item=new SyncROPDir(path, owner);						
+					item=new SyncropDir(path, owner);						
 			}
-			else item=new SyncROPFile(path, owner);
+			else item=new SyncropFile(path, owner);
 			
 			if(item!=null){
 				if(Syncrop.isInstanceOfCloud())
@@ -369,7 +369,7 @@ public class FileWatcher extends Thread{
 	
 	
 	
-	void onDelete(WatchedDir dir,String relativePath,File file,SyncROPItem item,final long timestamp) throws IOException{
+	void onDelete(WatchedDir dir,String relativePath,File file,SyncropItem item,final long timestamp) throws IOException{
 		if(file.exists()){
 			logger.logTrace("file exists; deletion canceled");
 			return;
@@ -381,12 +381,12 @@ public class FileWatcher extends Thread{
 		String owner=dir.getAccountName();
 		
 		if(!item.isDeletionRecorded()){
-			Iterable<SyncROPItem>items=FileMetadataManager.getFilesStartingWith(relativePath, owner);
-			for(SyncROPItem itemKids:items)
+			Iterable<SyncropItem>items=FileMetadataManager.getFilesStartingWith(relativePath, owner);
+			for(SyncropItem itemKids:items)
 				recordFileDeletion(itemKids, timestamp-1);
 			//recordFileDeletion(item, timestamp);
 						
-			if(item instanceof SyncROPDir)
+			if(item instanceof SyncropDir)
 				if(keyMap.containsKey(item.getFile().toPath())){
 					logger.log("canceling key for"+item);
 					keys.remove(keyMap.get(item.getFile().toPath()));
@@ -397,7 +397,7 @@ public class FileWatcher extends Thread{
 	}
 	
 	
-	private void recordFileDeletion(SyncROPItem item,final long timeOfDelete){
+	private void recordFileDeletion(SyncropItem item,final long timeOfDelete){
 		if(item==null)return;
 		if(item.exists())
 			return;
@@ -413,8 +413,8 @@ public class FileWatcher extends Thread{
 		
 	}
 	
-	public void onFileChange(SyncROPItem item,String path){onFileChange(item,path,StandardWatchEventKinds.ENTRY_MODIFY);}
-	public void onFileChange(SyncROPItem item,String absPath,WatchEvent.Kind<?>  kind){
+	public void onFileChange(SyncropItem item,String path){onFileChange(item,path,StandardWatchEventKinds.ENTRY_MODIFY);}
+	public void onFileChange(SyncropItem item,String absPath,WatchEvent.Kind<?>  kind){
 		try {
 			if(Settings.allowScripts())
 				for(Command c:commands)
@@ -429,7 +429,7 @@ public class FileWatcher extends Thread{
 		}
 	}
 	
-	public void updateAccountSize(Account account, File file,SyncROPItem item){
+	public void updateAccountSize(Account account, File file,SyncropItem item){
 		if(item==null)
 			account.setRecordedSize(account.getRecordedSize()+file.length());
 		else 

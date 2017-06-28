@@ -8,12 +8,14 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashSet;
 
+import javax.net.ssl.SSLHandshakeException;
+
 import account.Account;
 import client.SecondaryClient;
 import daemon.SyncDaemon;
 import daemon.cloud.SyncropCloud;
 import file.Directory;
-import file.SyncROPItem;
+import file.SyncropItem;
 import logger.Logger;
 import message.Message;
 import settings.Settings;
@@ -139,10 +141,16 @@ public class SyncropClientDaemon extends SyncDaemon{
 						logger.log(e.toString()+"; The Server is not running");
 					lastConnectionFailedMessage=-3;
 				}
-				catch (IOException e){
+				catch (SSLHandshakeException e){
+					e.printStackTrace();
 					if(lastConnectionFailedMessage!=-4)
-						logger.log(e.toString()+" occured while trying to connect to Server");
+						logger.log(e.toString());
 					lastConnectionFailedMessage=-4;
+				}
+				catch (IOException e){
+					if(lastConnectionFailedMessage!=-5)
+						logger.log(e.toString()+" occured while trying to connect to Server");
+					lastConnectionFailedMessage=-5;
 				}
 				finally {
 					if(mainClient==null||!mainClient.isConnectedToServer()){
@@ -300,9 +308,9 @@ public class SyncropClientDaemon extends SyncDaemon{
 		Account a=ResourceManager.getAccount();
 		
 		for(Directory dir:a.getDirectories())
-			set.add(isNotWindows()?dir.getDir():SyncROPItem.toLinuxPath(dir.getDir()));
+			set.add(isNotWindows()?dir.getDir():SyncropItem.toLinuxPath(dir.getDir()));
 		for(String s:a.getRemovableDirectoriesThatExists())
-			set.add(isNotWindows()?s:SyncROPItem.toLinuxPath(s));
+			set.add(isNotWindows()?s:SyncropItem.toLinuxPath(s));
 		logger.log("Starting sync started: "+set);
 		syncFilesToCloud(set.toArray(new String[set.size()]));
 		
@@ -321,8 +329,8 @@ public class SyncropClientDaemon extends SyncDaemon{
 		
 		final ArrayList<Object[]> message=new ArrayList<Object[]>();
 		mainClient.printMessage(pathsToSync, HEADER_SET_ENABLED_PATHS);
-		Iterable<SyncROPItem>items=FileMetadataManager.iterateThroughAllFileMetadata(null);
-		for (SyncROPItem item:items)
+		Iterable<SyncropItem>items=FileMetadataManager.iterateThroughAllFileMetadata(null);
+		for (SyncropItem item:items)
 			syncFilesToCloud(item,message);
 		
 
@@ -345,7 +353,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 * @param message the messages in queue to be sent; When messages are sent, this list is cleared
 	 * @throws IOException 
 	 */
-	private void syncFilesToCloud(SyncROPItem file,final ArrayList<Object[]> message) throws IOException{
+	private void syncFilesToCloud(SyncropItem file,final ArrayList<Object[]> message) throws IOException{
 
 		if(Syncrop.isShuttingDown())
 			throw new SyncropCloseException();
@@ -362,7 +370,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 		
 		if(file.hasBeenUpdated())
 			file.save();
-		message.add(file.formatFileIntoSyncData());
+		message.add(file.toSyncData());
 	
 			
 		if(message.size()==maxTransferSize){

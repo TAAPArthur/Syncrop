@@ -22,7 +22,7 @@ import javax.swing.JOptionPane;
 import file.Directory;
 import file.RemovableDirectory;
 import file.Restriction;
-import file.SyncROPItem;
+import file.SyncropItem;
 import logger.Logger;
 import settings.Settings;
 import syncrop.RecursiveDeletionFileVisitor;
@@ -99,9 +99,7 @@ public class Account
 	 * The path given should be the absolute path
 	 */
 	private HashSet<Restriction> restrictions = new HashSet<Restriction>();
-	
-	private static HashSet<Restriction>universalRestrictions= new HashSet<Restriction>();
-	
+		
 	/**
 	 * A tab separated list of the default restrictions. The default resticts aren't
 	 * added when using the default constructor. 
@@ -270,7 +268,7 @@ public class Account
 				i--;
 				//removableDirectories.add(new Directory(dirsToAdd[i], false));
 			}
-			else if(!SyncROPItem.isValidFileName(dirsToAdd[i]))
+			else if(!SyncropItem.isValidFileName(dirsToAdd[i]))
 			{
 				dirsToAdd[i]=removeIllegalChars(dirsToAdd[i], "Removable Directory");
 				i--;
@@ -341,24 +339,9 @@ public class Account
 	public boolean isPathEnabled(final String path)
 	{
 		boolean removable=ResourceManager.isFileRemovable(path);
-		/*TODO
-		if(!isEnabled())
-		{
-			logger.logDebug("path "+path+
-				" is not considered enabled by Account"+getName()+" because the account is not enabled");
+		
+		if(!isPathContainedInDirectory(path,removable))
 			return false;
-		}*/
-		boolean dirIsOwned=isPathContainedInDirectory(path,removable);
-		
-		if(!dirIsOwned)
-			return false;
-		
-		
-		
-		for(Directory dir:Account.universalRestrictions)
-			if(dir.isPathContainedInDirectory(ResourceManager.getAbsolutePath(path, getName())))
-				return false;
-		
 		
 		if(!Syncrop.isInstanceOfCloud())//cloud does not have restrictions
 			for(Directory dir:this.restrictions){

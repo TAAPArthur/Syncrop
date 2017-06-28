@@ -3,18 +3,18 @@ package file;
 import java.nio.file.Files;
 
 
-public class SyncROPDir extends SyncROPItem
+public class SyncropDir extends SyncropItem
 {
 	//TODO update readfile in readFile
 	
-	public SyncROPDir(String path,String owner)
+	public SyncropDir(String path,String owner)
 	{
 		this(path, owner, -1);
 	}
-	public SyncROPDir(String path,String owner,long modificicationDate){
+	public SyncropDir(String path,String owner,long modificicationDate){
 		this(path, owner, modificicationDate, -1,"");
 	}
-	public SyncROPDir(String path,String owner,long modificicationDate,long lastRecordedSize,String filePermisions){
+	public SyncropDir(String path,String owner,long modificicationDate,long lastRecordedSize,String filePermisions){
 		super(path, owner, modificicationDate,false,lastRecordedSize,filePermisions);
 		if(exists()&&!Files.isDirectory(file.toPath())){
 			throw new IllegalArgumentException("path "+path+"  does not denote"

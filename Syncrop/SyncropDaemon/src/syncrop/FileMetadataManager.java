@@ -18,10 +18,10 @@ import java.util.Properties;
 import org.sqlite.SQLiteConfig.JournalMode;
 import org.sqlite.SQLiteConfig.Pragma;
 
-import file.SyncROPDir;
-import file.SyncROPFile;
-import file.SyncROPItem;
-import file.SyncROPSymbolicLink;
+import file.SyncropDir;
+import file.SyncropFile;
+import file.SyncropItem;
+import file.SyncropSymbolicLink;
 
 public class FileMetadataManager {
 	static final String TABLE_NAME= "FileInfo";
@@ -87,7 +87,7 @@ public class FileMetadataManager {
 			System.exit(0);
 		}
 	}
-	static boolean deleteFileMetadata(SyncROPItem item){
+	static boolean deleteFileMetadata(SyncropItem item){
 		return deleteFileMetadata(item.getPath(), item.getOwner());
 	}
 	static boolean deleteFileMetadata(String path,String owner){
@@ -107,7 +107,7 @@ public class FileMetadataManager {
 		}
 		return false;
 	}
-	static synchronized boolean updateFileMetadata(SyncROPItem item){
+	static synchronized boolean updateFileMetadata(SyncropItem item){
 		try {					
 			//Connection conn=getNewConnectionInstance(false);
 			PreparedStatement prep = conn.prepareStatement(
@@ -132,7 +132,7 @@ public class FileMetadataManager {
 	}
 	
 	
-	public static Iterable<SyncROPItem> iterateThroughAllFileMetadata(String owner){
+	public static Iterable<SyncropItem> iterateThroughAllFileMetadata(String owner){
 		String query="SELECT * FROM "+TABLE_NAME+" "+
 				(owner!=null&&Syncrop.isInstanceOfCloud()?"WHERE Owner='Owner'":"")
 				+"ORDER BY Path DESC;";
@@ -142,7 +142,7 @@ public class FileMetadataManager {
 
 			ResultSet rs = statement.executeQuery(query);
 			
-			LinkedList<SyncROPItem>items=new LinkedList<>();
+			LinkedList<SyncropItem>items=new LinkedList<>();
 			int count=0;
 			while (rs.next()){
 				if(count++%100==0)Syncrop.sleepShort();
@@ -157,7 +157,7 @@ public class FileMetadataManager {
 		}
 		return null;
 	}
-	public static LinkedList<SyncROPItem> getFilesStartingWith(String relativePath,String owner) {
+	public static LinkedList<SyncropItem> getFilesStartingWith(String relativePath,String owner) {
 		ResultSet rs=null;
 		String query="SELECT * FROM "+TABLE_NAME
 				+ " WHERE Path LIKE ? "
@@ -169,7 +169,7 @@ public class FileMetadataManager {
 			preparedStatement.setString(1, relativePath+"%");
 			
 			rs = preparedStatement.executeQuery();
-			LinkedList<SyncROPItem>items=new LinkedList<>();
+			LinkedList<SyncropItem>items=new LinkedList<>();
 			int count=0;
 			while (rs.next()){
 				if(count++%100==0)Syncrop.sleepShort();
@@ -184,10 +184,10 @@ public class FileMetadataManager {
         return null;
 		
 	}
-	public static SyncROPItem getFile(String relativePath,String owner) {
+	public static SyncropItem getFile(String relativePath,String owner) {
 		ResultSet rs=null;
 		
-		SyncROPItem item=null;
+		SyncropItem item=null;
 		String query="SELECT * FROM "+TABLE_NAME
 				+ " WHERE Path=? "
 				+(owner!=null&&Syncrop.isInstanceOfCloud()?"AND Owner='"+owner+"'":"")+";";
@@ -210,7 +210,7 @@ public class FileMetadataManager {
         return null;
 		
 	}
-	private static SyncROPItem getFile(ResultSet rs) throws SQLException{
+	private static SyncropItem getFile(ResultSet rs) throws SQLException{
 		String path=rs.getString(1);
 		String owner=rs.getString(2);
 		long dateModified=rs.getLong(3);
@@ -220,17 +220,17 @@ public class FileMetadataManager {
 		long lastRecordedSize=rs.getLong(6);
 		String filePermissions=	rs.getString(7);
 		File f=new File(getAbsolutePath(path, owner));
-		SyncROPItem file=null;
+		SyncropItem file=null;
 		try {
 			if(Files.isSymbolicLink(f.toPath())){
 				try {
-					file = SyncROPSymbolicLink.getInstance(path,owner,dateModified,key,modifedSinceLastKeyUpdate,lastRecordedSize,filePermissions,f);
+					file = SyncropSymbolicLink.getInstance(path,owner,dateModified,key,modifedSinceLastKeyUpdate,lastRecordedSize,filePermissions,f);
 				} catch (IOException e) {logger.logError(e);}
 			}
 			else if(isDir)
-				file = new SyncROPDir(path, owner,dateModified,lastRecordedSize,filePermissions);
+				file = new SyncropDir(path, owner,dateModified,lastRecordedSize,filePermissions);
 			else 
-				file=new SyncROPFile(path, owner,dateModified,key,modifedSinceLastKeyUpdate,lastRecordedSize,filePermissions);
+				file=new SyncropFile(path, owner,dateModified,key,modifedSinceLastKeyUpdate,lastRecordedSize,filePermissions);
 
 			return file;
 		} catch (IllegalArgumentException e) {

@@ -11,7 +11,7 @@ import syncrop.ResourceManager;
 import syncrop.Syncrop;
 import account.Account;
 import file.RemovableDirectory;
-import file.SyncROPDir;
+import file.SyncropDir;
 
 /**
  * 
@@ -71,7 +71,7 @@ public class RemovableFileWatcher implements Runnable{
 		if(logger.isDebugging())
 			logger.log("Syncing removable dir"+path+"; active removable dirs= "+activeRemovaleDirs);
 		if(!isNotWindows())
-			path=SyncROPDir.toLinuxPath(path);
+			path=SyncropDir.toLinuxPath(path);
 		
 		logger.log("Syncing newly added removable dirs");
 		

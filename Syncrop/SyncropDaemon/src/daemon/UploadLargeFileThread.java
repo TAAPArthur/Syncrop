@@ -12,20 +12,20 @@ import java.io.IOException;
 import java.nio.MappedByteBuffer;
 
 import daemon.client.SyncropClientDaemon;
-import file.SyncROPFile;
+import file.SyncropFile;
 import settings.Settings;
 import syncrop.Syncrop;
 import transferManager.FileTransferManager;
 
 public class UploadLargeFileThread extends Thread
 {
-	SyncROPFile file;
+	SyncropFile file;
 	String path;
 	String target;
 	int totalTimeOfTransfer;
 	FileTransferManager fileTransferManager;
 	
-	public UploadLargeFileThread(SyncROPFile file,String target,FileTransferManager fileTransferManager)
+	public UploadLargeFileThread(SyncropFile file,String target,FileTransferManager fileTransferManager)
 	{
 		super("upload large file thread");
 		this.file=file; 
@@ -62,7 +62,7 @@ public class UploadLargeFileThread extends Thread
 			//mainClient.logs();
 			
 			long dateMod=file.getDateModified();
-			mainClient.printMessage(file.formatFileIntoSyncData(),HEADER_REQUEST_LARGE_FILE_DOWNLOAD_START,target);
+			mainClient.printMessage(file.toSyncData(),HEADER_REQUEST_LARGE_FILE_DOWNLOAD_START,target);
 			logger.log("wait time:"+fileTransferManager.getDaemon().getExpectedFileTransferTime());
 			SyncropClientDaemon.sleep(fileTransferManager.getDaemon().getExpectedFileTransferTime());
 			
@@ -101,10 +101,10 @@ public class UploadLargeFileThread extends Thread
 					map.get(bytes, 0, bytes.length);
 									
 					//sends the packet or sends the packet with a signal that the upload is finished
-					mainClient.printMessage(file.formatFileIntoSyncData(bytes),HEADER_REQUEST_LARGE_FILE_DOWNLOAD,target);				
+					mainClient.printMessage(file.toSyncData(bytes),HEADER_REQUEST_LARGE_FILE_DOWNLOAD,target);				
 				}
 			}
-			mainClient.printMessage(file.formatFileIntoSyncData(),HEADER_REQUEST_END_LARGE_FILE_DOWNLOAD,target);
+			mainClient.printMessage(file.toSyncData(),HEADER_REQUEST_END_LARGE_FILE_DOWNLOAD,target);
 			logger.log("done total time:"+(System.currentTimeMillis()-startTime)/1000.0+"s");
 			Syncrop.sleep();
 		}
