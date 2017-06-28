@@ -108,7 +108,7 @@ public final class SyncropCloud extends SyncDaemon
 					logger.log("Closing server socket");
 					((Server) mainClient).close();
 				}
-				mainClient=new InternalServer(Server.UNLIMITED_CONNECTIONS, Settings.getPort(), logger,getUsername(),application,Settings.isSSLConnection());
+				mainClient=new InternalServer(Server.UNLIMITED_CONNECTIONS, Settings.isSSLConnection()?Settings.getSSLPort():Settings.getPort(), logger,getUsername(),application,Settings.isSSLConnection());
 			} catch (IOException e) {
 				if(!triedToConnectToServer){
 					logger.log("Could not connect to server");

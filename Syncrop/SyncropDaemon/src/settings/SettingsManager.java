@@ -195,7 +195,7 @@ public class SettingsManager {
 		if(line.isEmpty())return;
 		String s[]=line.split("=",2);
 		if(s.length==1)return;
-		s[0]=s[0].trim().toUpperCase();		
+		s[0]=s[0].trim().toUpperCase();
 		s[1]=s[1].trim();
 		String name=s[0];
 		String value=s[1];
