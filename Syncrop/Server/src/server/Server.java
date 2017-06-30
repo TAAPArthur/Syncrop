@@ -142,6 +142,7 @@ public abstract class Server
 	        } catch (IOException e) {
 	        	log("Could not listen on port: "+port);
 	            System.err.println("Could not listen on port: "+port+"; sleeping 10s");
+	            e.printStackTrace();
 	            try {
 					Thread.sleep(10000);
 				} catch (InterruptedException e1) {log(e1);}

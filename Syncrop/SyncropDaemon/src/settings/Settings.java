@@ -194,12 +194,14 @@ public class Settings {
 	}
 	public static void setKeyStore(String keyStore) {
 		System.setProperty("javax.net.ssl.keyStore", keyStore);
+		System.out.println("Setting keysore");
 	}
 	public static String getKeyStorePassword() {
 		return System.getProperty("javax.net.ssl.keyStorePassword");
 	}
 	public static void setKeyStorePassword(String keyStorePassword) {
 		System.setProperty("javax.net.ssl.keyStorePassword", keyStorePassword);
+		System.out.println("Setting keysore password");
 	}
 	
 }
