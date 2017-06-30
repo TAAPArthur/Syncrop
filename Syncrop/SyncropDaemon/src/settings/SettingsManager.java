@@ -47,7 +47,7 @@ public class SettingsManager {
 		ALLOW_ENCRYPTION("Allow Encryption",boolean.class,"getAllowEncription","setAllowEncription",TYPE_ADVANCED),
 		
 		CLOUD_HOME("Cloud Home Dir",String.class,"getCloudHomeDir","setCloudHomeDir",TYPE_CLOUD),
-		KEYSTORE("Keystore",String.class,"getKeystore","SetKeystore",TYPE_CLOUD),
+		KEYSTORE("Keystore",String.class,"getKeystore","setKeystore",TYPE_CLOUD),
 		KEYSTORE_PASSWORD("Keystore password",String.class,"getKeystorePassword","setKeystorePassword",TYPE_CLOUD),
 		
 		SYNC_HIDDEN_FILES("Sync Hidden Files",boolean.class,"canSyncHiddenFiles","setSyncHiddenFiles",TYPE_SIMPLE),
@@ -220,6 +220,8 @@ public class SettingsManager {
 					formattedValue=Integer.parseInt(value);
 			else if(option.getDataType().equals(boolean.class))
 				formattedValue=Boolean.parseBoolean(value);
+			else if(option.getDataType().equals(String.class))
+				formattedValue=(String)value;
 			else 
 				formattedValue=value;
 			option.setValue(formattedValue);
