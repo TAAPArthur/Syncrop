@@ -142,9 +142,11 @@ public class SyncropClientDaemon extends SyncDaemon{
 					lastConnectionFailedMessage=-3;
 				}
 				catch (SSLHandshakeException e){
-					e.printStackTrace();
-					if(lastConnectionFailedMessage!=-4)
-						logger.log(e.toString());
+					
+					if(lastConnectionFailedMessage!=-4){
+						logger.logError(e);
+						e.printStackTrace();
+					}
 					lastConnectionFailedMessage=-4;
 				}
 				catch (IOException e){

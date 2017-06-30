@@ -305,10 +305,8 @@ public class FileWatcher extends Thread{
 			return;
 		}
 		
-		if(item==null)
-			logger.log("Detected new file: "+file+" event: "+member.getKind());
-		else if(item.hasBeenUpdated())
-			logger.log("Detected change in file "+file+" event: "+member.getKind());
+		if(item==null||item.hasBeenUpdated())
+			logger.logTrace("Detected change in file "+file+" event: "+member.getKind());
 		
 		if(member.getKind()==ENTRY_CREATE)
 			onCreate(dir, path, file, item);

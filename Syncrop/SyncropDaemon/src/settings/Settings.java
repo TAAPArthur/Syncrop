@@ -15,6 +15,8 @@ public class Settings {
 	public static final int LOCAL_FILE_ALWAYS_LOSES=-1;
 	
 	private static String cloudHomeDir;
+	
+
 	/**
 	 * the maximum size of a file that can be sent. A file with a larger size will 
 	 * be considered disabled until its size is less than {@value #MAX_FILE_SIZE}
@@ -90,8 +92,6 @@ public class Settings {
 	 */
 	public static String getHost() {return host;}
 	public static void setHost(String host) {Settings.host=host;}
-
-	
 
 	/**
 	 * 
@@ -188,6 +188,18 @@ public class Settings {
 	}
 	public static void setIsLimitingCPU(boolean limitCPUUsage) {
 		Settings.limitCPUUsage = limitCPUUsage;
+	}
+	public static String getKeyStore() {
+		return System.getProperty("javax.net.ssl.keyStore");
+	}
+	public static void setKeyStore(String keyStore) {
+		System.setProperty("javax.net.ssl.keyStore", keyStore);
+	}
+	public static String getKeyStorePassword() {
+		return System.getProperty("javax.net.ssl.keyStorePassword");
+	}
+	public static void setKeyStorePassword(String keyStorePassword) {
+		System.setProperty("javax.net.ssl.keyStorePassword", keyStorePassword);
 	}
 	
 }

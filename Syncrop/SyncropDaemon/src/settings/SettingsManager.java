@@ -41,14 +41,14 @@ public class SettingsManager {
 		MAX_FILE_SIZE("Max File Size (MB)",long.class,"getMaxFileSize","setMaxFileSize",TYPE_ADVANCED),
 		MAX_TRANSFER_SIZE("Max Transfer Size (MB)",long.class,"getMaxTransferSize","setMaxTransferSize",TYPE_ADVANCED),
 		
-		
 		AUTO_QUIT("Auto Quit",boolean.class,"autoQuit","setAutoQuit",TYPE_ADVANCED),
 		WINDOWS_COMPATIBLE("Windows Compatible",boolean.class,"isWindowsCompatible","setWindowsCompatible",TYPE_ADVANCED),
 		ALLOW_SCRIPTS("Allow Scripts",boolean.class,"allowScripts","setAllowScripts",TYPE_ADVANCED),
 		ALLOW_ENCRYPTION("Allow Encryption",boolean.class,"getAllowEncription","setAllowEncription",TYPE_ADVANCED),
 		
 		CLOUD_HOME("Cloud Home Dir",String.class,"getCloudHomeDir","setCloudHomeDir",TYPE_CLOUD),
-		
+		KEYSTORE("Keystore",String.class,"getKeystore","SetKeystore",TYPE_CLOUD),
+		KEYSTORE_PASSWORD("Keystore password",String.class,"getKeystorePassword","setKeystorePassword",TYPE_CLOUD),
 		
 		SYNC_HIDDEN_FILES("Sync Hidden Files",boolean.class,"canSyncHiddenFiles","setSyncHiddenFiles",TYPE_SIMPLE),
 		ALLOW_CONFLICTS("Allow Conflicts",boolean.class,"isConflictsAllowed","setConflictsAllowed",TYPE_ADVANCED),
@@ -125,10 +125,9 @@ public class SettingsManager {
 		Settings.setPort(GenericClient.DEFAULT_PORT);
 		Settings.setSSLPort(GenericClient.DEFAULT_SSL_PORT);
 		Settings.setSSLConnection(true);
-		
 		Settings.setCloudHomeDir(File.separatorChar+"home/syncrop"+File.separatorChar);
 		Settings.setMaxFileSize(Integer.MAX_VALUE);
-		Settings.setMaxAccountSize(4*syncrop.Syncrop.GIGABYTE);
+		Settings.setMaxAccountSize(4*GIGABYTE);
 		Settings.setMaxTransferSize(MEGABYTE);
 		Settings.setNotificationLevel(SyncropLogger.LOG_LEVEL_INFO);
 		Settings.setAutoQuit(false);
