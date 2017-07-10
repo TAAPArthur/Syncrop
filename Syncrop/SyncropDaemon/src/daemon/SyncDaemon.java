@@ -21,6 +21,7 @@ import file.SyncropFile;
 import file.SyncropItem;
 import file.SyncropSymbolicLink;
 import listener.FileWatcher;
+import listener.actions.RemoveSyncropConflictsAction;
 import message.Message;
 import message.Messenger;
 import notification.Notification;
@@ -92,14 +93,14 @@ public abstract class SyncDaemon extends Syncrop{
 	
 	UploadLargeFileThread uploadLargeFileThread;
 	
-	public SyncDaemon(String instance) throws IOException{
+	public SyncDaemon(String instance,boolean clean) throws IOException{
 		super(instance);
 		Thread.currentThread().setPriority(Thread.MIN_PRIORITY);
 		
 		try
 		{
 			displayNotification(APPLICATION_NAME+" started");
-			init();
+			init(clean);
 		} 
 		catch (Exception|Error e) {
 			logger.logFatalError(e,"occured when starting Syncrop");
@@ -197,27 +198,27 @@ public abstract class SyncDaemon extends Syncrop{
 	 * initializes the SyncropDaemon; This SyncropDaemon is connected to server and has its listeners
 	 * and fileTransferManager started
 	 */
-	protected void init()
+	protected void init(boolean clean)
 	{
 		try 
 		{						
 			//TODO auto update option gui
 			//Updator.checkForUpdate();
 			fileWatcher.start();
-			checkFiles();
+			checkFiles(clean);
 			connectToServer();
 			startThreads();
 		} catch (Exception e) {
 			logger.logFatalError(e, "occured when initializing Syncrop");
 		}
 	}
-	protected void checkFiles ()throws IOException{
+	protected void checkFiles (boolean clean)throws IOException{
 		logger.logTrace("Checking files");
 		
 		if(Settings.allowScripts())
 			fileWatcher.loadCommandsToRunOnFileModification();
 		
-		fileWatcher.checkAllFiles();
+		fileWatcher.checkAllFiles(clean?new RemoveSyncropConflictsAction():null);
 		
 		System.gc();
 		

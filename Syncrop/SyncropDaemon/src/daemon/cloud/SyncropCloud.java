@@ -59,32 +59,24 @@ public final class SyncropCloud extends SyncDaemon
 	private final HashMap<String,HashSet<String>> syncedFiles=new HashMap<String,HashSet<String>>();;
 		
 	
-	public static void main (String args[]) throws IOException
-	{
-		String instance="";
-		if(args.length>0)
-			for(String s:args)
-				if(s.startsWith("-i"))
-					instance=s.substring(2).trim();
-
-		new SyncropCloud(instance);
-	}
-	
 	/**
 	 * Creates and starts an instance of SyncropDaemon that runs as a server and not
 	 * a client
 	 * @throws IOException 
 	 * @see SyncropClientDaemon#SyncropDaemon()
 	 */
-	public SyncropCloud(String instance) throws IOException{super(instance);}
+	public SyncropCloud(String instance,boolean clean) throws IOException{
+		super(instance,clean);
+	}
 	
 	public String getUsername(){
 		return CLOUD_USERNAME;
 	}
 	@Override
-	protected void checkFiles() throws IOException{
-		FileWatcher.checkMetadataForAllFiles(true);
-		super.checkFiles();
+	protected void checkFiles(boolean clean) throws IOException{
+		
+		super.checkFiles(clean);
+		FileWatcher.checkMetadataForAllFiles(!clean);
 	}
 	
 	@Override

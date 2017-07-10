@@ -5,6 +5,7 @@ import java.io.IOException;
 import daemon.client.SyncropClientDaemon;
 import daemon.cloud.SyncropCloud;
 import gui.SyncropGUI;
+import listener.FileWatcher;
 
 public class SyncropApplication {
 
@@ -13,7 +14,7 @@ public class SyncropApplication {
 		String instance="";
 		boolean startCloud=false;
 		boolean startGUI=false;
-		
+		boolean clean=false;
 		if(args!=null)
 			for(String s:args){
 				if(s.startsWith("-i"))
@@ -21,6 +22,9 @@ public class SyncropApplication {
 				else if(s.startsWith("-v")){
 					System.out.println(Syncrop.getVersionID());
 					System.exit(0);
+				}
+				else if (s.equals("clean")){
+					clean=true;					
 				}
 				else if (s.equals("--cloud"))
 					startCloud=true;
@@ -30,8 +34,8 @@ public class SyncropApplication {
 		if(startGUI)
 			new SyncropGUI(instance,startCloud);
 		else if(startCloud)
-			new SyncropCloud(instance);
-		else new SyncropClientDaemon(instance);
+			new SyncropCloud(instance,clean);
+		else new SyncropClientDaemon(instance,clean);
 
 	}
 

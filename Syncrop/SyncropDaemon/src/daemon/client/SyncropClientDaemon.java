@@ -48,8 +48,9 @@ public class SyncropClientDaemon extends SyncDaemon{
 				if(s.startsWith("-i"))
 					instance=s.substring(2).trim();
 				
-		new SyncropClientDaemon(instance);
+		new SyncropClientDaemon(instance,false);
 	}
+	
 	/**
 	 * kills the application
 	 */
@@ -64,9 +65,9 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 * @throws IOException 
 	 * @see SyncropCloud#Cloud()
 	 */
-	public SyncropClientDaemon(String instance) throws IOException
+	public SyncropClientDaemon(String instance,boolean clean) throws IOException
 	{
-		super(instance);
+		super(instance,clean);
 	}
 	/**
 	 * {@inheritDoc}
@@ -75,11 +76,11 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 * communicate with a potential GUI.
 	 */
 	@Override
-	public void init(){
+	public void init(boolean clean){
 		communication=new SyncropCommunication(this);
 		communication.start();
 		if(!isShuttingDown())
-			super.init();
+			super.init(clean);
 	}
 	/**
 	 * Attempts a connection to Cloud and waits until one is made, authenticated and

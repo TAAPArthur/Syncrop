@@ -68,13 +68,12 @@ public class FileMetadataManager {
 			//Connection conn=getNewReadOnlyConnectionInstance();
 			Statement stat = conn.createStatement();
 			
-			
+			logger.log("Creating database");
 	        stat.executeUpdate("CREATE TABLE IF NOT EXISTS "+TABLE_NAME+
-	        		" ( ID INT UNSIGNED PRIMARY KEY AUTO_INCREMENT, "
-	        		+ "Path Text,Owner Varchar(25), DateModified INT UNSIGNED, "
-	        		+ "`Key` INT UNSIGNED, ModifiedSinceLastKeyUpdate Boolean, "
+	        		" ( Path Varchar (255) PRIMARY KEY ,Owner Varchar(25), DateModified INT UNSIGNED, "
+	        		+ "`SyncropKey` INT UNSIGNED, ModifiedSinceLastKeyUpdate Boolean, "
 	        		+ "LastRecordedSize INT UNSIGNED,FilePermissions SMALLINT,"
-	        		+ "Exists Boolean) ;");
+	        		+ "`FileExists` Boolean ) ;");
 	        stat.close();
 	        
 	        //conn.close();
@@ -107,10 +106,10 @@ public class FileMetadataManager {
 		try {					
 			//Connection conn=getNewConnectionInstance(false);
 			PreparedStatement prep = conn.prepareStatement(
-		            "REPLACE into "+TABLE_NAME+" (`Path`, `Owner`, `DateModified`, `Key`,"
+		            "REPLACE INTO "+TABLE_NAME+" (`Path`, `Owner`, `DateModified`, `SyncropKey`,"
 		            		+ " `ModifiedSinceLastKeyUpdate`, `LastRecordedSize`, "
-		            		+ "`FilePermissions`) "
-		            		+ "VALUES (?,?,?,?,?,?,?);");
+		            		+ "`FilePermissions`, `FileExists`) "
+		            		+ "VALUES (?,?,?,?,?,?,?,?);");
 			prep.setString(1, item.getPath());
 			prep.setString(2, item.getOwner());
 			prep.setLong(3, item.getDateModified()/1000);
@@ -118,6 +117,7 @@ public class FileMetadataManager {
 			prep.setBoolean(5, item.modifiedSinceLastKeyUpdate());
 			prep.setLong(6, item.getSize());
 			prep.setInt(7, item.getFilePermissions());
+			prep.setBoolean(8, item.exists());
 			prep.addBatch();
 			prep.executeBatch();
 			prep.close();
@@ -156,6 +156,7 @@ public class FileMetadataManager {
 		}
 		return null;
 	}
+
 	public static LinkedList<SyncropItem> getFilesStartingWith(String relativePath,String owner) {
 		ResultSet rs=null;
 		String query="SELECT * FROM "+TABLE_NAME
@@ -186,7 +187,7 @@ public class FileMetadataManager {
 	}
 	public static SyncropItem getFile(String relativePath,String owner) {
 		ResultSet rs=null;
-		
+		logger.logAll("Getting file: "+relativePath);
 		SyncropItem item=null;
 		String query="SELECT * FROM "+TABLE_NAME
 				+ " WHERE Path=? "
@@ -211,15 +212,15 @@ public class FileMetadataManager {
         return null;
 	}
 	private static SyncropItem getFile(ResultSet rs) throws SQLException{
-		String path=rs.getString(2);
-		String owner=rs.getString(3);
-		long dateModified=rs.getLong(4)*1000;
-		int key=rs.getInt(5);
+		String path=rs.getString(1);
+		String owner=rs.getString(2);
+		long dateModified=rs.getLong(3)*1000;
+		int key=rs.getInt(4);
 		boolean isDir=SyncropItem.represetsDir(key);
-		boolean modifedSinceLastKeyUpdate=rs.getBoolean(6);
-		long lastRecordedSize=rs.getLong(7);
-		int filePermissions=	rs.getInt(8);
-		boolean exists=rs.getBoolean(9);
+		boolean modifedSinceLastKeyUpdate=rs.getBoolean(5);
+		long lastRecordedSize=rs.getLong(6);
+		int filePermissions=rs.getInt(7);
+		boolean exists=rs.getBoolean(8);
 		File f=new File(getAbsolutePath(path, owner));
 		SyncropItem file=null;
 		try {

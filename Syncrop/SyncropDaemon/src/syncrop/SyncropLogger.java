@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
@@ -183,23 +182,21 @@ public class SyncropLogger implements logger.Logger{
 					"log file does not exists and cannot be created", true);
 			return false;
 			}
-		
-		
-		
+			
         String dateText= dateTimeFormat.format(new Date());
         
-        
-
         String logSting=dateText+": "+
         		(isLogging(LOG_LEVEL_TRACE)?"("+Thread.currentThread().getName()+") ":"")
         		+(t==null?"":t.toString())+message;
-        if(isLogging(LOG_LEVEL_ALL)&&logLevel<=LOG_LEVEL_TRACE)
-        	logSting+="thread dump"+Arrays.asList(Thread.currentThread().getStackTrace());
+                
         LogRecord record=new LogRecord(Level.parse(logLevel+""), logSting);
         
         record.setThrown(t);
         
         handler.publish(record);
+        
+        if(this.logLevel<LOG_LEVEL_ALL)
+			System.out.println(message);
         if(t!=null){
         	t.printStackTrace(System.out);
         }
@@ -207,6 +204,7 @@ public class SyncropLogger implements logger.Logger{
 		if(logLevel==LOG_LEVEL_FATAL){
 			displayNotification("An unexpected error occurred see log for details");
 		}
+		
 		return true;
 	}
 	

@@ -34,6 +34,7 @@ import file.SyncropDir;
 import file.SyncropFile;
 import file.SyncropItem;
 import file.SyncropSymbolicLink;
+import listener.actions.SyncROPFileAction;
 import settings.Settings;
 import syncrop.FileMetadataManager;
 import syncrop.ResourceManager;
@@ -78,6 +79,7 @@ public class FileWatcher extends Thread{
     }
     
     public static void checkMetadataForAllFiles(boolean perserveMetadataForDeletedFiles) throws IOException{
+    	logger.logTrace("checking metadata; perserveMetadataForDeletedFiles-"+perserveMetadataForDeletedFiles); 
     	Iterable<SyncropItem>items=FileMetadataManager.iterateThroughAllFileMetadata(null);
     	for(SyncropItem item:items){
     		checkFileMetadata(item,perserveMetadataForDeletedFiles);
@@ -104,24 +106,22 @@ public class FileWatcher extends Thread{
 
 
     
-	public void checkAllFiles(){
+	public void checkAllFiles(SyncROPFileAction... fileActions){
 		
 		for (Account a : ResourceManager.getAllEnabledAccounts())
 		{
 			//checks regular files
 			for (Directory parentDir : a.getDirectories())
-				checkFiles(a, parentDir.isLiteral()?parentDir.getDir():"",false);
+				checkFiles(a, parentDir.isLiteral()?parentDir.getDir():"",false,fileActions);
 			//checks removable files
 			for (RemovableDirectory parentDir : a.getRemovableDirectories())
 				if(parentDir.exists())
-					checkFiles(a, parentDir.getDir(),true);
-			
-			
+					checkFiles(a, parentDir.getDir(),true,fileActions);
 		}
 		logger.log("finshed checking files");
 	}
 
-	void checkFiles(Account a,final String baseDir,boolean removable){
+	void checkFiles(Account a,final String baseDir,boolean removable,SyncROPFileAction... fileActions){
 		LinkedList<String> queue=new LinkedList<>();
 		
 		queue.add(baseDir);
@@ -136,8 +136,13 @@ public class FileWatcher extends Thread{
 			File file=new File(ResourceManager.getHome(a.getName(),removable),path);
 			
 			SyncropItem item=ResourceManager.getFile(path, a.getName());
+			
 		
 			logger.log("Checking "+path,SyncropLogger.LOG_LEVEL_ALL);
+			if(fileActions!=null){
+				for(SyncROPFileAction fileAction:fileActions)
+					fileAction.performOn(file);
+			}
 			
 			if(!ResourceManager.isLocked(path,a.getName())){
 				if(Files.isSymbolicLink(file.toPath())){

@@ -6,7 +6,7 @@ import java.io.File;
 
 import file.SyncropFile;
 
-public class RemoveSyncROPConflictsAction implements SyncROPFileAction{
+public class RemoveSyncropConflictsAction implements SyncROPFileAction{
 
 	@Override
 	public boolean performOn(File file) {
