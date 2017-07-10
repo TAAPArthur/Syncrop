@@ -51,7 +51,7 @@ public class SettingsManager {
 		
 		DATABASE_PATH("Database Password",String.class,"getDatabasePath","setDatabasePath",TYPE_CLOUD),
 		DATABASE_PASSWORD("Database Password",String.class,"getDatabasePassword","setDatabasePassword",TYPE_CLOUD),
-		AUTENTICATION_SCRIPT("Autentication Script",String.class,"getAuthenticationScript","setAuthenticationScript",TYPE_CLOUD),
+		AUTHENTICATION_SCRIPT("Autentication Script",String.class,"getAuthenticationScript","setAuthenticationScript",TYPE_CLOUD),
 		DATABASE_USERNAME("Database Username",String.class,"getDatabaseUsername","setDatabaseUsername",TYPE_CLOUD),
 		
 		
@@ -151,7 +151,7 @@ public class SettingsManager {
 		Settings.setSyncHiddenFiles(true);
 		Settings.setConflictResolution(Settings.DEFAULT);
 		Settings.setConflictsAllowed(true);
-		Settings.setDatabasePath(ResourceManager.getConfigFilesHome()+File.separator+"metadata.db");
+		Settings.setDatabasePath("sqlite:/"+ResourceManager.getConfigFilesHome()+File.separator+"metadata.db");
 		Settings.setDatabaseUsername("syncrop");
 	}
 	

@@ -37,11 +37,13 @@ public class FileMetadataManager {
 		return DriverManager.getConnection("jdbc:sqlite:"+getDatabasePath()+"?journal_mode=WAL",config);
 	}
 	*/
-	public static void startConnectionSession() throws SQLException{				
-		conn=DriverManager.getConnection("jdbc:sqlite:"+Settings.getDatabasePath()+"?journal_mode=WAL",Settings.getDatabaseUsername(),Settings.getDatabasePassword());
+	public static void startConnectionSession() throws SQLException{
+		
+		conn=DriverManager.getConnection("jdbc:"+Settings.getDatabasePath()+"?journal_mode=WAL");
 	}
 	public static void endSession(){
-		try {conn.close();} catch (SQLException e) {}
+		if(conn!=null)
+			try {conn.close();} catch (SQLException e) {}
 	}
 	
 	
