@@ -359,7 +359,7 @@ public class FileTransferManager extends Thread{
 		if(!SyncDaemon.isInstanceOfCloud()&& fileSent instanceof SyncropFile){
 			
 			logger.log(fileSent.getPath()+" Changing key from "+fileSent.getKey()+" to "+o[INDEX_KEY]);
-			((SyncropFile)fileSent).setKey((long) o[INDEX_KEY]);
+			((SyncropFile)fileSent).setKey((int) o[INDEX_KEY]);
 			if((long)o[INDEX_DATE_MODIFIED]!=fileSent.getDateModified())
 				fileSent.setModifiedSinceLastKeyUpdate(true);
 			fileSent.save();
@@ -477,7 +477,7 @@ public class FileTransferManager extends Thread{
 	}
 	public int getOutstandingFiles(){return outStandingFiles;}
 	
-	public boolean canDownloadPacket(SyncropItem localFile, String id,String path,String owner, long dateModified, long key, byte[]bytes,long size){
+	public boolean canDownloadPacket(SyncropItem localFile, String id,String path,String owner, long dateModified, int key, byte[]bytes,long size){
 		return isFileEnabled(localFile,path,owner)&&!isFileSizeToLarge(bytes,path)
 				&&isRoomLeftInAccountAfterTransfer(id,path,owner, size)
 				&&!convertFileToDir(localFile, id,key)
@@ -526,7 +526,7 @@ public class FileTransferManager extends Thread{
 		}
 		return true;
 	}
-	private boolean shouldConflictBeMadeForFileBeingSent(SyncropItem localFile, long key,long modificationDate,String id){
+	private boolean shouldConflictBeMadeForFileBeingSent(SyncropItem localFile, int key,long modificationDate,String id){
 		if(localFile!=null&&localFile.exists())
 			if(key!=localFile.getKey()&&
 				modificationDate<localFile.getDateModified())
@@ -541,9 +541,9 @@ public class FileTransferManager extends Thread{
 		return false;
 	}
 	
-	private boolean convertFileToDir(SyncropItem localFile,String id,long key){
+	private boolean convertFileToDir(SyncropItem localFile,String id,int key){
 		//if local file is dir and receiving file is not dir
-		if(localFile!=null&&localFile.isDir()&&key!=-1)
+		if(localFile!=null&&localFile.isDir()&&SyncropItem.represetsDir(key))
 			if(localFile.exists()){
 				logger.log("Downloaded file is being made into a conflict because local file is a dir");
 				//data[3]=key;
@@ -610,8 +610,8 @@ public class FileTransferManager extends Thread{
 			return;
 		
 		long dateModified=(long)syncData[INDEX_DATE_MODIFIED];
-		long key=(long)syncData[INDEX_KEY];
-		String filePermissions=(String) syncData[INDEX_FILE_PERMISSIONS];
+		int key=(int)syncData[INDEX_KEY];
+		int filePermissions=(int) syncData[INDEX_FILE_PERMISSIONS];
 		boolean exists=(boolean)syncData[INDEX_EXISTS];
 		boolean updatedSinceLastUpdate=(boolean)syncData[INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE];
 		

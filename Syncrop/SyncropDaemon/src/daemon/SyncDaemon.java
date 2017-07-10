@@ -252,20 +252,13 @@ public abstract class SyncDaemon extends Syncrop{
 	 * Sets teh Permisions on the specifed file
 	 * @param item the file to set permissions for
 	 */
-	public void setPropperPermissions(SyncropItem item,String filePermissions){
-		try {
-			Files.setPosixFilePermissions(item.getFile().toPath(),
-					SyncropItem.getPosixFilePermissions(filePermissions));
-		}catch (SecurityException | IOException e) {
-				logger.logError(e, " occured while trying to change the write/execute permissions of "+item.getAbsPath());
-			}
-	}
-	public void startDownloadOfLargeFile(String id,String path,String owner, long dateModified, long key,boolean modifiedSinceLastUpdate,String filePermissions,boolean exists, long size){
+	public void setPropperPermissions(SyncropItem item){}
+	public void startDownloadOfLargeFile(String id,String path,String owner, long dateModified, int key,boolean modifiedSinceLastUpdate,int filePermissions,boolean exists, long size){
 		
 		try {
 			SyncropItem localFile=ResourceManager.getFile(path, owner);
 			if(localFile!=null&&localFile.exists()&&!localFile.isDir()){
-				if(!localFile.isInConflictWith(size,key, modifiedSinceLastUpdate)){
+				if(!localFile.isInConflictWith(key,size, modifiedSinceLastUpdate)){
 					ResourceManager.lockFile(path, owner);
 					localFile.setDateModified(dateModified);
 					localFile.save();
@@ -294,7 +287,7 @@ public abstract class SyncDaemon extends Syncrop{
 	 * @param size the size of the file
 	 * @param end if these are the last bytes to download
 	 */
-	public void downloadLargeFile(String id,String path,String owner, long dateModified, long key,boolean modifiedSinceLastUpdate,String filePermissions,boolean exists, byte[]bytes,long size)
+	public void downloadLargeFile(String id,String path,String owner, long dateModified, int key,boolean modifiedSinceLastUpdate,int filePermissions,boolean exists, byte[]bytes,long size)
 	{
 		SyncropItem localFile=ResourceManager.getFile(path, owner);
 		if(fileTransferManager.canDownloadPacket(localFile, id, path, owner, dateModified, key, bytes,size))
@@ -321,13 +314,13 @@ public abstract class SyncDaemon extends Syncrop{
 		fileTransferManager.cancelDownload(id,path,true);
 	}
 	
-	public void endDownloadOfLargeFile(String id,String path,String owner,long dateModified,long key,boolean modifiedSinceLastUpdate,String filePermissions,boolean exists,long length){
+	public void endDownloadOfLargeFile(String id,String path,String owner,long dateModified,int key,boolean modifiedSinceLastUpdate,int filePermissions,boolean exists,long length){
 		if(ResourceManager.getTemporaryFile(id,path).exists())
 			downloadFile(id, path, owner, dateModified, key,modifiedSinceLastUpdate,filePermissions, exists, null, length,null, true,true);
 		else logger.log("File has already been canceled");
 	}
 	
-	public void downloadFile(String id,String path,String owner,long dateModified,long key,boolean modifiedSinceLastUpdate,String filePermissions,boolean exists,byte[] bytes,long length,String linkTarget,boolean copyFromFile,boolean echo){
+	public void downloadFile(String id,String path,String owner,long dateModified,int key,boolean modifiedSinceLastUpdate,int filePermissions,boolean exists,byte[] bytes,long length,String linkTarget,boolean copyFromFile,boolean echo){
 		if(exists)
 			logger.log("downloading file "+path);
 		else 
@@ -373,12 +366,13 @@ public abstract class SyncDaemon extends Syncrop{
 		if(downloadNotCanceled){
 			if(localFile.exists()){
 				logger.log("file downloaded: "+localFile);
-				setPropperPermissions(localFile,filePermissions);
+				localFile.setFilePermissions(filePermissions);
+				setPropperPermissions(localFile);
 			}
 				
 			logger.logTrace("Setting dateMod of file to "+dateModified);
 			localFile.setDateModified(dateModified);
-			if(key!=-1&&exists&&localFile.getDateModified()!=dateModified)
+			if(!localFile.isDir()&&exists&&localFile.getDateModified()!=dateModified)
 				logger.logWarning("The modification date of file "+localFile.getFile()+" was not set correctly");			
 						
 			Account account=ResourceManager.getAccount(owner);

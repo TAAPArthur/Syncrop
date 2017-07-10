@@ -63,7 +63,7 @@ public abstract class SyncropItem
 	
 	private boolean deletionRecorded=false;
 	private boolean hasBeenUpdated=false;
-	private String filePermisions;
+	private int filePermissions;
 	
 	private final static PosixFilePermission orderedPermissions[]={OWNER_READ,OWNER_WRITE,OWNER_EXECUTE,    
             GROUP_READ,GROUP_WRITE,GROUP_EXECUTE,
@@ -72,7 +72,7 @@ public abstract class SyncropItem
 	
 	
 	
-	public SyncropItem(String path,String owner,long modificicationDate,boolean modifedSinceLastKeyUpdate,long lastRecordedSize,String filePermissions) 
+	public SyncropItem(String path,String owner,long modificicationDate,boolean modifedSinceLastKeyUpdate,long lastRecordedSize,boolean deletionRecorded,int filePermissions) 
 	{
 		for(String c:illegalChars)
 			if(path.contains(c)&&!File.separator.equals(c))
@@ -88,11 +88,12 @@ public abstract class SyncropItem
 		
 		this.modifiedSinceLastKeyUpdate=modifedSinceLastKeyUpdate;
 		dateModified=modificicationDate;
-		this.deletionRecorded=lastRecordedSize==-1;
+		this.deletionRecorded=deletionRecorded;
 		
-		if(filePermissions.isEmpty())
-			updateFilePermissions();
-		else this.filePermisions=filePermissions;
+		this.filePermissions=filePermissions;
+		
+		updateFilePermissions();
+		 
 		
 		if(Files.exists(file.toPath(), LinkOption.NOFOLLOW_LINKS)){
 			updateDateModified();
@@ -109,13 +110,17 @@ public abstract class SyncropItem
 	}
 	
 	
-	public String getFilePermissions(){
-		return filePermisions;
+	public int getFilePermissions(){
+		return filePermissions;
 	}
-	public static Set<PosixFilePermission> getPosixFilePermissions(String filePermisions){
+	public void setFilePermissions(int filePermissions){
+		this.filePermissions=filePermissions;
+	}
+	public static Set<PosixFilePermission> getPosixFilePermissions(int filePermissions){
+		String s=Integer.toBinaryString(filePermissions);
 		Set<PosixFilePermission> permissions=new HashSet<>();
 		for(int i=0;i<orderedPermissions.length;i++)
-			if(filePermisions.charAt(i)!='-')
+			if(s.charAt(i)=='1')
 				permissions.add(orderedPermissions[i]);
 		return permissions;
 	}
@@ -126,15 +131,16 @@ public abstract class SyncropItem
 			
 			
 			for(int i=0;i<orderedPermissions.length;i++)
-				if(permissions.contains(orderedPermissions[i])){
-					if(i%3==0)s+="r";
-					else if(i%3==1)s+="w";
-					else s+="x";
-				}
-				else s+="-";
+				if(permissions.contains(orderedPermissions[i]))
+					s+="1";
+				else s+="0";
+			int currentPermissions=Integer.parseInt(s, 2);
+			if(filePermissions!=currentPermissions){
+				setHasBeenUpdated();
+				filePermissions=currentPermissions;
+			}
 		} catch (IOException e) {
 		}
-		filePermisions=s;
 	}
 	
 	
@@ -199,6 +205,9 @@ public abstract class SyncropItem
 	public boolean isDir(){
 		return Files.isDirectory(file.toPath(),LinkOption.NOFOLLOW_LINKS);
 		//return file.isDirectory();
+	}
+	public static boolean represetsDir(int key){
+		return key<1;
 	}
 	public boolean isLargeFile(){
 		return this.getSize()>Settings.getMaxTransferSize();
@@ -464,7 +473,7 @@ public abstract class SyncropItem
 		}
 		return false;
 	}
-	public long getKey(){return -1;}
+	public long getKey(){return 0;}
 	
 	public long getSize(){
 		try {
@@ -551,7 +560,7 @@ public abstract class SyncropItem
 				" exits:"+file.exists()+" deletion recorded "+isDeletionRecorded()+
 				" removeable:"+isRemovable()+" isDir:"+file.isDirectory();
 	}
-	public boolean isInConflictWith(long key,long size,boolean modifiedSinceLastKeyUpdate){
+	public boolean isInConflictWith(int key,long size,boolean modifiedSinceLastKeyUpdate){
 		if(modifiedSinceLastKeyUpdate||this.modifiedSinceLastKeyUpdate)
 			return this.getKey()!=key;
 		else 
@@ -589,12 +598,12 @@ public abstract class SyncropItem
 		logger.log("Comparing "+path,SyncropLogger.LOG_LEVEL_ALL);
 		String owner=(String)syncData[INDEX_OWNER];
 		Long remoteDateMod=(Long)syncData[INDEX_DATE_MODIFIED];
-		long remoteKey=(Long)syncData[INDEX_KEY];
+		int remoteKey=(int)syncData[INDEX_KEY];
 		boolean remoteFileExists=(Boolean)(syncData[INDEX_EXISTS]);
 		String linkTarget=(String)(syncData[INDEX_SYMBOLIC_LINK_TARGET]);
 		boolean remoteUpdatedSinceLastUpdate=(boolean)syncData[INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE];
 		long remoteLength=(long)syncData[INDEX_SIZE];
-		String remoteFilePermissions=(String)syncData[INDEX_FILE_PERMISSIONS];
+		int remoteFilePermissions=(int)syncData[INDEX_FILE_PERMISSIONS];
 		
 		byte[]bytes=null;
 		if(syncData.length>INDEX_BYTES)
@@ -604,9 +613,9 @@ public abstract class SyncropItem
 				remoteFilePermissions, remoteFileExists, remoteLength,linkTarget,bytes);
 				
 	}
-	public static SyncropPostCompare compare(SyncropItem localFile,String path,String owner,long remoteDateMod,long remoteKey,
-			boolean remoteUpdatedSinceLastUpdate,String remoteFlePermissions,boolean remoteFileExists,long remoteLength,String linkTarget,byte[]bytes) throws IOException{
-		boolean remoteDir=remoteKey==-1;
+	public static SyncropPostCompare compare(SyncropItem localFile,String path,String owner,long remoteDateMod,int remoteKey,
+			boolean remoteUpdatedSinceLastUpdate,int remoteFilePermissions,boolean remoteFileExists,long remoteLength,String linkTarget,byte[]bytes) throws IOException{
+		boolean remoteDir=represetsDir(remoteKey);
 		if(localFile==null)
 			if(remoteFileExists)
 				return SyncropPostCompare.DOWNLOAD_REMOTE_FILE;

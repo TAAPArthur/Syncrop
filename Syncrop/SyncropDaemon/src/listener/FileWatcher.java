@@ -324,7 +324,7 @@ public class FileWatcher extends Thread{
 		else
 			if(item.hasBeenUpdated()){//item.getDateModified()!=item.getFile().lastModified()){
 				if(Syncrop.isInstanceOfCloud())
-					daemon.setPropperPermissions(item, null);
+					daemon.setPropperPermissions(item);
 				daemon.addToSendQueue(item);
 				item.save();
 			}
@@ -348,7 +348,7 @@ public class FileWatcher extends Thread{
 			
 			if(item!=null){
 				if(Syncrop.isInstanceOfCloud())
-					daemon.setPropperPermissions(item, null);
+					daemon.setPropperPermissions(item);
 				daemon.addToSendQueue(item);
 				item.save();
 			}

@@ -20,24 +20,22 @@ public class SyncropFile extends SyncropItem
 	 * If this key and the key of another file do not match then the older file will be made 
 	 * into a conflict
 	 */
-	private long key;
+	private int key;
 	private long lastRecordedSize;
 	
 	public SyncropFile(String path,String owner){
 		this(path, owner, 0);
 	}
 		
-	public SyncropFile(String path, String owner,long key)
+	public SyncropFile(String path, String owner,int key)
 	{
-		this(path,owner,0, key,false,-1,"");
+		this(path,owner,0, key,false,-1,false,0);
 	}
 	
-	public SyncropFile(String path,String owner,long modificicationDate,long key,long lastRecordedSize){
-		this(path, owner, modificicationDate, key,false,lastRecordedSize,"");
-	}
-	public SyncropFile(String path,String owner,long modificicationDate,long key,boolean modifedSinceLastKeyUpdate,long lastRecordedSize,String filePermisions)
+	
+	public SyncropFile(String path,String owner,long modificicationDate,int key,boolean modifedSinceLastKeyUpdate,long lastRecordedSize,boolean deletionRecorded,int filePermisions)
 	{
-		super(path, owner, modificicationDate,modifedSinceLastKeyUpdate,lastRecordedSize,filePermisions);
+		super(path, owner, modificicationDate,modifedSinceLastKeyUpdate,lastRecordedSize,deletionRecorded,filePermisions);
 		
 		if(key<=0)
 			key=0;
@@ -102,7 +100,7 @@ public class SyncropFile extends SyncropItem
 	public void updateKey(){
 		setKey(key+1);//UPDATE KEY
 	}
-	public void setKey(long key)
+	public void setKey(int key)
 	{		
 		logger.logTrace("key "+this.key+" is being changed to "+key+" path="+path);
 		modifiedSinceLastKeyUpdate=false;
@@ -167,7 +165,7 @@ public class SyncropFile extends SyncropItem
 	public long getLastKnownSize(){
 		return lastRecordedSize;
 	}
-	void mergeMetadata(long remoteDateMod,long remoteKey){
+	void mergeMetadata(long remoteDateMod,int remoteKey){
 		setDateModified(remoteDateMod);
 		if(Syncrop.isInstanceOfCloud())
 			updateKey();

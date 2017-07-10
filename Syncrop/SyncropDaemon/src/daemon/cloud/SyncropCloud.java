@@ -509,7 +509,7 @@ public final class SyncropCloud extends SyncDaemon
 	
 	}
 	@Override
-	public void setPropperPermissions(SyncropItem item,String filePermissions){
+	public void setPropperPermissions(SyncropItem item){
 		try {
 			if(item==null){
 				logger.logWarning("item is null when trying to set permissions");

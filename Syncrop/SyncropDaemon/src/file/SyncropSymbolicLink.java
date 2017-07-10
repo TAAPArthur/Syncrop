@@ -38,30 +38,30 @@ public class SyncropSymbolicLink extends SyncropFile{
 		}
 	}
 	public static SyncropItem getInstance(String path,String owner,
-			long dateModified,long key,boolean modifedSinceLastKeyUpdate,long lastRecordedSize,String filePermissions,
+			long dateModified,int key,boolean modifedSinceLastKeyUpdate,long lastRecordedSize,int filePermissions,
 			File f) throws IOException{
 		Path targetPath=Files.readSymbolicLink(f.toPath()).toAbsolutePath();
 		String target = targetPath.toString().replace(
 				ResourceManager.getHome(owner, isFileRemovable(path)), "");
 		if(isSyncropSymbolicLink(owner,target)||!Files.exists(targetPath))
-			return new SyncropSymbolicLink(path, owner, dateModified,key,modifedSinceLastKeyUpdate,target,lastRecordedSize,filePermissions);
+			return new SyncropSymbolicLink(path, owner, dateModified,key,modifedSinceLastKeyUpdate,target,lastRecordedSize,false,filePermissions);
 		else {
 			if(Files.isDirectory(targetPath))
-				return new SyncropDir(path, owner,dateModified,lastRecordedSize,filePermissions);
+				return new SyncropDir(path, owner,dateModified,false,filePermissions);
 			else 
-				return new SyncropFile(path, owner,dateModified,key,modifedSinceLastKeyUpdate,lastRecordedSize,filePermissions);
+				return new SyncropFile(path, owner,dateModified,key,modifedSinceLastKeyUpdate,lastRecordedSize,false,filePermissions);
 		}
 
 	}
 	private SyncropSymbolicLink(String path, String owner,
 			String targetPath){
-		this(path, owner, -1, -1,false, targetPath,-1,"");
+		this(path, owner, -1, 0,false, targetPath,-1,false,0);
 	}
 	
 	
 	public SyncropSymbolicLink(String path, String owner,
-			long modificicationDate,long key,boolean modifedSinceLastKeyUpdate,String targetPath,long lastRecordedSize,String filePermissions){
-		super(path, owner, modificicationDate,key,modifedSinceLastKeyUpdate,lastRecordedSize,filePermissions);
+			long modificicationDate,int key,boolean modifedSinceLastKeyUpdate,String targetPath,long lastRecordedSize,boolean deletionRecorded,int filePermissions){
+		super(path, owner, modificicationDate,key,modifedSinceLastKeyUpdate,lastRecordedSize,deletionRecorded,filePermissions);
 		this.targetPath=targetPath;
 		targetFile=new File(ResourceManager.getHome(getOwner(), isRemovable()),targetPath);
 		
@@ -83,7 +83,8 @@ public class SyncropSymbolicLink extends SyncropFile{
 	}
 	@Override
 	public long getSize(){
-		return file.exists()?4:-1;
+		//TODO get actaul size of sym link
+		return file.exists()?4:100;
 	}
 	@Override
 	public boolean createFile(){

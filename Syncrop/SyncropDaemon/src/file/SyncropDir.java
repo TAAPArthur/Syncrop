@@ -12,10 +12,10 @@ public class SyncropDir extends SyncropItem
 		this(path, owner, -1);
 	}
 	public SyncropDir(String path,String owner,long modificicationDate){
-		this(path, owner, modificicationDate, -1,"");
+		this(path, owner, modificicationDate,false,0);
 	}
-	public SyncropDir(String path,String owner,long modificicationDate,long lastRecordedSize,String filePermisions){
-		super(path, owner, modificicationDate,false,lastRecordedSize,filePermisions);
+	public SyncropDir(String path,String owner,long modificicationDate,boolean deletionRecorded,int filePermisions){
+		super(path, owner, modificicationDate,false,-1,deletionRecorded,filePermisions);
 		if(exists()&&!Files.isDirectory(file.toPath())){
 			throw new IllegalArgumentException("path "+path+"  does not denote"
 					+ " a directory so it cannot be a SyncROPDir");

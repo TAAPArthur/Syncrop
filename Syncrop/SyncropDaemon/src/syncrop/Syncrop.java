@@ -9,7 +9,6 @@ import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 
-import daemon.SyncDaemon;
 import daemon.cloud.SyncropCloud;
 import notification.Notification;
 import settings.Settings;
@@ -155,6 +154,8 @@ public abstract class Syncrop {
 		return "syncrop.log";
 	}
 	private void init()throws IOException{
+		
+
 		//sets the start time 
 		startTime=System.currentTimeMillis();
 		
@@ -170,6 +171,7 @@ public abstract class Syncrop {
 		Notification.initilize();
 		
 		try {
+			
 			FileMetadataManager.startConnectionSession();
 		} catch (SQLException e) {
 			logger.logFatalError(e,"");
@@ -182,8 +184,6 @@ public abstract class Syncrop {
 				"; host"+(Settings.isSSLConnection()?" (SSL)":" ")+Settings.getHost()+":"+
 				(Settings.isSSLConnection()?Settings.getSSLPort():Settings.getPort())+
 				" log level "+logger.getLogLevel());
-		if(Settings.isSSLConnection())
-			logger.log("Using SSL conenction");
 		
 		//if config files cannot be read, quit
 		if(!ResourceManager.canReadAndWriteSyncropConfigurationFiles()){			

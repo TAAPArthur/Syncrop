@@ -39,7 +39,8 @@ public class FileMetadataManager {
 	*/
 	public static void startConnectionSession() throws SQLException{
 		
-		conn=DriverManager.getConnection("jdbc:"+Settings.getDatabasePath()+"?journal_mode=WAL");
+		conn=DriverManager.getConnection("jdbc:"+Settings.getDatabasePath()+"?journal_mode=WAL",Settings.getDatabaseUsername(),Settings.getDatabasePassword());
+		
 	}
 	public static void endSession(){
 		if(conn!=null)
@@ -67,10 +68,13 @@ public class FileMetadataManager {
 			//Connection conn=getNewReadOnlyConnectionInstance();
 			Statement stat = conn.createStatement();
 			
+			
 	        stat.executeUpdate("CREATE TABLE IF NOT EXISTS "+TABLE_NAME+
-	        		" (Path String PRIMARY KEY,Owner String, DateModified Long, "
-	        		+ "Key Long, ModifiedSinceLastKeyUpdate Boolean, LastRecordedSize Long,"
-	        		+ "FilePermissions String) ;");
+	        		" ( ID INT UNSIGNED PRIMARY KEY AUTO_INCREMENT, "
+	        		+ "Path Text,Owner Varchar(25), DateModified INT UNSIGNED, "
+	        		+ "`Key` INT UNSIGNED, ModifiedSinceLastKeyUpdate Boolean, "
+	        		+ "LastRecordedSize INT UNSIGNED,FilePermissions SMALLINT,"
+	        		+ "Exists Boolean) ;");
 	        stat.close();
 	        
 	        //conn.close();
@@ -103,14 +107,17 @@ public class FileMetadataManager {
 		try {					
 			//Connection conn=getNewConnectionInstance(false);
 			PreparedStatement prep = conn.prepareStatement(
-		            "REPLACE into "+TABLE_NAME+" values (?,?,?,?,?,?,?);");
+		            "REPLACE into "+TABLE_NAME+" (`Path`, `Owner`, `DateModified`, `Key`,"
+		            		+ " `ModifiedSinceLastKeyUpdate`, `LastRecordedSize`, "
+		            		+ "`FilePermissions`) "
+		            		+ "VALUES (?,?,?,?,?,?,?);");
 			prep.setString(1, item.getPath());
 			prep.setString(2, item.getOwner());
-			prep.setLong(3, item.getDateModified());
+			prep.setLong(3, item.getDateModified()/1000);
 			prep.setLong(4, item.getKey());
 			prep.setBoolean(5, item.modifiedSinceLastKeyUpdate());
 			prep.setLong(6, item.getSize());
-			prep.setString(7, item.getFilePermissions());
+			prep.setInt(7, item.getFilePermissions());
 			prep.addBatch();
 			prep.executeBatch();
 			prep.close();
@@ -204,14 +211,15 @@ public class FileMetadataManager {
         return null;
 	}
 	private static SyncropItem getFile(ResultSet rs) throws SQLException{
-		String path=rs.getString(1);
-		String owner=rs.getString(2);
-		long dateModified=rs.getLong(3);
-		long key=rs.getLong(4);
-		boolean isDir=key==-1;
-		boolean modifedSinceLastKeyUpdate=rs.getBoolean(5);
-		long lastRecordedSize=rs.getLong(6);
-		String filePermissions=	rs.getString(7);
+		String path=rs.getString(2);
+		String owner=rs.getString(3);
+		long dateModified=rs.getLong(4)*1000;
+		int key=rs.getInt(5);
+		boolean isDir=SyncropItem.represetsDir(key);
+		boolean modifedSinceLastKeyUpdate=rs.getBoolean(6);
+		long lastRecordedSize=rs.getLong(7);
+		int filePermissions=	rs.getInt(8);
+		boolean exists=rs.getBoolean(9);
 		File f=new File(getAbsolutePath(path, owner));
 		SyncropItem file=null;
 		try {
@@ -221,9 +229,9 @@ public class FileMetadataManager {
 				} catch (IOException e) {logger.logError(e);}
 			}
 			else if(isDir)
-				file = new SyncropDir(path, owner,dateModified,lastRecordedSize,filePermissions);
+				file = new SyncropDir(path, owner,dateModified,exists,filePermissions);
 			else 
-				file=new SyncropFile(path, owner,dateModified,key,modifedSinceLastKeyUpdate,lastRecordedSize,filePermissions);
+				file=new SyncropFile(path, owner,dateModified,key,modifedSinceLastKeyUpdate,lastRecordedSize,exists,filePermissions);
 
 			return file;
 		} catch (IllegalArgumentException e) {
