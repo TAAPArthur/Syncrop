@@ -13,15 +13,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.LinkedList;
-import java.util.Properties;
-
-import org.sqlite.SQLiteConfig.JournalMode;
-import org.sqlite.SQLiteConfig.Pragma;
 
 import file.SyncropDir;
 import file.SyncropFile;
 import file.SyncropItem;
 import file.SyncropSymbolicLink;
+import settings.Settings;
 
 public class FileMetadataManager {
 	static final String TABLE_NAME= "FileInfo";
@@ -40,21 +37,14 @@ public class FileMetadataManager {
 		return DriverManager.getConnection("jdbc:sqlite:"+getDatabasePath()+"?journal_mode=WAL",config);
 	}
 	*/
-	public static void startConnectionSession() throws SQLException{
-		Properties config = new Properties();
-		config.setProperty(Pragma.JOURNAL_MODE.pragmaName, JournalMode.TRUNCATE.name());
-		
-		conn=DriverManager.getConnection("jdbc:sqlite:"+getDatabasePath()+"?journal_mode=WAL",config);
+	public static void startConnectionSession() throws SQLException{				
+		conn=DriverManager.getConnection("jdbc:sqlite:"+Settings.getDatabasePath()+"?journal_mode=WAL",Settings.getDatabaseUsername(),Settings.getDatabasePassword());
 	}
 	public static void endSession(){
 		try {conn.close();} catch (SQLException e) {}
 	}
-	private static String getDatabasePath(){
-		return ResourceManager.getConfigFilesHome()+File.separator+"metadata.db";
-	}
-	public static boolean doesDatabaseExists(){
-		return new File(getDatabasePath()).exists();
-	}
+	
+	
 	public static void recreateDatabase(){
 		deleteDatabase();
 		createDatabase();
@@ -161,13 +151,14 @@ public class FileMetadataManager {
 		ResultSet rs=null;
 		String query="SELECT * FROM "+TABLE_NAME
 				+ " WHERE Path LIKE ? "
-				+(owner!=null&&Syncrop.isInstanceOfCloud()?"AND Owner='"+owner+"'":"")+
+				+(Syncrop.isInstanceOfCloud()?"AND Owner=?":"")+
 				"ORDER BY PATH DESC;";
 		try {
 			//Connection conn=getNewReadOnlyConnectionInstance();
 			PreparedStatement preparedStatement=conn.prepareStatement(query);
 			preparedStatement.setString(1, relativePath+"%");
-			
+			if(Syncrop.isInstanceOfCloud())
+				preparedStatement.setString(2, owner);
 			rs = preparedStatement.executeQuery();
 			LinkedList<SyncropItem>items=new LinkedList<>();
 			int count=0;
@@ -190,12 +181,13 @@ public class FileMetadataManager {
 		SyncropItem item=null;
 		String query="SELECT * FROM "+TABLE_NAME
 				+ " WHERE Path=? "
-				+(owner!=null&&Syncrop.isInstanceOfCloud()?"AND Owner='"+owner+"'":"")+";";
+				+(Syncrop.isInstanceOfCloud()?"AND Owner=?":"")+";";
 		try {
 			//conn=getNewReadOnlyConnectionInstance();
 			PreparedStatement preparedStatement=conn.prepareStatement(query);
 			preparedStatement.setString(1, relativePath);
-						
+			if(Syncrop.isInstanceOfCloud())
+				preparedStatement.setString(2, owner);
 			rs = preparedStatement.executeQuery();
 			
 			if(rs.next())
@@ -208,7 +200,6 @@ public class FileMetadataManager {
 			System.exit(0);
 		}
         return null;
-		
 	}
 	private static SyncropItem getFile(ResultSet rs) throws SQLException{
 		String path=rs.getString(1);
@@ -236,6 +227,6 @@ public class FileMetadataManager {
 		} catch (IllegalArgumentException e) {
 			return null;
 		}
-	
 	}
+
 }

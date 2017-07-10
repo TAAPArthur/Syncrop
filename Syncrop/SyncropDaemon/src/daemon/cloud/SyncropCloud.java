@@ -19,7 +19,6 @@ import java.util.HashSet;
 import java.util.Set;
 
 import account.Account;
-import authentication.Authenticator;
 import daemon.SyncDaemon;
 import daemon.client.SyncropClientDaemon;
 import file.SyncropFile;
@@ -235,6 +234,25 @@ public final class SyncropCloud extends SyncDaemon
 		Object o[]=(Object[]) m.getMessage();
 		authenticate(m.getUserID(),(String)o[0],(String)o[1],(String)o[2]);
 	}
+	
+	/**
+	 * Queries the server to authenticate the user.
+	 * @param username the name of the user to authenticate
+	 * @param email the email of the user to authenticate
+	 * @param refreshToken the token of the user
+	 * @return true if the user has been authenticated
+	 */
+	public static boolean authenticateUser(String username,String email,String refreshToken){
+		if(Settings.getAuthenticationScript()==null)return false;
+		int exitCode=127;
+		try {
+			Process p = Runtime.getRuntime().exec(Settings.getAuthenticationScript()+" "+username+" "+email+" "+refreshToken);
+			exitCode = p.waitFor();
+		} catch (IOException | InterruptedException e) {
+			logger.logError(e);
+		}
+		return exitCode==0;	
+	}
 	/**
 	 * 
 	 * @param id the userID of the client who requsted authentication
@@ -244,7 +262,7 @@ public final class SyncropCloud extends SyncDaemon
 	 */
 	void authenticate(String id, String accountName,String email, String refreshToken)
 	{	
-		if(Authenticator.authenticateUser(accountName, email, refreshToken)){
+		if(authenticateUser(accountName, email, refreshToken)){
 			clients.put(id, new SyncropUser(id,accountName));
 			mainClient.printMessage(new String[]{id,accountName}, Message.TYPE_MESSAGE_TO_SERVER, Message.HEADER_SET_GROUP);
 			mainClient.printMessage(true,HEADER_AUTHENTICATION_RESPONSE, id);

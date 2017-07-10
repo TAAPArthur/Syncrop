@@ -68,7 +68,7 @@ public class ResourceManager
 	/**
 	 * The name of the directory that holds configuration files
 	 */
-	public static String configFilesDirName="syncrop";
+	private static String configFilesDirName="syncrop";
 	
 	private static File temp;
 	
@@ -375,6 +375,8 @@ public class ResourceManager
 		configFilesDirName+=Syncrop.getInstance();
 		if(!new File(getConfigFilesHome()).exists())
 			new File(getConfigFilesHome()).mkdirs();
+		System.setProperty("user.dir", getConfigFilesHome());
+
 		configFile=new File(getConfigFilesHome(),"syncrop.ini");
 				
 		temp=new File(getConfigFilesHome(),".temp");
@@ -396,23 +398,21 @@ public class ResourceManager
 		try {			
 			boolean sameMetaDataVersion=false;
 			File metaDataVersionFile=new File(getConfigFilesHome(),"METADATA_VERSION");
-			
-			if(FileMetadataManager.doesDatabaseExists()&&FileMetadataManager.doesDatabaseExists()){
-				if(metaDataVersionFile.exists()){
-					BufferedReader in=new BufferedReader(new InputStreamReader(new FileInputStream(metaDataVersionFile)));
-					sameMetaDataVersion=in.readLine().trim().equals(Syncrop.getMetaDataVersion());
-					in.close();
-				}
-				if(!sameMetaDataVersion){
-					logger.log("Metadata version is not the same; current version is"+Syncrop.getMetaDataVersion());
-					deleteMetadata();	
-					updateMetadataVersionFile(metaDataVersionFile);
-				}
+		
+		
+			if(metaDataVersionFile.exists()){
+				BufferedReader in=new BufferedReader(new InputStreamReader(new FileInputStream(metaDataVersionFile)));
+				sameMetaDataVersion=in.readLine().trim().equals(Syncrop.getMetaDataVersion());
+				in.close();
 			}
-			else {
-				FileMetadataManager.createDatabase();
+			if(!sameMetaDataVersion){
+				logger.log("Metadata version is not the same; current version is"+Syncrop.getMetaDataVersion());
+				deleteMetadata();	
 				updateMetadataVersionFile(metaDataVersionFile);
 			}
+			else FileMetadataManager.createDatabase(); 
+		
+		
 		}
 		catch (IOException e) 
 		{

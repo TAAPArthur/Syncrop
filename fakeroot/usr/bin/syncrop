@@ -17,8 +17,8 @@ start()
 stop()
 {
  	pid=$(pgrep -f "java.*/usr/lib/syncrop/Syncrop.jar *$@")
-	kill $pid
-	while ps -p $pid >>/dev/null; 
+	kill $pid &>/dev/null
+	while ps -p $pid &>/dev/null; 
 	do 
     	sleep 1;
 	done;

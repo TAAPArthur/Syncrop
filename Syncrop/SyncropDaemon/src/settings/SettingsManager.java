@@ -18,6 +18,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 import syncrop.SyncropLogger;
+import syncrop.ResourceManager;
 import syncrop.Syncrop;
 import client.GenericClient;
 
@@ -47,6 +48,13 @@ public class SettingsManager {
 		ALLOW_ENCRYPTION("Allow Encryption",boolean.class,"getAllowEncription","setAllowEncription",TYPE_ADVANCED),
 		
 		CLOUD_HOME("Cloud Home Dir",String.class,"getCloudHomeDir","setCloudHomeDir",TYPE_CLOUD),
+		
+		DATABASE_PATH("Database Password",String.class,"getDatabasePath","setDatabasePath",TYPE_CLOUD),
+		DATABASE_PASSWORD("Database Password",String.class,"getDatabasePassword","setDatabasePassword",TYPE_CLOUD),
+		AUTENTICATION_SCRIPT("Autentication Script",String.class,"getAuthenticationScript","setAuthenticationScript",TYPE_CLOUD),
+		DATABASE_USERNAME("Database Username",String.class,"getDatabaseUsername","setDatabaseUsername",TYPE_CLOUD),
+		
+		
 		KEYSTORE("Keystore",String.class,"getKeystore","setKeystore",TYPE_CLOUD),
 		KEYSTORE_PASSWORD("Keystore password",String.class,"getKeystorePassword","setKeystorePassword",TYPE_CLOUD),
 		
@@ -77,15 +85,19 @@ public class SettingsManager {
 		public Class<?> getDataType(){return clazz;}
 		public int getOptionType(){return type;}
 		
-		public void setValue(Object value){ 
+		public boolean setValue(Object value){ 
 			try {
 				Method setter=Settings.class.getMethod(setterName,clazz);
 				setter.invoke(null, value);
-				
+				return true;
 			} catch (NoSuchMethodException | SecurityException
 					| IllegalAccessException | IllegalArgumentException
 					| InvocationTargetException e) {
-				logger.log(e.toString()+";Error setting value:"+value+" "+setterName);
+				logger.log(e.toString()+";Error setting value:"+value+
+						" expected type"+getDataType()+" for "+setterName+
+						"received "+(value==null?null:value.getClass())
+						);
+				return false;
 			}
 		}
 		private String getFormattedValue(){
@@ -120,14 +132,14 @@ public class SettingsManager {
 	/**
 	 * Sets default settings
 	 */
-	private void loadDefaultSettings(){
+	public static void loadDefaultSettings(){
 		Settings.setHost(isInstanceOfCloud()?"localhost":GenericClient.DEFAULT_HOST);
 		Settings.setPort(GenericClient.DEFAULT_PORT);
 		Settings.setSSLPort(GenericClient.DEFAULT_SSL_PORT);
 		Settings.setSSLConnection(true);
 		Settings.setCloudHomeDir(File.separatorChar+"home/syncrop"+File.separatorChar);
 		Settings.setMaxFileSize(Integer.MAX_VALUE);
-		Settings.setMaxAccountSize(4*GIGABYTE);
+		Settings.setMaxAccountSize(4L*GIGABYTE);
 		Settings.setMaxTransferSize(MEGABYTE);
 		Settings.setNotificationLevel(SyncropLogger.LOG_LEVEL_INFO);
 		Settings.setAutoQuit(false);
@@ -139,15 +151,17 @@ public class SettingsManager {
 		Settings.setSyncHiddenFiles(true);
 		Settings.setConflictResolution(Settings.DEFAULT);
 		Settings.setConflictsAllowed(true);
+		Settings.setDatabasePath(ResourceManager.getConfigFilesHome()+File.separator+"metadata.db");
+		Settings.setDatabaseUsername("syncrop");
 	}
 	
-	public File getSettingsFile(){
+	public static File getSettingsFile(){
 		File settings=new File(getConfigFilesHome(),Settings.settingsFileName);
 		return settings;
 	}
 	
 	
-	public void createSettingsFile() throws IOException{
+	public static void createSettingsFile() throws IOException{
 		File settings=getSettingsFile();
 		if(!settings.exists())
 			saveSettings(true);
@@ -157,17 +171,19 @@ public class SettingsManager {
 	 * Loads settings if set. These settings override the default settings.
 	 * @throws IOException if an io error occurs
 	 */
-	public void loadSettings() throws IOException
+	public static synchronized boolean  loadSettings() throws IOException
 	{
 		loadDefaultSettings();
 		
 		File settingsFile=getSettingsFile();
 		createSettingsFile();
+		boolean allLoadedSuccussfully=true;
 		try {
 			BufferedReader in=new BufferedReader(new InputStreamReader(new FileInputStream(settingsFile)));
 			
 			while(in.ready())
-				interpretSettings(in.readLine());
+				if(!interpretSettings(in.readLine()))
+					allLoadedSuccussfully=false;
 			in.close();
 			
 		}
@@ -179,6 +195,7 @@ public class SettingsManager {
 			Syncrop.logger.log("file preference file does not exist but file.exists()==true", 
 					SyncropLogger.LOG_LEVEL_ERROR,e);
 		}
+		return allLoadedSuccussfully;
 		
 	}
 	/**
@@ -186,14 +203,14 @@ public class SettingsManager {
 	 * @param line the line of settings to interpret
 	 * @throws IOException if an io error occurs
 	 */
-	private void interpretSettings(String line) throws IOException,IllegalArgumentException
+	private static boolean interpretSettings(String line) throws IOException,IllegalArgumentException
 	{
 		line=line.trim();
 		if(line.contains("#"))
 			line=line.substring(0,line.indexOf("#"));
-		if(line.isEmpty())return;
+		if(line.isEmpty())return true;
 		String s[]=line.split("=",2);
-		if(s.length==1)return;
+		if(s.length==1)return false;
 		s[0]=s[0].trim().toUpperCase();
 		s[1]=s[1].trim();
 		String name=s[0];
@@ -220,26 +237,21 @@ public class SettingsManager {
 					formattedValue=Integer.parseInt(value);
 			else if(option.getDataType().equals(boolean.class))
 				formattedValue=Boolean.parseBoolean(value);
-			else if(option.getDataType().equals(String.class))
-				formattedValue=(String)value;
-			else 
-				formattedValue=value;
-			option.setValue(formattedValue);
+			else formattedValue=value;
+			return option.setValue(formattedValue);
 		}
-		else logger.log("Unrecognized option when parsing settings: "+s[0],LOG_LEVEL_WARN);		
+		else logger.log("Unrecognized option when parsing settings: "+s[0],LOG_LEVEL_WARN);
+		return false;
 	}
 	
 	public void saveSettings() throws FileNotFoundException{
 		saveSettings(false);
 	}
-	public void saveSettings(boolean comment) throws FileNotFoundException{
-		
+	public synchronized static void saveSettings(boolean comment) throws FileNotFoundException{
 		PrintWriter out=new PrintWriter(getSettingsFile());
 		for(Options option:Options.values())
 			if(option.getOptionType()!=TYPE_CLOUD)
 				out.println((comment?"#":"")+option.name()+"="+option.getFormattedValue());
 		out.close();
-	}
-	
-	
+	}	
 }

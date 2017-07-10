@@ -28,6 +28,15 @@ function package {
     tar -pczf "syncrop.tar.gz" fakeroot
 	
 }
+function generateUnstablePackage {
+	cd $baseDir;
+	ln -f syncrop.tar.gz Unstable/
+	cp -u PKGBUILD Unstable/PKGBUILD
+	cd Unstable
+	sed -i "15s/.*/source=('syncrop.tar.gz')/" PKGBUILD
+	
+	makepkg -fsc
+}
 
 function commit {
 	git commit -a -m "$message"
@@ -38,4 +47,5 @@ function commit {
 createJars
 message=$(zenity --entry)
 package
+generateUnstablePackage
 commit

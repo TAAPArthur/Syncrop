@@ -54,6 +54,14 @@ public class Settings {
 	
 	private static boolean limitCPUUsage;
 	
+	private static String databasePath;
+	
+
+	private static String databaseUsername;
+	private static String databasePassword;
+	private static String authenticationScript;
+	
+	
 	
 	/**
 	 * Allows for hidden files to be synced
@@ -189,19 +197,42 @@ public class Settings {
 	public static void setIsLimitingCPU(boolean limitCPUUsage) {
 		Settings.limitCPUUsage = limitCPUUsage;
 	}
-	public static String getKeyStore() {
+	public static String getKeystore() {
 		return System.getProperty("javax.net.ssl.keyStore");
 	}
-	public static void setKeyStore(String keyStore) {
+	public static void setKeystore(String keyStore) {
 		System.setProperty("javax.net.ssl.keyStore", keyStore);
-		System.out.println("Setting keysore");
 	}
-	public static String getKeyStorePassword() {
+	public static String getKeystorePassword() {
 		return System.getProperty("javax.net.ssl.keyStorePassword");
 	}
-	public static void setKeyStorePassword(String keyStorePassword) {
+	public static void setKeystorePassword(String keyStorePassword) {
 		System.setProperty("javax.net.ssl.keyStorePassword", keyStorePassword);
-		System.out.println("Setting keysore password");
+		
+	}
+	public static String getDatabasePath() {
+		return databasePath;
+	}
+	public static void setDatabasePath(String databasePath) {
+		Settings.databasePath = databasePath;
+	}
+	public static String getDatabaseUsername() {
+		return databaseUsername;
+	}
+	public static void setDatabaseUsername(String databaseUsername) {
+		Settings.databaseUsername = databaseUsername;
+	}
+	public static String getDatabasePassword() {
+		return databasePassword;
+	}
+	public static void setDatabasePassword(String databasePassword) {
+		Settings.databasePassword = databasePassword;
+	}
+	public static String getAuthenticationScript() {
+		return authenticationScript;
+	}
+	public static void setAuthenticationScript(String authenticationScript) {
+		Settings.authenticationScript = authenticationScript;
 	}
 	
 }

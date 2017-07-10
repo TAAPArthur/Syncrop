@@ -6,6 +6,7 @@ syncrop*.tar.xz
 *.metadata*
 Syncrop/.recommenders/
 Syncrop/RemoteSystemsTempFiles/
+Jars/
 
 *.classpath
 *.project

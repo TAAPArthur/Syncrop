@@ -26,7 +26,7 @@ public abstract class Syncrop {
 	 * The version number of Syncrop.<br/>
 	 * This value is the value version of the Syncrop DEB.
 	 */
-	static final private String VERSION_ID="2.3.9";
+	static final private String VERSION_ID="2.4.0";
 	static final public String APPLICATION_NAME="Syncrop";
 	/**
 	 * The version of the metadata. This value is stored in the metadata dir.
@@ -151,8 +151,8 @@ public abstract class Syncrop {
 	public static void setInstanceOfCloud(boolean runAsCloud){
 		Syncrop.instanceOfCloud=runAsCloud;
 	}
-	protected void initializeLogger() throws IOException{
-		logger=new SyncropLogger((this instanceof SyncDaemon?"syncrop":"syncropGUI")+".log");
+	protected String getLogFileName(){
+		return "syncrop.log";
 	}
 	private void init()throws IOException{
 		//sets the start time 
@@ -160,9 +160,9 @@ public abstract class Syncrop {
 		
 		//define the logger
 		ResourceManager.initializeConfigurationFiles();
-		initializeLogger();
+		logger=new SyncropLogger(getLogFileName());
 		//Loads settings
-		new SettingsManager().loadSettings();
+		SettingsManager.loadSettings();
 		
 		addShutdownHook();
 		
@@ -195,7 +195,6 @@ public abstract class Syncrop {
 		
 		//file account config files (.ini file)
 		ResourceManager.readFromConfigFile();
-		
 		
 	}
 	protected void addShutdownHook(){}

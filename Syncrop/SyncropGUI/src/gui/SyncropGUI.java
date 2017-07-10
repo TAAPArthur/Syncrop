@@ -130,7 +130,9 @@ public class SyncropGUI extends Syncrop implements ActionListener{
 		headerPanel.revalidate();
 		frame.add(headerPanel, BorderLayout.NORTH);
 	}
-	
+	protected String getLogFileName(){
+		return "syncropGUI.log";
+	}
 	/**
 	 * creates the shutdown hook that will safely kill Syncrop when asked to shutdown or
 	 * when an unexpected error occurred.
