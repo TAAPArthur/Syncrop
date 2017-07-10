@@ -5,61 +5,61 @@ import java.io.IOException;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent.Kind;
 
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
 
 public class Command {
 	
-	private JSONObject jsonObject;
-	public Command (JSONObject jsonObject){
-		this.jsonObject=jsonObject;
+	
+	private final String files[];
+	private final String listeners[];
+	private final String scripts[];
+	private final String workingDirectory;
+	
+	public Command(String[] files, String[] listeners, String[] scripts, String workingDirectory) {
+		this.files = files;
+		this.listeners = listeners;
+		this.scripts = scripts;
+		this.workingDirectory = workingDirectory;
 	}
 	public boolean isCommandFor(String path){
-		JSONArray files=((JSONArray)jsonObject.get("file"));
-		for(int i=0;i<files.size();i++){
-			if(path.matches(ResourceManager.convertToPattern((String)files.get(i))))
+		for(String file:files){
+			if(path.matches(ResourceManager.convertToPattern(file)))
 				return true;
 		}
 		return false;
 	}
-	public boolean canExecute(Kind<?> kind){
-		JSONArray array=((JSONArray)jsonObject.get("listener"));
+	public boolean isWaitingFor(Kind<?> kind){
+		String s;
 		if(kind.equals(StandardWatchEventKinds.ENTRY_CREATE))
-			return array.contains("onCreate");
+			s="onCreate";
 		else if(kind.equals(StandardWatchEventKinds.ENTRY_MODIFY))
-			return array.contains("onModify");
+			s="onModify";
 		else if(kind.equals(StandardWatchEventKinds.ENTRY_DELETE))
-			return array.contains("onDelete");
+			s="onDelete";
 		else return false;
+		
+		for (String a:listeners)
+			if(a.equals(s))
+				return true;
+		return false;
 	}
+	
 	public void execute() throws IOException{
 		
-		JSONArray array=((JSONArray)jsonObject.get("execute"));
-		for(int i=0;i<array.size();i++){
-			JSONObject object=(JSONObject) array.get(i);
-			String workingDir=(String) object.get("workingDirectory");
-			JSONArray commands=(JSONArray) object.get("commands");
-			for(int n=0;n<commands.size();n++){
-				String command=((String)commands.get(n)).trim();
-				try {
-					Syncrop.logger.logDebug("Executing command "+command);
-					Process p=Runtime.getRuntime().exec(command.split(" "),null,
-							workingDir==null?null:new File(workingDir));
-					p.waitFor();
-					
-				} catch (InterruptedException e) {
-					Syncrop.logger.log("Command was innterrupted "+ command);
-				}
+		for(String script:scripts){
+			try {
+				Syncrop.logger.logDebug("Executing command "+script);
+				Process p=Runtime.getRuntime().exec(script.split(" "),null,
+						workingDirectory==null?null:new File(workingDirectory));
+				p.waitFor();
+				
+			} catch (InterruptedException e) {
+				Syncrop.logger.log("Command was innterrupted "+ script);
 			}
 		}
 		
 	}
-	@Override
-	public String toString(){
-		return jsonObject.toString();
-	}
+	
 
 }

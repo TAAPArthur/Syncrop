@@ -215,7 +215,7 @@ public abstract class SyncDaemon extends Syncrop{
 		logger.logTrace("Checking files");
 		
 		if(Settings.allowScripts())
-			fileWatcher.watch(ResourceManager.loadCommands());
+			fileWatcher.loadCommandsToRunOnFileModification();
 		
 		fileWatcher.checkAllFiles();
 		

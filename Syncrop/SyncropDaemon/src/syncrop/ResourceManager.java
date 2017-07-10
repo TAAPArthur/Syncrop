@@ -22,9 +22,6 @@ import java.util.NoSuchElementException;
 import java.util.Scanner;
 import java.util.regex.Pattern;
 
-import org.json.simple.JSONArray;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
 
 import account.Account;
 import file.Directory;
@@ -566,17 +563,5 @@ public class ResourceManager
 		logger.close();
 	}
 	
-	public static JSONArray loadCommands(){
-		try {
-			JSONParser parser=new JSONParser();
-			File commandFile=new File(getConfigFilesHome(),"commands.json");
-			if(commandFile.exists())
-				return (JSONArray)parser.parse(new FileReader(commandFile));
-		} catch (IOException | ParseException e) {
-			Settings.setAllowScripts(false);
-			logger.logError(e, "while trying to load commands");
-		}
-		return null;
-				
-	}
+	
 }

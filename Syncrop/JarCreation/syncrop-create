@@ -33,6 +33,7 @@ function generateUnstablePackage {
 	ln -f syncrop.tar.gz Unstable/
 	cp -u PKGBUILD Unstable/PKGBUILD
 	cd Unstable
+	rm syncrop-*
 	sed -i "15s/.*/source=('syncrop.tar.gz')/" PKGBUILD
 	
 	makepkg -fsc

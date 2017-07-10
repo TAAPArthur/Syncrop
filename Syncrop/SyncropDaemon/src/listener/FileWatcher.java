@@ -6,6 +6,8 @@ import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 import static syncrop.Syncrop.logger;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.ClosedWatchServiceException;
 import java.nio.file.FileSystems;
@@ -21,9 +23,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
-
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
+import java.util.Scanner;
 
 import account.Account;
 import daemon.SyncDaemon;
@@ -416,7 +416,7 @@ public class FileWatcher extends Thread{
 		try {
 			if(Settings.allowScripts())
 				for(Command c:commands)
-					if(c.isCommandFor(absPath)&&c.canExecute(kind)){
+					if(c.isCommandFor(absPath)&&c.isWaitingFor(kind)){
 						logger.log("running command for"+absPath);
 						c.execute();
 					}
@@ -435,10 +435,44 @@ public class FileWatcher extends Thread{
 		
 	}
 	
-	public void watch(JSONArray jsonArray){
-		if(jsonArray==null)return;
-		logger.log("loading commands ("+jsonArray.size()+")");
-		for(int i=0;i<jsonArray.size();i++)
-			commands.add(new Command((JSONObject) jsonArray.get(i)));
+	public boolean loadCommandsToRunOnFileModification() {
+		
+		File commandFile=new File(ResourceManager.getConfigFilesHome(),"syncrop-commands");
+		if(!commandFile.exists())return false;
+		
+		try {
+			Scanner sc=new Scanner(new FileReader(commandFile));
+			String files[]=null;
+			String listeners[]=null;
+			String scripts[]=null;
+			String workingDirectory=null;
+			while(sc.hasNextLine()){
+				String line=sc.nextLine().trim();
+				if(line.startsWith("{")){
+					files=listeners=scripts=null;
+					workingDirectory=null;
+					line=line.substring(1).trim();
+				}
+				else if(line.startsWith("}")){
+					commands.add(new Command(files, listeners, scripts, workingDirectory));
+				}
+				if(line.isEmpty())continue;
+				String []parts=line.split(":",1);
+				if (parts[0].equalsIgnoreCase("FILE"))
+					files=parts[1].split("\t");
+				else if (parts[0].equalsIgnoreCase("listener"))
+					listeners=parts[1].split("\t");
+				else if (parts[0].equalsIgnoreCase("run"))
+					scripts=parts[1].split("\t");
+				else if (parts[0].equalsIgnoreCase("workingDirectory"))
+					workingDirectory=parts[1];
+			}
+			sc.close();
+			return true;
+		} catch (FileNotFoundException e) {
+			logger.logError(e);
+		}
+		return false;
 	}
+	
 }
