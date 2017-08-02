@@ -194,7 +194,8 @@ public class SyncropLogger implements logger.Logger{
         record.setThrown(t);
         
         handler.publish(record);
-        
+        if(isLogging(LOG_LEVEL_TRACE))
+        	handler.flush();
         if(this.logLevel<LOG_LEVEL_ALL)
 			System.out.println(message);
         if(t!=null){

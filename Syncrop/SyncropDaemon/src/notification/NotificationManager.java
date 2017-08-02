@@ -3,67 +3,72 @@ package notification;
 import static notification.Notification.displayNotification;
 import static syncrop.Syncrop.logger;
 
+import daemon.SyncDaemon;
 import logger.Logger;
 import settings.Settings;
 import syncrop.Syncrop;
-import transferManager.FileTransferManager;
 
 public class NotificationManager extends Thread {
 	
-	final FileTransferManager transferManager;
-	public NotificationManager(FileTransferManager transferManager){
+	final SyncDaemon daemon;
+	public NotificationManager(SyncDaemon daemon){
 		super("Notification Manager");
-		this.transferManager=transferManager;
+		this.daemon=daemon;
 	}
 
 	@Override
 	public void run() {
 		int timeSinceFirstFileTransfered=0;
-		while(!Syncrop.isShuttingDown()&&Settings.isShowingNotifications(Logger.LOG_LEVEL_INFO))
+		while(!Syncrop.isShuttingDown())
 		{
 			Syncrop.sleep(1000);
-			int sum=transferManager.getDownloadCount()+transferManager.getUploadCount();
-			if(sum==0)continue;
-			timeSinceFirstFileTransfered++;		
-			if(timeSinceFirstFileTransfered==60||transferManager.haveAllFilesFinishedTranferring()
-				&&transferManager.getTimeFromLastCompletedFileTransfer()>2){
+			
+			if(daemon.getFileTransferManager().getTransferedFiles()==0)continue;
+			timeSinceFirstFileTransfered++;
+			if(timeSinceFirstFileTransfered==60||daemon.haveAllFilesFinishedTranferring()
+				&&daemon.getFileTransferManager().getTimeFromLastCompletedFileTransfer()>2){
 				notifyUser();
 				timeSinceFirstFileTransfered=0;
-			}		
+			}
+			else 
+				logger.logTrace(daemon.getFileTransferManager().getOutstandingFiles()+" files in transit");
 		
 		}		
 	}
 	public void notifyUser()
 	{
 		String summary="File transfer still in progress";
-		if(transferManager.haveAllFilesFinishedTranferring()){
+		if(daemon.getFileTransferManager().haveAllFilesFinishedTranferring()){
 			//prefix="All files finished transferring\n";
 			summary="\n\nAll files finished transferring";
 		}
 		String notification="";
-		if(transferManager.getUploadCount()!=0)
-			if(transferManager.getUploadCount()==1)
-				notification+=transferManager.getNameOfUploadedFile()+" was uploaded to cloud";
-			else notification+=transferManager.getNameOfUploadedFile()+" and "+(transferManager.getUploadCount()-1)+
-					" other file"+(transferManager.getUploadCount()-1==1?"":"s")+" were uploaded to cloud";
-		if(transferManager.getDownloadCount()!=0){
+		if(daemon.getFileTransferManager().getUploadCount()!=0)
+			if(daemon.getFileTransferManager().getUploadCount()==1)
+				notification+=daemon.getFileTransferManager().getNameOfUploadedFile()+" was uploaded to cloud";
+			else notification+=daemon.getFileTransferManager().getNameOfUploadedFile()+" and "+(daemon.getFileTransferManager().getUploadCount()-1)+
+					" other file"+(daemon.getFileTransferManager().getUploadCount()-1==1?"":"s")+" were uploaded to cloud";
+		if(daemon.getFileTransferManager().getDownloadCount()!=0){
 			if(!notification.isEmpty())notification+="\n\n";
-			if(transferManager.getDownloadCount()==1)
-				notification+=transferManager.getNameOfDownloadFile()+" was downloaded from cloud";
-			else notification+=transferManager.getNameOfDownloadFile()+" and "+(transferManager.getDownloadCount()-1)+
-					" other file"+(transferManager.getDownloadCount()-1==1?"":"s")+" were downloaded from cloud";
+			if(daemon.getFileTransferManager().getDownloadCount()==1)
+				notification+=daemon.getFileTransferManager().getNameOfDownloadFile()+" was downloaded from cloud";
+			else notification+=daemon.getFileTransferManager().getNameOfDownloadFile()+" and "+(daemon.getFileTransferManager().getDownloadCount()-1)+
+					" other file"+(daemon.getFileTransferManager().getDownloadCount()-1==1?"":"s")+" were downloaded from cloud";
 		}
+		logger.log(notification);
+		logger.log(daemon.haveAllFilesFinishedTranferring()+"");
 		displayNotification(Logger.LOG_LEVEL_INFO,summary,notification);
-		if(transferManager.haveAllFilesFinishedTranferring())
+		if(daemon.haveAllFilesFinishedTranferring())
 		{
-			if(logger.isDebugging())
-				logger.log("All files finished transferring");
+			
+			logger.log("All files finished transferring");
 			if(Settings.autoQuit()){
 				logger.log("auto quitting");
 				System.exit(0);
 			}
 		}
-		transferManager.resetTransferRecord();			
+		daemon.getFileTransferManager().resetTransferRecord();			
 	}
+	
 	
 }

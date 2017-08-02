@@ -1,7 +1,7 @@
 # Maintainer: Arthur Williams <taaparthur@gmail.com>
 
 pkgname='syncrop'
-pkgver='2.4.0'
+pkgver='2.4.2'
 _language='en-US'
 pkgrel=1
 pkgdesc='SyncROP syncs your files to a cloud and access them form anywhere.'

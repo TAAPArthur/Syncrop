@@ -16,6 +16,7 @@ import java.io.PrintWriter;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
@@ -53,17 +54,13 @@ public class ResourceManager
 	static final String REMOVABLE_DIR_NAME="removable";
 	static final String REGULAR_DIR_NAME="regular";
 	
-	/**
-	 * The home folder for the user<br/> 
-	 * All non removable file paths are relative to Home
-	 */
-	public static final String HOME=System.getProperty("user.home");
 	
 	
 	/**
 	 * The name of the directory that holds configuration files
 	 */
-	private static String configFilesDirName="syncrop";
+	private static String CONFIG_FILES_BASE_DIR_NAME="syncrop";
+	private static String configFilesDirName=CONFIG_FILES_BASE_DIR_NAME;
 	
 	private static File temp;
 	
@@ -113,8 +110,16 @@ public class ResourceManager
 	public static void addAccount(Account account){
 		accounts.add(account);
 	}
+	public static void deleteAllAccounts() throws IOException{
+		if(Syncrop.isInstanceOfCloud())
+			for(Account account:accounts)
+				account.deleteFolder();
+		accounts.clear();
+		
+	}
 	public static void deleteAccount(Account account) throws IOException{
-		account.deleteFolder();
+		if(Syncrop.isInstanceOfCloud())
+			account.deleteFolder();
 		accounts.remove(account);
 	}
 	public static Account getAccount() {
@@ -130,23 +135,15 @@ public class ResourceManager
 	public static HashSet<Account> getAllAccounts() {
 		return accounts;
 	}
-	public static HashSet<Account> getAllEnabledAccounts() 
+	public static HashSet<Account> getAllAuthenticatedAccounts() 
 	{
 		HashSet<Account> enabledAccounts=new HashSet<Account>();
 		for(Account a:accounts)
-			if(a.isEnabled())
+			if(a.isEnabled()&&a.isAuthenticated())
 				enabledAccounts.add(a);
 		return enabledAccounts;
 	}
-	public static HashSet<String> getAllEnabledAccountNames() 
-	{
-		HashSet<String> enabledAccounts=new HashSet<String>();
-		for(Account a:accounts)
-			if(a.isEnabled()&&a.isAuthenticated())
-				enabledAccounts.add(a.getName());
-		return enabledAccounts;
-	}
-	
+		
 	public static String getAbsolutePath(String path,String accountName){
 		return getHome(accountName, isFileRemovable(path))+path;
 	}
@@ -161,14 +158,16 @@ public class ResourceManager
 		String temp=absPath.substring(getCloudHomeDir().length());
 		return temp.substring(0, temp.indexOf(File.separatorChar));
 	}
-	public static String getHome(String accountName,boolean removable)
-	{
-		//TODO make path settings
-		if(Syncrop.isInstanceOfCloud())
+	public static String getHome(String accountName,boolean removable,boolean cloud) {
+		if(cloud)
 			return getCloudHomeDir()+accountName+File.separatorChar+
 				(removable?REMOVABLE_DIR_NAME:REGULAR_DIR_NAME)+File.separatorChar;
 		else 
-			return removable?"":HOME+File.separatorChar;
+			return removable?"":Settings.getHomeDir()+File.separatorChar;
+	}
+	public static String getHome(String accountName,boolean removable)
+	{
+		return getHome(accountName, removable, Syncrop.isInstanceOfCloud());
 	}
 	
 
@@ -198,7 +197,7 @@ public class ResourceManager
 					out.println(account.getName());
 					out.println(account.getEmail());
 					out.println(account.getToken());
-					out.println(account.isEnabled()+"");
+					out.println(account.isEnabled());
 					out.println(formatCollection(account.getRestrictions()));
 					out.println(formatCollection(account.getDirectories()));
 					out.println(formatCollection(account.getRemovableDirectories()));
@@ -327,20 +326,14 @@ public class ResourceManager
 		lastRecordedModificationDateOfConfigFile=configFile.lastModified();
 		generateID();
 	}
-	private static void deleteMetadata() throws IOException{
-		logger.log("deleting metadata");
-		FileMetadataManager.recreateDatabase();
-		
-	}
+	
 	
 	public static SyncropItem getFile(String relativePath,String owner){
 		return FileMetadataManager.getFile(relativePath, owner);
 	}	
 	
 	
-	public static  boolean deleteFile(SyncropItem file){
-		return FileMetadataManager.deleteFileMetadata(file);
-	}
+	
 		
 	public static synchronized void lockFile(String path,String owner){
 		lockedPath=path;
@@ -357,9 +350,7 @@ public class ResourceManager
 	public static boolean isLocked(String path,String owner){
 		return owner.equals(lockedOwner)&&path.equals(lockedPath);
 	}
-	public static void writeFile(SyncropItem item){
-		FileMetadataManager.updateFileMetadata(item);
-	}
+	
 	
 	
 	/**
@@ -367,12 +358,12 @@ public class ResourceManager
 	 */
 	public static void initializeConfigurationFiles()
 	{
-		configFilesDirName+=Syncrop.getInstance();
+		configFilesDirName=CONFIG_FILES_BASE_DIR_NAME+Syncrop.getInstance();
 		if(!new File(getConfigFilesHome()).exists())
 			new File(getConfigFilesHome()).mkdirs();
 		System.setProperty("user.dir", getConfigFilesHome());
 
-		configFile=new File(getConfigFilesHome(),"syncrop.ini");
+		configFile=new File(getConfigFilesHome(),"syncrop"+(Syncrop.isInstanceOfCloud()?"_cloud":"")+".ini");
 				
 		temp=new File(getConfigFilesHome(),".temp");
 		
@@ -388,11 +379,15 @@ public class ResourceManager
 			e.printStackTrace();
 		}
 	}
+	
+	public static File getMetaDataVersionFile() {
+		return new File(getConfigFilesHome(),"METADATA_VERSION");
+	}
 	public static void checkMetadataVersion(){
 
 		try {			
 			boolean sameMetaDataVersion=false;
-			File metaDataVersionFile=new File(getConfigFilesHome(),"METADATA_VERSION");
+			File metaDataVersionFile=getMetaDataVersionFile();
 		
 		
 			if(metaDataVersionFile.exists()){
@@ -401,17 +396,18 @@ public class ResourceManager
 				in.close();
 			}
 			if(!sameMetaDataVersion){
-				logger.log("Metadata version is not the same; current version is"+Syncrop.getMetaDataVersion());
-				deleteMetadata();	
+				logger.log("Metadata version is not the same; current version is"+Syncrop.getMetaDataVersion()+"; deleting");
+				FileMetadataManager.recreateDatabase();
 				updateMetadataVersionFile(metaDataVersionFile);
 			}
 			else FileMetadataManager.createDatabase(); 
 		
 		
-		}
-		catch (IOException e) 
-		{
+		}catch (IOException e){
 			logger.logError(e);
+		}
+		catch (SQLException e){
+			logger.logFatalError(e,"");
 		}
 	}
 	private static void updateMetadataVersionFile(File metaDataVersionFile) throws FileNotFoundException{
@@ -462,6 +458,7 @@ public class ResourceManager
 	 */
 	public static String getConfigFilesHome()
 	{
+		final String HOME=System.getProperty("user.home");
 		if(notWindows)
 			if(Syncrop.notMac)//linux support
 				return //Syncrop.isInstanceOfCloud()?File.separatorChar+configFilesDirName+File.separatorChar:

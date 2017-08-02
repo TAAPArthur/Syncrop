@@ -95,13 +95,7 @@ public class FileTransferManager extends Thread{
 	 */
 	public final static String HEADER_CANCEL_DOWNLOAD=" cancel download";
 	
-	/**
-	 * Requests recipient to download a small file. A small fire is a file whose size is 
-	 * less than or equal to the transfer size, {@value SyncDaemon#transferSize}. <br/>
-	 * The message that should accompany this header is defined by 
-	 * {@link SyncropItem#toSyncData(byte[])}
-	 */
-	public final static String HEADER_REQUEST_SYMBOLIC_LINK_DOWNLOAD="request symbolic link download";
+	
 	
 	/**
 	 * Requests recipient to download a small file. A small fire is a file whose size is 
@@ -144,8 +138,8 @@ public class FileTransferManager extends Thread{
 	public final static String HEADER_REQUEST_FILE_UPLOAD="request file upload";
 
 	
-	LinkedHashSet<String>downloadedFiles=new LinkedHashSet<>();
-	LinkedHashSet<String>uploadedFiles=new LinkedHashSet<>();
+	final LinkedHashSet<String>downloadedFiles=new LinkedHashSet<>();
+	final LinkedHashSet<String>uploadedFiles=new LinkedHashSet<>();
 	volatile boolean keepRecord=true;
 	/**
 	 * The name of the first file uploaded/downloaded since the last save
@@ -199,7 +193,7 @@ public class FileTransferManager extends Thread{
 	 * Will be called when Daemon is shutting down;
 	 * Cleans up transfer manager
 	 */
-	public void onShutDown(){
+	public void quit(){
 		unsetLargeFileTransferInfo(null);
 		sendQueue.clear();
 		this.interrupt();
@@ -228,6 +222,7 @@ public class FileTransferManager extends Thread{
 	 *  These values are used for notifications
 	 */
 	public void resetTransferRecord(){
+		logger.log("Reseting transfer record");
 		uploadedFiles.clear();
 		downloadedFiles.clear();
 		timeOfLastCompletedFileTransfer=0;
@@ -379,7 +374,7 @@ public class FileTransferManager extends Thread{
 		timeOfLastCompletedFileTransfer=System.currentTimeMillis();
 		uploadedFiles.add(path);
 		nameOfUploadedFile=path;
-		logger.log("File upload success:"+path);
+		logger.log(uploadedFiles.size()+". File upload success:"+path);
 		
 		outStandingFiles--;
 	}
@@ -476,6 +471,7 @@ public class FileTransferManager extends Thread{
 		return isEmpty()&&getOutstandingFiles()==0;
 	}
 	public int getOutstandingFiles(){return outStandingFiles;}
+	public int getTransferedFiles(){return getDownloadCount()+getUploadCount();}
 	
 	public boolean canDownloadPacket(SyncropItem localFile, String id,String path,String owner, long dateModified, int key, byte[]bytes,long size){
 		return isFileEnabled(localFile,path,owner)&&!isFileSizeToLarge(bytes,path)
@@ -614,12 +610,8 @@ public class FileTransferManager extends Thread{
 		int filePermissions=(int) syncData[INDEX_FILE_PERMISSIONS];
 		boolean exists=(boolean)syncData[INDEX_EXISTS];
 		boolean updatedSinceLastUpdate=(boolean)syncData[INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE];
+		String target=(String)syncData[INDEX_SYMBOLIC_LINK_TARGET];
 		
-		if(message.getHeader().equals(HEADER_REQUEST_SYMBOLIC_LINK_DOWNLOAD)){
-			String target=(String)syncData[INDEX_SYMBOLIC_LINK_TARGET];
-			daemon.downloadFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists,null, 0,target, false,true);
-			return;
-		}
 		
 		
 		long size=(long)syncData[INDEX_SIZE];
@@ -628,7 +620,7 @@ public class FileTransferManager extends Thread{
 		switch (message.getHeader()) 
 		{
 			case HEADER_REQUEST_SMALL_FILE_DOWNLOAD:
-				daemon.downloadFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists,(byte[])syncData[INDEX_BYTES], size,null, false,true);
+				daemon.downloadFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists,(byte[])syncData[INDEX_BYTES], size,target, false,true);
 				break;
 			case HEADER_REQUEST_LARGE_FILE_DOWNLOAD_START:
 				daemon.startDownloadOfLargeFile(sender, path,owner, dateModified, key,updatedSinceLastUpdate,filePermissions,exists, size);

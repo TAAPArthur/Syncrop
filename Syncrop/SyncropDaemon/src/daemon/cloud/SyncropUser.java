@@ -13,7 +13,7 @@ public class SyncropUser implements Comparable<SyncropUser> {
 	String accountName;
 	Account account;
 	long longInTime=System.currentTimeMillis();
-	public long getLongInTime(){return longInTime;}
+	public long getLogInTime(){return longInTime;}
 	public SyncropUser(String id,String accountName){
 		this.id=id;
 		this.accountName=accountName;

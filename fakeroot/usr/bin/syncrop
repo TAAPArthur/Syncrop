@@ -34,10 +34,10 @@ case "$command" in
 		start $@
 		;;
 	stop)
-		stop $@
+		stop $1
 		;;
 	restart|reload)
-		stop $@
+		stop $1
 		start $@
 		;;
 	version|"-v"|"--version")

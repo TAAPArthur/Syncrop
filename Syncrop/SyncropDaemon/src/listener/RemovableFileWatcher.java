@@ -35,7 +35,7 @@ public class RemovableFileWatcher implements Runnable{
 	public void run() {
 		while(!SyncropClientDaemon.isShuttingDown())
 		{
-			for(Account a:ResourceManager.getAllEnabledAccounts())
+			for(Account a:ResourceManager.getAllAuthenticatedAccounts())
 				for (RemovableDirectory parentDir : a.getRemovableDirectories())
 				{
 					if(parentDir.exists())

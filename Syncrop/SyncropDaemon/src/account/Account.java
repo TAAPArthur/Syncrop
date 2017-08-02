@@ -107,7 +107,7 @@ public class Account
 	private static final String defaultRestrictions=
 			"*.metadata*\t*.~lock*\t*.gvfs\t*.thumbnails*"
 	+ "\t*.backup*\t*~\t*.git*\t*.dropbox*\t*/proc/*\t*/sys/*\t*/dev/*\t*/run/*"
-	+ "\r*.*outputstream*\t*appcompat*\t*/.recommenders/*\t*.attach_pid*\t*.tmp"
+	+ "\t*.*outputstream*\t*appcompat*\t*/.recommenders/*\t*.attach_pid*\t*.tmp"
 	+ "\t*.settings*\t*/sys/*\t*.bash_history\t*.classpath\t*.project\t*.tmp/t*/.*"
 	+ "\t.*class";
 
@@ -200,7 +200,7 @@ public class Account
 			f=new File(ResourceManager.getHome(getName(), removable=!removable));
 			if(!f.exists()){
 				logger.log("creating parent dir for account " +
-						getName()+" removable:"+removable);
+						getName()+" removable:"+removable+" path="+f);
 				if(!f.mkdirs())
 					logger.log("Account folder failed to be created"+f);
 			}
@@ -339,7 +339,6 @@ public class Account
 	public boolean isPathEnabled(final String path)
 	{
 		boolean removable=ResourceManager.isFileRemovable(path);
-		
 		if(!isPathContainedInDirectory(path,removable))
 			return false;
 		
@@ -348,7 +347,19 @@ public class Account
 				if(dir.isPathContainedInDirectory(path))
 					return false;
 			}
+		return true;
+	}
+	public boolean isAbsPathEnabled(final Path absPath)
+	{
+		String path=absPath.toString();
+		if(!isPathContainedInDirectory(path,true)&&!isPathContainedInDirectory(path,false))
+			return false;
 		
+		if(!Syncrop.isInstanceOfCloud())//cloud does not have restrictions
+			for(Directory dir:this.restrictions){
+				if(dir.isPathContainedInDirectory(path))
+					return false;
+			}
 		return true;
 	}
 	/**

@@ -1,7 +1,7 @@
 package listener.actions;
 
-import java.io.File;
+import file.SyncropItem;
 
 public interface SyncROPFileAction {
-	public boolean performOn(File file);
+	public boolean performOn(SyncropItem file);
 }

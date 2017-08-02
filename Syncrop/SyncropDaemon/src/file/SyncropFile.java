@@ -9,8 +9,9 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
+import java.nio.file.StandardCopyOption;
 
-import syncrop.Syncrop;
+import syncrop.ResourceManager;
 
 public class SyncropFile extends SyncropItem 
 {	
@@ -24,22 +25,17 @@ public class SyncropFile extends SyncropItem
 	private long lastRecordedSize;
 	
 	public SyncropFile(String path,String owner){
-		this(path, owner, 0);
+		this(path, owner, -1,1,false,-1,false,0);
 	}
 		
-	public SyncropFile(String path, String owner,int key)
+	public SyncropFile(String path,String owner,long modificicationDate,int key,boolean modifedSinceLastKeyUpdate,long lastRecordedSize,boolean knownToExists,int filePermisions)
 	{
-		this(path,owner,0, key,false,-1,false,0);
-	}
-	
-	
-	public SyncropFile(String path,String owner,long modificicationDate,int key,boolean modifedSinceLastKeyUpdate,long lastRecordedSize,boolean deletionRecorded,int filePermisions)
-	{
-		super(path, owner, modificicationDate,modifedSinceLastKeyUpdate,lastRecordedSize,deletionRecorded,filePermisions);
+		super(path, owner, modificicationDate,modifedSinceLastKeyUpdate,lastRecordedSize,knownToExists,filePermisions);
 		
 		if(key<=0)
-			key=0;
-		this.key=key;
+			setKey(1);
+		else this.key=key;
+		
 		if(getSize()!=lastRecordedSize)
 			setHasBeenUpdated();
 		if(exists()&&Files.isDirectory(file.toPath(),LinkOption.NOFOLLOW_LINKS)){
@@ -97,20 +93,20 @@ public class SyncropFile extends SyncropItem
 	}
 	
 	
-	public void updateKey(){
-		setKey(key+1);//UPDATE KEY
+	public void updateKey(int remoteKey){
+		setKey(Math.max(remoteKey, key)+1);//UPDATE KEY
 	}
 	public void setKey(int key)
 	{		
 		logger.logTrace("key "+this.key+" is being changed to "+key+" path="+path);
 		modifiedSinceLastKeyUpdate=false;
 		this.key=key;
-		
+		setHasBeenUpdated();
 	}
 	
 	
 	@Override
-	public long getKey()
+	public int getKey()
 	{
 		return key;
 	}
@@ -138,6 +134,23 @@ public class SyncropFile extends SyncropItem
 		}
 		
 		rename(new File(baseName+conflictNumber));
+	}
+	private void rename(File destFile) throws IOException
+	{
+		
+		//gets relative path
+		String newPath=destFile.getAbsolutePath().replaceFirst(ResourceManager.getHome(owner, isRemovable()), "");
+		dateModified=file.lastModified();
+		
+		Files.move(file.toPath(), destFile.toPath(),
+				StandardCopyOption.ATOMIC_MOVE);
+		
+		logger.logTrace(logger.getDateTimeFormat().format(dateModified)
+				+"Vs"+logger.getDateTimeFormat().format(file.lastModified()));
+		file.setLastModified(dateModified);
+		
+		logger.log("file:"+path+" has been renamed to "+newPath);
+			
 	}
 	private int getConflictNumber() throws ConflictException
 	{
@@ -167,9 +180,6 @@ public class SyncropFile extends SyncropItem
 	}
 	void mergeMetadata(long remoteDateMod,int remoteKey){
 		setDateModified(remoteDateMod);
-		if(Syncrop.isInstanceOfCloud())
-			updateKey();
-		else 
-			setKey(remoteKey);
+		setKey(remoteKey);
 	}
 }

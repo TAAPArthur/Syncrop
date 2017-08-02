@@ -5,7 +5,6 @@ import java.io.IOException;
 import daemon.client.SyncropClientDaemon;
 import daemon.cloud.SyncropCloud;
 import gui.SyncropGUI;
-import listener.FileWatcher;
 
 public class SyncropApplication {
 
@@ -34,8 +33,8 @@ public class SyncropApplication {
 		if(startGUI)
 			new SyncropGUI(instance,startCloud);
 		else if(startCloud)
-			new SyncropCloud(instance,clean);
-		else new SyncropClientDaemon(instance,clean);
+			new SyncropCloud(instance,clean).startConnection();
+		else new SyncropClientDaemon(instance,clean).startConnection();
 
 	}
 

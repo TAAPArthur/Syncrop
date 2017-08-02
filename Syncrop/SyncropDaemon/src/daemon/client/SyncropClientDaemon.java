@@ -5,7 +5,6 @@ import static notification.Notification.displayNotification;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
 import java.util.HashSet;
 
 import javax.net.ssl.SSLHandshakeException;
@@ -36,7 +35,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 * If SyncropClientDaemon is in the process of authenticating to Cloud
 	 */
 	static volatile boolean authenticating;
-	SyncropCommunication communication;
+	
 	
 	public static void main (String args[]) throws IOException
 	{
@@ -51,13 +50,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 		new SyncropClientDaemon(instance,false);
 	}
 	
-	/**
-	 * kills the application
-	 */
-	public static void stop(){
-		logger.log("Method stop called");
-		System.exit(0);
-	}
+	
 
 	/**
 	 * Creates and starts an instance of SyncropDaemon that runs as a client and not
@@ -65,23 +58,11 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 * @throws IOException 
 	 * @see SyncropCloud#Cloud()
 	 */
-	public SyncropClientDaemon(String instance,boolean clean) throws IOException
+	public SyncropClientDaemon(String instance,boolean clean)
 	{
 		super(instance,clean);
 	}
-	/**
-	 * {@inheritDoc}
-	 * <br/>
-	 * This method has been override to create a {@link SyncropCommunication}SyncropCommunication instance to 
-	 * communicate with a potential GUI.
-	 */
-	@Override
-	public void init(boolean clean){
-		communication=new SyncropCommunication(this);
-		communication.start();
-		if(!isShuttingDown())
-			super.init(clean);
-	}
+	
 	/**
 	 * Attempts a connection to Cloud and waits until one is made, authenticated and
 	 *  files are synced
@@ -95,17 +76,22 @@ public class SyncropClientDaemon extends SyncDaemon{
 		
 		int lastConnectionFailedMessage=-1;
 		boolean surpressConnectionMessage=false;
-		
 		logger.logTrace("Trying to connect to Server");
-		fileTransferManager.reset();
+		
 		fileTransferManager.pause(true);
 		
-		if(mainClient!=null&&!surpressConnectionMessage){
-			logger.log("connection closed for reason "+mainClient.getReasonToClose());
-			logger.log("dynamic timeout: "+mainClient.getTimeout());
-			Syncrop.sleepLong();
+		if(mainClient!=null) {
+			if(getFileTransferManager().getTransferedFiles()>0) {
+				System.out.println("asdf");
+				notificationManager.notifyUser();
+			}
+			if(!surpressConnectionMessage){
+				logger.log("connection closed for reason "+mainClient.getReasonToClose());
+				logger.log("dynamic timeout: "+mainClient.getTimeout());
+				Syncrop.sleepLong();
+			}
 		}
-		
+		fileTransferManager.reset();
 		//if(!ResourceManager.canReadAndWriteSyncropConfigurationFiles())
 			//waitForConfigFiles();
 		do {
@@ -118,8 +104,10 @@ public class SyncropClientDaemon extends SyncDaemon{
 				}
 				
 				count++;
-				if(count++>15)
+				if(count++>15) {
 					sleepLong();//when connection has failed repeatedly, sleep extra time;
+					count=0;
+				}
 		
 				//Initializes the main client and has it connect to Server
 				//TODO make id username
@@ -314,7 +302,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 			set.add(isNotWindows()?dir.getDir():SyncropItem.toLinuxPath(dir.getDir()));
 		for(String s:a.getRemovableDirectoriesThatExists())
 			set.add(isNotWindows()?s:SyncropItem.toLinuxPath(s));
-		logger.log("Starting sync started: "+set);
+		logger.log("Starting sync: "+set);
 		syncFilesToCloud(set.toArray(new String[set.size()]));
 		
 	}
@@ -330,59 +318,35 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 */
 	public void syncFilesToCloud(String... pathsToSync) throws IOException{
 		
-		final ArrayList<Object[]> message=new ArrayList<Object[]>();
+		
 		mainClient.printMessage(pathsToSync, HEADER_SET_ENABLED_PATHS);
 		Iterable<SyncropItem>items=FileMetadataManager.iterateThroughAllFileMetadata(null);
-		for (SyncropItem item:items)
-			syncFilesToCloud(item,message);
-		
-
-		if(message.size()!=0)
-			mainClient.printMessage(message.toArray(new Object[message.size()][5]), HEADER_SYNC_FILES);
-		
+		final int maxTransferSize=1024;
+		Object[][] message=new Object[maxTransferSize][];
+		int count=0,totalCount=0;
+		for (SyncropItem item:items) {
+			if(item==null||!item.isEnabled()||!item.syncOnFileModification())continue;
+			if(item.hasBeenUpdated())
+				item.save();
+			message[count++]=item.toSyncData();
+			
+			if(count==maxTransferSize){
+				mainClient.printMessage(message, HEADER_SYNC_FILES);
+				count=0;
+				message=new Object[maxTransferSize][];
+			}
+			totalCount++;
+		}
+		if(count!=0)
+			mainClient.printMessage(message, HEADER_SYNC_FILES);
+		logger.log("Syncing "+totalCount+" files");
 		//Tells Cloud to send any files that this client does not have
 		sleepShort();
 		mainClient.printMessage(
 			ResourceManager.getAccount().getRestrictionsList(), HEADER_SYNC_GET_CLOUD_FILES);
 		
 	}
-	/**
-	 * Recursively goes through directories of the directory corresponding to metaDataFile uploads 
-	 * their metadata to cloud. To increase performance, messages are not sent immediately but instead are sent in a group of {@value Syncrop#KILOBYTE}.
-	 * <br/>
-	 * While recursing through files, the method checks to see if the file has been updated or deleted and updates the metadata.
-	 * Note this method does not check to see if new files have been added.
-	 * @param metaDataFile the metadata directory to recursively check
-	 * @param message the messages in queue to be sent; When messages are sent, this list is cleared
-	 * @throws IOException 
-	 */
-	private void syncFilesToCloud(SyncropItem file,final ArrayList<Object[]> message) throws IOException{
 
-		if(Syncrop.isShuttingDown())
-			throw new SyncropCloseException();
-		else if(!isConnectionAccepted())throw new IOException("Not connected");
-		final int maxTransferSize=100;
-		
-		
-		if(file==null||!file.isEnabled()||!file.isSyncable())return;
-		
-		if(!file.exists()&&!file.isDeletionRecorded()){
-			logger.logTrace("File was deleted while server was off path="+file);
-			file.setDateModified(Syncrop.getStartTime());	
-		}
-		
-		if(file.hasBeenUpdated())
-			file.save();
-		message.add(file.toSyncData());
-	
-			
-		if(message.size()==maxTransferSize){
-			mainClient.printMessage(message.toArray(new Object[message.size()][5]), HEADER_SYNC_FILES);
-			message.clear();
-			Syncrop.sleep();
-		}
-		
-	}
 	
 	@Override
 	/**

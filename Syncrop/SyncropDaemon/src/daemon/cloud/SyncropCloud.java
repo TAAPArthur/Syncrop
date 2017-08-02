@@ -23,6 +23,7 @@ import daemon.SyncDaemon;
 import daemon.client.SyncropClientDaemon;
 import file.SyncropFile;
 import file.SyncropItem;
+import file.SyncropItem.SyncropPostCompare;
 import listener.FileWatcher;
 import message.Message;
 import server.InternalServer;
@@ -201,16 +202,10 @@ public final class SyncropCloud extends SyncDaemon
 		if(!isConnectionActive())
 			return;
 		logger.logTrace("Updating to all clients "+file.getPath()+" excluding "+targetToExclude+" out of "+clients.size()+" users");
-		boolean updatedKey=false;
+		
 		for(String key:clients.keySet()){
 			if(!key.equals(targetToExclude)&&file.getOwner().equals(clients.get(key).getAccountName()))
 				if(!clients.get(key).isPathRestricted(file.getPath())){
-					if(!updatedKey){
-						((SyncropFile)file).updateKey();
-						file.save();
-						updatedKey=true;
-						
-					}
 					fileTransferManager.addToSendQueue(file,key);
 				}
 				else logger.logTrace("File not echoed because restricted");
@@ -234,15 +229,19 @@ public final class SyncropCloud extends SyncDaemon
 	 * @param refreshToken the token of the user
 	 * @return true if the user has been authenticated
 	 */
-	public static boolean authenticateUser(String username,String email,String refreshToken){
+	public static synchronized boolean authenticateUser(String username,String email,String refreshToken){
+		logger.logTrace("authenticating user:"+username);
 		if(Settings.getAuthenticationScript()==null)return false;
 		int exitCode=127;
+		if(Settings.getAuthenticationScript().equals("true"))
+			return true;
 		try {
 			Process p = Runtime.getRuntime().exec(Settings.getAuthenticationScript()+" "+username+" "+email+" "+refreshToken);
 			exitCode = p.waitFor();
 		} catch (IOException | InterruptedException e) {
 			logger.logError(e);
 		}
+		logger.logTrace("authentication response "+exitCode);
 		return exitCode==0;	
 	}
 	/**
@@ -307,7 +306,7 @@ public final class SyncropCloud extends SyncDaemon
 		else if(!file.isEnabled()){
 			logger.logTrace(file.getPath()+" is not enabled");
 		}
-		else if(!file.isSyncable()){
+		else if(!file.syncOnFileModification()){
 			logger.logTrace(file.getPath()+" is not syncable");
 		}
 		else {
@@ -325,7 +324,7 @@ public final class SyncropCloud extends SyncDaemon
 					logger.logTrace("Local client does not have "+file);
 					if(user.deletingFilesNotOnClient){
 						logger.logTrace("Deleting  "+file+" because it is not on client");
-						file.delete(user.getLongInTime());
+						file.delete(user.getLogInTime());
 					}
 					else fileTransferManager.addToSendQueue(file, id);
 					return;
@@ -360,26 +359,39 @@ public final class SyncropCloud extends SyncDaemon
 			logger.logWarning("synced files were null");
 			return null;
 		}
-		for(int i=0;i<files.length;i++)
-		{
+		for(Object [] syncData:files){
+			if(syncData==null)
+				break;
+	
+			final String path=(String)syncData[INDEX_PATH];
+			if(path==null)break;
+			if(!SyncropFile.isValidFileName(path)){
+				logger.logWarning("Checking remote files; File is not synced path is not valid "+path); 
+				continue;
+			}
+			if(syncedFiles.get(id).contains(path)){
+				logger.log("path has already been added to synced paths; path="+path);
+				continue;
+			}
+			ResourceManager.lockFile(path, owner);
+			
+			SyncropItem localFile=ResourceManager.getFile(path,owner);
 			try {
-				final String path=(String)files[i][INDEX_PATH];
-				if(path==null)break;
-				ResourceManager.lockFile(path, owner);
-				if(syncedFiles.get(id).contains(path)){
-					logger.log("path has already been added to synced paths; path="+path);
-					continue;
-				}
-				SyncropItem localFile=ResourceManager.getFile(path,owner);
-				SyncropItem.SyncropPostCompare result= SyncropItem.compare(localFile, files[i]);
+				SyncropItem.SyncropPostCompare result= SyncropItem.compare(id,localFile, syncData);
+				if(result!=SyncropPostCompare.SKIP)
+					logger.logTrace("result of comparison: "+result);
 				switch(result){
-					case SKIP:
-						continue;
 					case SYNC_METADATA:
 						sendMetadata(localFile, id);
-					case SYNCED:
+						break;
+					case CREATE_NEW_FILE:
+						localFile=SyncropItem.getInstance(syncData);
+						localFile.createFileWithRecordedTime();
 						localFile.save();
-						updateAllClients(localFile, id);
+						break;
+					case SKIP:
+						break;
+					case SYNCED:
 						break;
 					case DOWNLOAD_REMOTE_FILE:
 						filesToAddToDownload.add(path);
@@ -388,12 +400,15 @@ public final class SyncropCloud extends SyncDaemon
 						fileTransferManager.addToSendQueue(localFile, id);
 						break;
 				}
-				ResourceManager.unlockFile(path, owner);
-				listOfClientFiles.add(path);
-			} catch (Exception e) {
-				logger.logError(e, "Error syncing file "+i+" :"+files[i][0]);
-				removeUser(id, "Error syncing file "+i+" :"+files[i][0]);
+				if(localFile!=null&&localFile.hasBeenUpdated()){
+					localFile.save();
+					updateAllClients(localFile, id);
+				}
+			} catch (IOException e) {
+				logger.logError(e," occured while syncing "+path);
 			}
+			ResourceManager.unlockFile(path, owner);
+			listOfClientFiles.add(path);
 		}
 		
 		if(filesToAddToDownload.size()>0){
@@ -538,5 +553,8 @@ public final class SyncropCloud extends SyncDaemon
 	}
 	public static boolean hasUser(String id){
 		return clients.containsKey(id);
+	}
+	protected String getLogFileName(){
+		return "syncrop_cloud.log";
 	}
 }

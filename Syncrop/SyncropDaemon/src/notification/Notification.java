@@ -37,10 +37,10 @@ public class Notification {
 		if(isNotWindows())
 			try {
 				Runtime.getRuntime().exec(new String []{"notify-send","--app-name",Syncrop.APPLICATION_NAME+" "+getInstance(),"-i",pathToImage,
-						summary,body});
+						summary+"",body+""});
 			} catch (IOException|NullPointerException e) {
 				Settings.setNotificationLevel(-1);
-				logger.log("can't notify user of message: '"+body+
+				logger.logError(e,"can't notify user of message: '"+body+
 						"'. Notifications will now be turned off");				
 			}
 	}

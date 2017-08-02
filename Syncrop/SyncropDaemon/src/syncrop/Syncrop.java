@@ -25,7 +25,7 @@ public abstract class Syncrop {
 	 * The version number of Syncrop.<br/>
 	 * This value is the value version of the Syncrop DEB.
 	 */
-	static final private String VERSION_ID="2.4.0";
+	static final private String VERSION_ID="2.4.2";
 	static final public String APPLICATION_NAME="Syncrop";
 	/**
 	 * The version of the metadata. This value is stored in the metadata dir.
@@ -58,7 +58,7 @@ public abstract class Syncrop {
 	 * This string is used to allow multiple instances of Syncrop
 	 * to run without interferring with each other. 
 	 */
-	private static String instance="";
+	protected static String instance="";
 	
 	
 	/**
@@ -120,7 +120,7 @@ public abstract class Syncrop {
 	 * @throws IOException
 	 * @see {@link #instance}
 	 */
-	public Syncrop(String instance) throws IOException{
+	public Syncrop(String instance){
 		
 		Syncrop.instance=instance;
 		Syncrop.instanceOfCloud=(this instanceof SyncropCloud);
@@ -136,7 +136,7 @@ public abstract class Syncrop {
 	 * @throws IOException
 	 * @see {@link #instance}, {@link #isInstanceOfCloud()} 
 	 */
-	public Syncrop(String instance,boolean runAsCloud) throws IOException{
+	public Syncrop(String instance,boolean runAsCloud){
 		Syncrop.instance=instance;
 		Syncrop.instanceOfCloud=runAsCloud;
 		init();
@@ -153,29 +153,27 @@ public abstract class Syncrop {
 	protected String getLogFileName(){
 		return "syncrop.log";
 	}
-	private void init()throws IOException{
-		
-
+	private void init(){
+	
 		//sets the start time 
 		startTime=System.currentTimeMillis();
-		
-		//define the logger
-		ResourceManager.initializeConfigurationFiles();
-		logger=new SyncropLogger(getLogFileName());
-		//Loads settings
-		SettingsManager.loadSettings();
-		
-		addShutdownHook();
-		
-		//initilize Notification;
-		Notification.initilize();
-		
+	
 		try {
+			//define the logger
+			ResourceManager.initializeConfigurationFiles();
+			logger=new SyncropLogger(getLogFileName());
+			logger.log("Running instance of "+getClass().getName());
+			//Loads settings
+			SettingsManager.loadSettings();
 			
+			addShutdownHook();
+			
+			//initilize Notification;
+			Notification.initilize();
 			FileMetadataManager.startConnectionSession();
-		} catch (SQLException e) {
+		} catch (IOException|SQLException e) {
 			logger.logFatalError(e,"");
-			throw new IOException(e.getMessage());
+			System.exit(1);
 		}
 		
 		//logs basic config info
@@ -184,7 +182,10 @@ public abstract class Syncrop {
 				"; host"+(Settings.isSSLConnection()?" (SSL)":" ")+Settings.getHost()+":"+
 				(Settings.isSSLConnection()?Settings.getSSLPort():Settings.getPort())+
 				" log level "+logger.getLogLevel());
-		
+		if(instanceOfCloud)
+			logger.log("HOME:"+Settings.getCloudHomeDir());
+		else 
+			logger.log("HOME:"+Settings.getHomeDir());
 		//if config files cannot be read, quit
 		if(!ResourceManager.canReadAndWriteSyncropConfigurationFiles()){			
 			logger.log("cannot read and write Syncrop Configuration files",SyncropLogger.LOG_LEVEL_FATAL);
@@ -197,7 +198,21 @@ public abstract class Syncrop {
 		ResourceManager.readFromConfigFile();
 		
 	}
-	protected void addShutdownHook(){}
+	
+	/**
+	 * creates the shutdown hook that will safely kill Syncrop when asked to shutdown or
+	 * when an unexpected error occurred.
+	 */
+	protected void addShutdownHook()
+	{
+		Runtime.getRuntime().addShutdownHook(
+				new Thread("Shutdown-thread") {
+	        public void run() 
+	        {
+	        	quit();
+	        }
+	    });
+	}
 	/**
 	 * 
 	 * @return whether or not Syncrop will as Cloud
@@ -293,7 +308,7 @@ public abstract class Syncrop {
 	/**
 	 * Call to indicate that Syncrop is shutting down safely
 	 */
-	public static void shutdown(){
+	public void quit(){
 		shuttingDown=true;
 		FileMetadataManager.endSession();
 	}

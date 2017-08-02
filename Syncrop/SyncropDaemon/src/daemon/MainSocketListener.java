@@ -47,24 +47,32 @@ public class MainSocketListener extends Thread	{
 						SyncDaemon.logger.log("Header not found:"+message.getHeader());
 					while(isPaused()&&!SyncDaemon.isShuttingDown())
 						SyncDaemon.sleep();
-				} 
+				}
+				catch (ClassCastException e){
+					
+					Syncrop.logger.logFatalError(e, message.getHeader());
+					syncDaemon.quit();
+					System.exit(1);
+				}
 				catch (NullPointerException e){
 					if(SyncDaemon.mainClient.isConnectedToServer())
-						SyncDaemon.logger.logFatalError(e," message is null but still connected to Server?");
+						SyncDaemon.logger.logError(e);
+					Syncrop.logger.log("most recent message header: "+message.getHeader());
 					SyncDaemon.mainClient.closeConnection(e.toString(), true);
+					
 				}
 				catch (IOException e){
-					if(SyncDaemon.mainClient.isConnectedToServer())
-						SyncDaemon.mainClient.closeConnection(e.toString(), true);
-					//else the connection has already been closed
+					syncDaemon.disconnect();
 				}
 				catch (Exception e) {
 					SyncDaemon.logger.logFatalError(e," caused by message:"+message);
+					Syncrop.logger.log("most recent message"+message);
 					syncDaemon.removeUser(message.getUserID(), e.toString());
 				}
 				catch (OutOfMemoryError e)
 				{
 					SyncDaemon.logger.logError(e,"Error in main listener caused by message:"+message);
+					Syncrop.logger.log("most recent message"+message);
 					SyncDaemon.mainClient.closeConnection(e.toString(),true);		
 				}
 				catch (Error e) {

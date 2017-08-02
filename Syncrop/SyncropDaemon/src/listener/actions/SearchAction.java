@@ -3,6 +3,7 @@ package listener.actions;
 import java.io.File;
 import java.util.HashSet;
 
+import file.SyncropItem;
 import syncrop.ResourceManager;
 
 public class SearchAction implements SyncROPFileAction{
@@ -12,7 +13,8 @@ public class SearchAction implements SyncROPFileAction{
 		regex=ResourceManager.convertToPattern(textToSearchFor);
 	}
 	@Override
-	public boolean performOn(File file) {
+	public boolean performOn(SyncropItem item) {
+		File file=item.getFile();
 		if(file.getName().matches(regex)){
 			fileNames.add(file.getAbsolutePath());
 			return true;

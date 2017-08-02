@@ -1,11 +1,7 @@
 package syncrop;
 
-import static syncrop.ResourceManager.getAbsolutePath;
 import static syncrop.Syncrop.logger;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -14,10 +10,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.LinkedList;
 
-import file.SyncropDir;
-import file.SyncropFile;
 import file.SyncropItem;
-import file.SyncropSymbolicLink;
 import settings.Settings;
 
 public class FileMetadataManager {
@@ -38,9 +31,15 @@ public class FileMetadataManager {
 	}
 	*/
 	public static void startConnectionSession() throws SQLException{
+		logger.log("Connecting to: "+"jdbc:"+Settings.getDatabasePath());
+		conn=DriverManager.getConnection("jdbc:"+Settings.getDatabasePath()+"?autoReconnect=true",Settings.getDatabaseUsername(),Settings.getDatabasePassword());
 		
-		conn=DriverManager.getConnection("jdbc:"+Settings.getDatabasePath()+"?journal_mode=WAL",Settings.getDatabaseUsername(),Settings.getDatabasePassword());
-		
+	}
+	public static void endConnectionSession(){
+		try {
+			if(conn!=null)
+				conn.close();
+		} catch (SQLException e) {logger.logError(e);}
 	}
 	public static void endSession(){
 		if(conn!=null)
@@ -48,44 +47,37 @@ public class FileMetadataManager {
 	}
 	
 	
-	public static void recreateDatabase(){
+	public static void recreateDatabase() throws SQLException{
 		deleteDatabase();
 		createDatabase();
 	}
-	private static void deleteDatabase(){
-		try {
-			//Connection conn=getNewReadOnlyConnectionInstance();
-			Statement stat = conn.createStatement();
-			stat.executeUpdate("DROP TABLE IF EXISTS "+TABLE_NAME);
-			//conn.close();
-		} catch (SQLException e) {
-			logger.logFatalError(e, "could not delete table: "+TABLE_NAME);
-			System.exit(0);
-		}
+	private static void deleteDatabase() throws SQLException{
+		
+		//Connection conn=getNewReadOnlyConnectionInstance();
+		Statement stat = conn.createStatement();
+		stat.executeUpdate("DROP TABLE IF EXISTS "+TABLE_NAME);
+		//conn.close();
+	
 	}
-	static void createDatabase(){
-		try {
-			//Connection conn=getNewReadOnlyConnectionInstance();
-			Statement stat = conn.createStatement();
-			
-			logger.log("Creating database");
-	        stat.executeUpdate("CREATE TABLE IF NOT EXISTS "+TABLE_NAME+
-	        		" ( Path Varchar (255) PRIMARY KEY ,Owner Varchar(25), DateModified INT UNSIGNED, "
-	        		+ "`SyncropKey` INT UNSIGNED, ModifiedSinceLastKeyUpdate Boolean, "
-	        		+ "LastRecordedSize INT UNSIGNED,FilePermissions SMALLINT,"
-	        		+ "`FileExists` Boolean ) ;");
-	        stat.close();
-	        
-	        //conn.close();
-		} catch (SQLException e) {
-			logger.logFatalError(e, "could not create table: "+TABLE_NAME);
-			System.exit(0);
-		}
+	static void createDatabase() throws SQLException{
+		//Connection conn=getNewReadOnlyConnectionInstance();
+		Statement stat = conn.createStatement();
+		
+        stat.executeUpdate("CREATE TABLE IF NOT EXISTS "+TABLE_NAME+
+        		" ( Path Varchar (255) ,Owner Varchar(25), DateModified INT UNSIGNED, "
+        		+ "`SyncropKey` INT UNSIGNED, ModifiedSinceLastKeyUpdate Boolean, "
+        		+ "LastRecordedSize INT UNSIGNED,FilePermissions SMALLINT,"
+        		+ "`FileExists` Boolean, `LinkTarget` Varchar (255) NULL,"
+        		+ " PRIMARY KEY (Path, Owner));");
+        stat.close();
+        
+        //conn.close();
+	
 	}
-	static boolean deleteFileMetadata(SyncropItem item){
+	public static boolean deleteFileMetadata(SyncropItem item){
 		return deleteFileMetadata(item.getPath(), item.getOwner());
 	}
-	static boolean deleteFileMetadata(String path,String owner){
+	private static boolean deleteFileMetadata(String path,String owner){
 		try {
 			//Connection conn=getNewReadOnlyConnectionInstance();
 			PreparedStatement prep = conn.prepareStatement(
@@ -102,14 +94,14 @@ public class FileMetadataManager {
 		}
 		return false;
 	}
-	static synchronized boolean updateFileMetadata(SyncropItem item){
+	public static synchronized boolean updateFileMetadata(SyncropItem item){
 		try {					
 			//Connection conn=getNewConnectionInstance(false);
 			PreparedStatement prep = conn.prepareStatement(
 		            "REPLACE INTO "+TABLE_NAME+" (`Path`, `Owner`, `DateModified`, `SyncropKey`,"
 		            		+ " `ModifiedSinceLastKeyUpdate`, `LastRecordedSize`, "
-		            		+ "`FilePermissions`, `FileExists`) "
-		            		+ "VALUES (?,?,?,?,?,?,?,?);");
+		            		+ "`FilePermissions`, `FileExists`, `LinkTarget`) "
+		            		+ "VALUES (?,?,?,?,?,?,?,?,?);");
 			prep.setString(1, item.getPath());
 			prep.setString(2, item.getOwner());
 			prep.setLong(3, item.getDateModified()/1000);
@@ -118,14 +110,14 @@ public class FileMetadataManager {
 			prep.setLong(6, item.getSize());
 			prep.setInt(7, item.getFilePermissions());
 			prep.setBoolean(8, item.exists());
+			prep.setString(9, item.getLinkTarget());
 			prep.addBatch();
 			prep.executeBatch();
 			prep.close();
 			//conn.close();
 			return true;
 		} catch (SQLException e) {
-			e.printStackTrace();
-			//logger.logError(e, "occured while trying to Update File Metadata");
+			logger.logError(e, "occured while trying to Update File Metadata");
 		}
 		return false;
 	}
@@ -186,14 +178,18 @@ public class FileMetadataManager {
 		
 	}
 	public static SyncropItem getFile(String relativePath,String owner) {
+		return getFile(relativePath, owner, conn);	
+	}
+	public static SyncropItem getFile(String relativePath,String owner,Connection conn) {
 		ResultSet rs=null;
-		logger.logAll("Getting file: "+relativePath);
+		
 		SyncropItem item=null;
 		String query="SELECT * FROM "+TABLE_NAME
 				+ " WHERE Path=? "
 				+(Syncrop.isInstanceOfCloud()?"AND Owner=?":"")+";";
 		try {
 			//conn=getNewReadOnlyConnectionInstance();
+			
 			PreparedStatement preparedStatement=conn.prepareStatement(query);
 			preparedStatement.setString(1, relativePath);
 			if(Syncrop.isInstanceOfCloud())
@@ -211,33 +207,19 @@ public class FileMetadataManager {
 		}
         return null;
 	}
+	
 	private static SyncropItem getFile(ResultSet rs) throws SQLException{
 		String path=rs.getString(1);
 		String owner=rs.getString(2);
 		long dateModified=rs.getLong(3)*1000;
 		int key=rs.getInt(4);
-		boolean isDir=SyncropItem.represetsDir(key);
 		boolean modifedSinceLastKeyUpdate=rs.getBoolean(5);
 		long lastRecordedSize=rs.getLong(6);
 		int filePermissions=rs.getInt(7);
-		boolean exists=rs.getBoolean(8);
-		File f=new File(getAbsolutePath(path, owner));
-		SyncropItem file=null;
-		try {
-			if(Files.isSymbolicLink(f.toPath())){
-				try {
-					file = SyncropSymbolicLink.getInstance(path,owner,dateModified,key,modifedSinceLastKeyUpdate,lastRecordedSize,filePermissions,f);
-				} catch (IOException e) {logger.logError(e);}
-			}
-			else if(isDir)
-				file = new SyncropDir(path, owner,dateModified,exists,filePermissions);
-			else 
-				file=new SyncropFile(path, owner,dateModified,key,modifedSinceLastKeyUpdate,lastRecordedSize,exists,filePermissions);
+		boolean knownToExists=rs.getBoolean(8);
+		String linkTarget=rs.getString(9);
+		return SyncropItem.getInstance(path, owner, dateModified, key, modifedSinceLastKeyUpdate, lastRecordedSize, filePermissions, knownToExists, linkTarget);
 
-			return file;
-		} catch (IllegalArgumentException e) {
-			return null;
-		}
 	}
 
 }
