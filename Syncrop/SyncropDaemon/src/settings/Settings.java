@@ -1,5 +1,7 @@
 package settings;
 
+import java.io.File;
+
 import syncrop.Syncrop;
 
 
@@ -8,13 +10,12 @@ public class Settings {
 	static final String settingsFileName="syncrop.settings";
 	static final String cloudSettingsFileName="syncrop-cloud.settings";
 	
-	
-	
 	public static final int DEFAULT=0;
 	public static final int LOCAL_FILE_ALWAYS_WINS=1;
 	public static final int LOCAL_FILE_ALWAYS_LOSES=-1;
 	
 	private static String cloudHomeDir;
+	private static String homeDir;
 	
 
 	/**
@@ -52,7 +53,7 @@ public class Settings {
 	private static String encryptionAlgorithm;
 	private static boolean sslConnection;
 	
-	private static boolean limitCPUUsage;
+	private static boolean limitCPUUsage = true;
 	
 	private static String databasePath;
 	
@@ -77,7 +78,8 @@ public class Settings {
 	 */
 	static private int port;
 	static private int sslPort;
-	
+	static private int syncropCommunicationPort;
+	static private boolean allowSyncropCommunication;
 	
 	static int conflictResolution=0;
 	
@@ -189,24 +191,30 @@ public class Settings {
 		return cloudHomeDir;
 	}
 	public static void setCloudHomeDir(String cloudHomeDir) {
+		if(!cloudHomeDir.endsWith(File.separator))
+			cloudHomeDir+=File.separator;
 		Settings.cloudHomeDir = cloudHomeDir;
 	}
 	public static boolean isLimitingCPU() {
 		return limitCPUUsage;
 	}
-	public static void setIsLimitingCPU(boolean limitCPUUsage) {
+	public static void setLimitingCPU(boolean limitCPUUsage) {
 		Settings.limitCPUUsage = limitCPUUsage;
 	}
 	public static String getKeystore() {
 		return System.getProperty("javax.net.ssl.keyStore");
 	}
 	public static void setKeystore(String keyStore) {
+		if(keyStore==null)
+			keyStore="";
 		System.setProperty("javax.net.ssl.keyStore", keyStore);
 	}
 	public static String getKeystorePassword() {
 		return System.getProperty("javax.net.ssl.keyStorePassword");
 	}
 	public static void setKeystorePassword(String keyStorePassword) {
+		if(keyStorePassword==null)
+			keyStorePassword="";
 		System.setProperty("javax.net.ssl.keyStorePassword", keyStorePassword);
 		
 	}
@@ -233,6 +241,26 @@ public class Settings {
 	}
 	public static void setAuthenticationScript(String authenticationScript) {
 		Settings.authenticationScript = authenticationScript;
+	}
+	public static String getHomeDir() {
+		return homeDir;
+	}
+	public static void setHomeDir(String homeDir) {
+		if(!homeDir.endsWith(File.separator))
+			homeDir+=File.separator;
+		Settings.homeDir = homeDir;
+	}
+	public static int getSyncropCommunicationPort() {
+		return syncropCommunicationPort;
+	}
+	public static void setSyncropCommunicationPort(int syncropCommunicationPort) {
+		Settings.syncropCommunicationPort = syncropCommunicationPort;
+	}
+	public static boolean allowSyncropCommunication() {
+		return allowSyncropCommunication;
+	}
+	public static void setAllowSyncropCommunication(boolean allowSyncropCommunication) {
+		Settings.allowSyncropCommunication = allowSyncropCommunication;
 	}
 	
 }

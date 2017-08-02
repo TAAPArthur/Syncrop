@@ -34,6 +34,8 @@ public class SettingsManager {
 		
 		SSL_CONNECTION("SSL Connection",boolean.class,"isSSLConnection","setSSLConnection",TYPE_ADVANCED),
 		SSL_PORT("SSL Port",int.class,"getSSLPort","setSSLPort",TYPE_ADVANCED),
+		SYNCROP_COMMUNICATION_PORT("Syncrop Communication Port",int.class,"getSyncropCommunicationPort","setSyncropCommunicationPort",TYPE_ADVANCED),
+		ALLOW_SYNCROP_COMMUNICATION("Allow Syncrop Communication",boolean.class,"allowSyncropCommunication","setAllowSyncropCommunication",TYPE_ADVANCED),
 		
 		LOG_LEVEL("Log Level",int.class,"getLogLevel","setLogLevel",TYPE_SIMPLE),
 		NOTIFICATIONS_LEVEL("Show Notifications",int.class,"getNotificationLevel","setNotificationLevel",TYPE_SIMPLE),
@@ -42,12 +44,15 @@ public class SettingsManager {
 		MAX_FILE_SIZE("Max File Size (MB)",long.class,"getMaxFileSize","setMaxFileSize",TYPE_ADVANCED),
 		MAX_TRANSFER_SIZE("Max Transfer Size (MB)",long.class,"getMaxTransferSize","setMaxTransferSize",TYPE_ADVANCED),
 		
+		LIMIT_CPU_USAGE("Limit CPU Usage",boolean.class,"isLimitingCPU","setLimitingCPU",TYPE_ADVANCED),
+		
 		AUTO_QUIT("Auto Quit",boolean.class,"autoQuit","setAutoQuit",TYPE_ADVANCED),
 		WINDOWS_COMPATIBLE("Windows Compatible",boolean.class,"isWindowsCompatible","setWindowsCompatible",TYPE_ADVANCED),
 		ALLOW_SCRIPTS("Allow Scripts",boolean.class,"allowScripts","setAllowScripts",TYPE_ADVANCED),
 		ALLOW_ENCRYPTION("Allow Encryption",boolean.class,"getAllowEncription","setAllowEncription",TYPE_ADVANCED),
 		
 		CLOUD_HOME("Cloud Home Dir",String.class,"getCloudHomeDir","setCloudHomeDir",TYPE_CLOUD),
+		HOME("Home Dir",String.class,"getHomeDir","setHomeDir",TYPE_SIMPLE),
 		
 		DATABASE_PATH("Database Password",String.class,"getDatabasePath","setDatabasePath",TYPE_CLOUD),
 		DATABASE_PASSWORD("Database Password",String.class,"getDatabasePassword","setDatabasePassword",TYPE_CLOUD),
@@ -68,7 +73,7 @@ public class SettingsManager {
 		String title;
 		Class<?> clazz;
 		String getterName,setterName;
-		
+		Object defaultValue;
 		
 		Options(String title,Class<?> clazz,String getterName,String setterName,int type){
 			this.title=title;
@@ -84,6 +89,13 @@ public class SettingsManager {
 		public String getTitle(){return title;}
 		public Class<?> getDataType(){return clazz;}
 		public int getOptionType(){return type;}
+		public void setDefaultValue() {
+			defaultValue=getValue();
+		}
+		public boolean isValueDefault() {
+			Object value=getValue();
+			return defaultValue==null&&value==null||defaultValue.equals(value);
+		}
 		
 		public boolean setValue(Object value){ 
 			try {
@@ -93,7 +105,7 @@ public class SettingsManager {
 			} catch (NoSuchMethodException | SecurityException
 					| IllegalAccessException | IllegalArgumentException
 					| InvocationTargetException e) {
-				logger.log(e.toString()+";Error setting value:"+value+
+				logger.logError(e,";Error setting value:"+value+
 						" expected type"+getDataType()+" for "+setterName+
 						"received "+(value==null?null:value.getClass())
 						);
@@ -136,8 +148,11 @@ public class SettingsManager {
 		Settings.setHost(isInstanceOfCloud()?"localhost":GenericClient.DEFAULT_HOST);
 		Settings.setPort(GenericClient.DEFAULT_PORT);
 		Settings.setSSLPort(GenericClient.DEFAULT_SSL_PORT);
+		Settings.setSyncropCommunicationPort(50001);
+		Settings.setAllowSyncropCommunication(!Syncrop.isInstanceOfCloud());
 		Settings.setSSLConnection(true);
-		Settings.setCloudHomeDir(File.separatorChar+"home/syncrop"+File.separatorChar);
+		Settings.setCloudHomeDir(File.separatorChar+"home/syncrop");
+		Settings.setHomeDir(System.getProperty("user.home"));
 		Settings.setMaxFileSize(Integer.MAX_VALUE);
 		Settings.setMaxAccountSize(4L*GIGABYTE);
 		Settings.setMaxTransferSize(MEGABYTE);
@@ -147,12 +162,22 @@ public class SettingsManager {
 		Settings.setAllowScripts(false);
 		Settings.setAllowEncription(false);
 		Settings.setEncryptionAlgorithm("AES");
-		Settings.setIsLimitingCPU(false);
+		Settings.setLimitingCPU(true);
 		Settings.setSyncHiddenFiles(true);
 		Settings.setConflictResolution(Settings.DEFAULT);
 		Settings.setConflictsAllowed(true);
-		Settings.setDatabasePath("sqlite:/"+ResourceManager.getConfigFilesHome()+File.separator+"metadata.db");
+		Settings.setDatabasePath(getDefaultDatabaseFile(Syncrop.isInstanceOfCloud()));
 		Settings.setDatabaseUsername("syncrop");
+		Settings.setDatabasePassword("");
+		Settings.setAuthenticationScript("");
+		Settings.setKeystore("");
+		Settings.setKeystorePassword("");
+		for(Options option:Options.values())
+			option.setDefaultValue();
+	}
+	public static String getDefaultDatabaseFile(boolean cloud) {
+		return "sqlite:/"+ResourceManager.getConfigFilesHome()+
+				File.separator+(cloud?"cloud_":"")+"metadata.db";
 	}
 	
 	public static File getSettingsFile(){
@@ -249,9 +274,12 @@ public class SettingsManager {
 	}
 	public synchronized static void saveSettings(boolean comment) throws FileNotFoundException{
 		PrintWriter out=new PrintWriter(getSettingsFile());
+		
 		for(Options option:Options.values())
-			if(option.getOptionType()!=TYPE_CLOUD)
-				out.println((comment?"#":"")+option.name()+"="+option.getFormattedValue());
+			if(!option.isValueDefault())
+				out.println(option.name()+"="+option.getFormattedValue());
+			else if(comment)
+				out.println("#"+option.name()+"="+option.getFormattedValue());
 		out.close();
 	}	
 }
