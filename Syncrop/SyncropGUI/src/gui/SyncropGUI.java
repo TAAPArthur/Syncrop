@@ -1,16 +1,5 @@
 package gui;
 
-import gui.menu.SyncropMenuBar;
-import gui.sycrop.status.SyncropCommunicationThread;
-import gui.tabs.AccountTab;
-import gui.tabs.FileSharingTab;
-import gui.tabs.FilesTab;
-import gui.tabs.Optimization;
-import gui.tabs.ScriptsTab;
-import gui.tabs.SettingsTab;
-import gui.tabs.SyncropTab;
-import settings.Settings;
-
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -26,9 +15,20 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 
+import account.Account;
+import daemon.client.SyncropCommunication;
+import gui.menu.SyncropMenuBar;
+import gui.sycrop.status.SyncropCommunicationThread;
+import gui.tabs.AccountTab;
+import gui.tabs.FileSharingTab;
+import gui.tabs.FilesTab;
+import gui.tabs.Optimization;
+import gui.tabs.ScriptsTab;
+import gui.tabs.SettingsTab;
+import gui.tabs.SyncropTab;
+import settings.Settings;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
-import account.Account;
 
 public class SyncropGUI extends Syncrop implements ActionListener{
 	private static JFrame frame;
@@ -41,10 +41,12 @@ public class SyncropGUI extends Syncrop implements ActionListener{
 	private static final JPanel headerPanel=new JPanel();
 	
 	private static final JPanel fileSyncStatusPanel=new JPanel();
+	private static final  JLabel statusDescription =new JLabel();
 	private static SyncropCommunicationThread syncropCommunicationThread;
 		
-	private static final JButton startSyncropClient=new JButton("Start Syncrop");
-	private static final JButton stopSyncropClient=new JButton("Stop Syncrop");
+	static final String START_SYNCROP="Start Syncrop";
+	static final String STOP_SYNCROP="Stop Syncrop";
+	private static final JButton syncropClientButton=new JButton();
 	
 	public static final int WIDTH=600;
 	public static final int HEIGHT=600;
@@ -60,9 +62,7 @@ public class SyncropGUI extends Syncrop implements ActionListener{
 					instance=s.substring(2).trim();
 		new SyncropGUI(instance);
 	}
-	public static void quit(){
-		frame.dispose();
-	}
+	
 	public SyncropGUI() throws IOException{
 		this("");
 	}
@@ -83,11 +83,10 @@ public class SyncropGUI extends Syncrop implements ActionListener{
 		frame.setSize(WIDTH, HEIGHT);
 		frame.setJMenuBar(new SyncropMenuBar());
 		//frame.getContentPane().setLayout(new BorderLayout());
-		syncropCommunicationThread.start();
-		loadHeaderPanel();
 		
-		startSyncropClient.addActionListener(this);
-		stopSyncropClient.addActionListener(this);
+		loadHeaderPanel();
+		updateStatus(SyncropCommunication.STATE_OFFLINE);
+		syncropClientButton.addActionListener(this);
 		JTabbedPane tabbedPane= new JTabbedPane();
 		
 		for(SyncropTab tab:tabs)
@@ -101,7 +100,7 @@ public class SyncropGUI extends Syncrop implements ActionListener{
 		
 		frame.revalidate();
 		frame.pack();
-		new SyncropAccountSizeMonitor().start();
+		syncropCommunicationThread.start();
 	}
 	
 	public static void loadHeaderPanel(){
@@ -124,7 +123,9 @@ public class SyncropGUI extends Syncrop implements ActionListener{
 			c.gridx = 1;
 			headerPanel.add(spaceLeftInAccount,c);
 			c.gridx = 2;
-			update();
+			fileSyncStatusPanel.add(statusDescription);
+			fileSyncStatusPanel.add(syncropClientButton);
+			
 			headerPanel.add(fileSyncStatusPanel,c);
 		}
 		headerPanel.revalidate();
@@ -133,62 +134,53 @@ public class SyncropGUI extends Syncrop implements ActionListener{
 	protected String getLogFileName(){
 		return "syncropGUI.log";
 	}
-	/**
-	 * creates the shutdown hook that will safely kill Syncrop when asked to shutdown or
-	 * when an unexpected error occurred.
-	 */
-	protected void addShutdownHook()
-	{
-		logger.logTrace("Creating shutdown hook");
-		Runtime.getRuntime().addShutdownHook(
-				new Thread("Shutdown-thread") {
-	        public void run(){shutdown();}
-	        
-		});
-	}
+	
 
 	public static void reload(){
 		for(SyncropTab tab:tabs)
 			tab.reload();
 	}
 	
-	
-	public static void update() {
+	public static void updateStatus(String status) {
 		
-		double size=ResourceManager.getAccount().getRecordedSize();
+		syncropClientButton.setText(
+				SyncropCommunication.STATE_OFFLINE.equals(status)?
+						START_SYNCROP:STOP_SYNCROP
+							);
+	
+		statusDescription.setText(status);
+		fileSyncStatusPanel.revalidate();
+	}
+	public static void updateAccountSize(long size) {
 		double maxSize=Settings.getMaxAccountSize();
 		String percentUsed=String.format("%.2f",size/maxSize*100);
 
 		
 		String spaceUsed=
 				size>GIGABYTE?
-						String.format("%.2fGiB",size/GIGABYTE):
-						String.format("%.2fMiB",size/MEGABYTE);
+						String.format("%.2fGiB",((double)size)/GIGABYTE):
+						String.format("%.2fMiB",((double)size)/MEGABYTE);
 						
 		spaceLeftInAccount.setText(
 				"<html>"+percentUsed+"% used;<br/>"+
 						spaceUsed+" of "+maxSize/GIGABYTE+" GiB</html>");
 				
-		fileSyncStatusPanel.removeAll();
 		
-		if(syncropCommunicationThread.isSyncropRunning()){
-			fileSyncStatusPanel.add(new JLabel(syncropCommunicationThread.getStatus()));
-			fileSyncStatusPanel.add(stopSyncropClient);
-		}
-		else fileSyncStatusPanel.add(startSyncropClient);
-		fileSyncStatusPanel.revalidate();
 	}
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		try {
-			if(e.getSource().equals(startSyncropClient)){
-				Runtime.getRuntime().exec("syncrop-daemon start");
-				logger.log("Tried to start Syncrop");
-			}
-			else if(e.getSource().equals(stopSyncropClient)){
-				Runtime.getRuntime().exec("syncrop-daemon stop");
-			}
+			if(e.getSource().equals(syncropClientButton))
+				if(syncropClientButton.getText().equals(START_SYNCROP)) {
+					Runtime.getRuntime().exec("syncrop start");
+					logger.log("Tried to start Syncrop");
+				}
+				else {
+					Runtime.getRuntime().exec("syncrop stop");
+					logger.log("Tried to stop Syncrop");
+				}
+				
 		} catch (IOException e1) {
 			logger.logError(e1);
 			

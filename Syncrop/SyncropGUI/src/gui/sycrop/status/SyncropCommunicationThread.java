@@ -1,23 +1,22 @@
 package gui.sycrop.status;
 
+import static daemon.client.SyncropCommunication.STATE_OFFLINE;
 import static daemon.client.SyncropCommunication.STATUS;
-import gui.SyncropGUI;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.ConnectException;
 import java.net.Socket;
-import java.util.NoSuchElementException;
 import java.util.Scanner;
 
-import settings.Settings;
-import syncrop.Syncrop;
 import daemon.client.SyncropCommunication;
+import gui.SyncropGUI;
+import settings.Settings;
+import syncrop.ResourceManager;
+import syncrop.Syncrop;
 
 public class SyncropCommunicationThread extends Thread{
-	final int NOT_RUNNING=0;
-	final int RUNNING=1;
-	private boolean running=false;
+	
 	private String status;
 	
 	
@@ -27,15 +26,15 @@ public class SyncropCommunicationThread extends Thread{
 	public SyncropCommunicationThread() throws IOException{
 		super("Syncrop Status Monitor");
 		
-		connect();
 	}
 	private void connect() throws IOException{
-		try {
-			socket = new Socket((String)null, Settings.getPort());
-			out = new PrintWriter(socket.getOutputStream());
-			out.flush();
-			in = new Scanner(socket.getInputStream());
-		} catch (ConnectException e) {}
+	
+		
+		socket = new Socket((String)null, Settings.getSyncropCommunicationPort());
+		out = new PrintWriter(socket.getOutputStream());
+		out.flush();
+		in = new Scanner(socket.getInputStream());
+		
 	}
 	public void close() throws IOException{
 		in.close();
@@ -45,10 +44,13 @@ public class SyncropCommunicationThread extends Thread{
 	public boolean isConnected(){
 		return socket!=null&&!socket.isClosed();
 	}
-	private synchronized void print(String... args){
-		for(String s:args)
-			out.println(s);
-		out.flush();
+	private synchronized void print(int... args){
+		for(int s:args) {
+			out.print(s);
+			out.flush();
+			if(s==SyncropCommunication.GET_ACCOUNT_SIZE)
+				SyncropGUI.updateAccountSize(Long.parseLong(in.nextLine()));
+		}
 	}
 	public void clean(){
 		print(SyncropCommunication.CLEAN);
@@ -60,46 +62,49 @@ public class SyncropCommunicationThread extends Thread{
 	}
 	public void run(){
 		setPriority(Thread.MIN_PRIORITY);
+		int count=0;
 		while(!SyncropGUI.isShuttingDown())
 			try {
 				if(socket==null)
 					connect();
 				else if(socket.isBound()){
-					if(in.hasNextLine())
-						switch(in.nextLine()){
-							case SyncropCommunication.UPDATE:SyncropGUI.update();
-						}
-					if(socket.isClosed()){
-						setStatus(false,null);
-						connect();
-					}
-					else {
-						out.println(STATUS);
-						out.flush();
-						setStatus(true, in.nextLine());
-					}
+					print(STATUS);
+					setStatus(in.nextLine());
 				}
-				else System.out.println("Socket not bound");		
 			} 
-			catch (NoSuchElementException e){}
-			catch (ConnectException e){}
+			catch (ConnectException e) {
+				if(count%120==0)
+					calculateAccountSize();
+				setStatus(STATE_OFFLINE);
+			}
 			catch (IOException e) {
 				Syncrop.logger.logError(e);
 			}
 			finally{
-				if(!SyncropGUI.isShuttingDown())SyncropGUI.update();
-				try {Thread.sleep(10000);} catch (InterruptedException e) {}
+				try {Thread.sleep(5000);} catch (InterruptedException e) {}
+				count++;
 			}
 	}
-	
-	private void setStatus(boolean running,String status){
-		if(this.running==running&&this.status.equals(status))
-			return;
-		this.running=running;
-		this.status=status;
-		SyncropGUI.update();
+	void calculateAccountSize() {
+		new Thread() {
+			public void run() {
+				System.out.println("calcuating");
+				ResourceManager.getAccount().calculateSize();
+				System.out.println(ResourceManager.getAccount().getRecordedSize());
+				SyncropGUI.updateAccountSize(ResourceManager.getAccount().getRecordedSize());
+			}
+		}.start();
+		
 	}
-	public boolean isSyncropRunning() {return running;}
-	public String getStatus() {return status;}
+	public boolean isSyncropRunning() {
+		return !status.equals(SyncropCommunication.STATE_OFFLINE)&&
+				!status.equals(SyncropCommunication.STATE_INITIALIZING)&&
+				!status.equals(SyncropCommunication.STATE_DISCONNECTED);
+	}
+	private void setStatus(String status){
+		if(status.equals(this.status))return;
+		this.status=status;
+		SyncropGUI.updateStatus(status);
+	}
 	
 }

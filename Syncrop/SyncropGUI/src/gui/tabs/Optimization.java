@@ -47,7 +47,7 @@ public class Optimization extends JPanel implements SyncropTab,ActionListener{
 			}
 		else if(e.getSource().equals(removeConflicts))
 			try {
-				(new FileWatcher(null)).checkAllFiles(new RemoveSyncropConflictsAction());
+				new FileWatcher(null).checkAllFiles(new RemoveSyncropConflictsAction());
 			} catch (IOException e1) {
 				logger.logError(e1);
 			}
@@ -55,6 +55,7 @@ public class Optimization extends JPanel implements SyncropTab,ActionListener{
 			SyncropGUI.getSyncropCommunicationThread().clean();
 		
 	}
+
 
 	@Override
 	public void reload() {
