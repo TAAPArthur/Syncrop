@@ -208,8 +208,6 @@ public abstract class GenericConnectionThread extends Thread
 				else log(username+" is closing connection: reason "+reason);
 				
 				if(clientSocket!=null){
-					clientSocket.shutdownOutput();
-					clientSocket.shutdownInput();
 					clientSocket.close();
 				}				
 			} catch (IOException e) {

@@ -110,13 +110,16 @@ public class PrimaryConnectionThread extends GenericConnectionThread{
 			if(client==null)continue;
 		    if(client.isReady()){
 		    	Message m= client.readMessage();
-		    	if(!m.getUserID().equals(key))
-		    		terminateConnection("User:"+key+" is sending messages with "
-		    				+ "different id-"+m.getUserID(), true);
-		    	else {
-		    		log("Primary read message:"+m, Logger.LOG_LEVEL_ALL);
-		    		return m;
-		    	}
+		    	if(!key.equals(m.getUserID()))
+		    		client.closeConnection("invalid id", true);
+		    	else
+			    	if(!m.getUserID().equals(key))
+			    		terminateConnection("User:"+key+" is sending messages with "
+			    				+ "different id-"+m.getUserID(), true);
+			    	else {
+			    		log("Primary read message:"+m, Logger.LOG_LEVEL_TRACE);
+			    		return m;
+			    	}
 		    }
 		}
 		
@@ -172,7 +175,7 @@ public class PrimaryConnectionThread extends GenericConnectionThread{
 					
 					for(SecondaryConnectionThread client:clients.values()){
 						if(currentTime-client.timeoutCalculator.getTimeOfLastUpdate()<=TimeoutCalculator.MAX_PING_DELAY+client.getExpectedRoundTripTime()){
-							log("pinging");
+							log("pinging",Logger.LOG_LEVEL_TRACE);
 							//client.printMessage(new Message(System.currentTimeMillis(), Server.username, Message.TYPE_MESSAGE_TO_CLIENT,Message.HEADER_PING));
 						}
 						else client.closeConnection("Timeout ("+client.getTimeout()+"ms <"+(currentTime-client.timeoutCalculator.getTimeOfLastUpdate())+")", true);
@@ -181,7 +184,7 @@ public class PrimaryConnectionThread extends GenericConnectionThread{
 						if(currentTime-timeoutCalculator.getTimeOfLastUpdate()<=getTimeout())
 							;//printMessage(new Message(System.currentTimeMillis(), Server.username, Message.TYPE_MESSAGE_TO_CLIENT,Message.HEADER_PING));
 						else terminateConnection("Timeout (primary) ("+getTimeout()+"ms)", true);
-					Thread.sleep(30*60*1000);//terminating an idle connection is not high priority
+					Thread.sleep(5*60*1000);//terminating an idle connection is not high priority
 				} 
 				catch (InterruptedException e){log("Check threads threads has been interrupted");}
 				catch (ConcurrentModificationException e) {log(e.toString());}
