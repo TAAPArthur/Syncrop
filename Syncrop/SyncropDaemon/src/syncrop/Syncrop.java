@@ -2,12 +2,7 @@ package syncrop;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.sql.SQLException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 
 import daemon.cloud.SyncropCloud;
 import notification.Notification;
@@ -333,35 +328,25 @@ public abstract class Syncrop {
 		try {
 			if(isNotWindows()&&isNotMac())
 				sendToLinuxTrash(file);
-			else file.delete();
+			else 
+				file.delete();
 		}
 		
-		catch (IOException e) {
+		catch (IOException | InterruptedException e) {
 			logger.logError(e, "occured while trying to send file to trash path="+file);
 		}
 	}
 	
-	private static void sendToLinuxTrash(File file) throws IOException
+	private static void sendToLinuxTrash(File file) throws IOException, InterruptedException
 	{
-		String baseName=file.getName(),name=baseName;
-		File trashInfoFile=new File(System.getProperty("user.home")+"/.local/share/Trash/info",name+".trashinfo");
-		for(int i=2;trashInfoFile.exists();i++)
-		{
-			name=baseName+="."+i;
-			trashInfoFile=new File(System.getProperty("user.home")+"/.local/share/Trash/info",name+".trashinfo");
-		}			
-		File trashFile=new File(System.getProperty("user.home")+"/.local/share/Trash/files",name);
-		Files.move(file.toPath(), trashFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-
-		logger.log(file+" was sent to trash");
-		//DeletionDate=2014-03-01T23:38:18
-		DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-		trashInfoFile.createNewFile();
-		PrintWriter out=new PrintWriter(trashInfoFile);
-		out.println("[Trash Info]");
-		out.println("Path="+file.getAbsolutePath());
-		out.println("DeletionDate="+dateFormat.format(System.currentTimeMillis()).replace(" ", "T"));
-		out.close();
+		Process trash =new ProcessBuilder("trash",file.getAbsolutePath()).start();
+		if(trash.waitFor()!=0) {
+			logger.log("Could not send file to trash; deleting");
+			if(file.exists())
+				file.delete();
+		}
+		
+		
 	
 	}
 
