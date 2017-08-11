@@ -118,9 +118,8 @@ public class FileWatcher extends Thread{
 
     
 	public void checkAllFiles(SyncROPFileAction... fileActions){
-		
 		checker.setFileActions(fileActions);
-	
+		logger.log("checking files");
 		for (Account a : ResourceManager.getAllAuthenticatedAccounts()){
 			//checks regular files
 			for (Directory parentDir : a.getDirectories()) 
@@ -135,8 +134,8 @@ public class FileWatcher extends Thread{
 	
 		logger.log("finshed checking files");
 	}
-	public void checkFiles(Account account, String path, boolean removable){
-		checker.setDir(account, removable, path);
+	public synchronized void checkFiles(Account account, String path, boolean removable){
+		checker.setDir(account, removable, SyncropItem.getInstance(path,account.getName(),removable));
 		try {
 			File startingFile=new File(ResourceManager.getAbsolutePath(path, account.getName()));
 			if(startingFile.exists())

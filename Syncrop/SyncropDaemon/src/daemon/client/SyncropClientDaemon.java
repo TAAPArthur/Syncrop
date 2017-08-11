@@ -47,7 +47,8 @@ public class SyncropClientDaemon extends SyncDaemon{
 				if(s.startsWith("-i"))
 					instance=s.substring(2).trim();
 				
-		new SyncropClientDaemon(instance,false);
+		SyncropClientDaemon  d=new SyncropClientDaemon(instance,false);
+		d.connectToServer();
 	}
 	
 	
@@ -82,7 +83,6 @@ public class SyncropClientDaemon extends SyncDaemon{
 		
 		if(mainClient!=null) {
 			if(getFileTransferManager().getTransferedFiles()>0) {
-				System.out.println("asdf");
 				notificationManager.notifyUser();
 			}
 			if(!surpressConnectionMessage){
@@ -236,6 +236,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 */
 	public boolean authenticate() throws IOException
 	{
+		logger.log("Authenicating");
 		requestAuthentication();
 		Message m=null;
 		do{

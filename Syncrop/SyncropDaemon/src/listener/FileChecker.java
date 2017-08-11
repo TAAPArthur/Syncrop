@@ -18,12 +18,11 @@ import listener.actions.SyncROPFileAction;
 import syncrop.ResourceManager;
 
 public class FileChecker extends SimpleFileVisitor<Path>{
-	Account account;
-	boolean removable;
-	SyncROPFileAction[] fileActions;
+	private Account account;
+	private boolean removable;
+	private SyncROPFileAction[] fileActions;
 	protected Stack<SyncropItem>stack=new Stack<>();
-	FileWatcher watcher;
-	String baseDir;
+	private FileWatcher watcher;
 	public void setFileWatcher(FileWatcher watcher) {
 		this.watcher=watcher;
 	}
@@ -31,17 +30,15 @@ public class FileChecker extends SimpleFileVisitor<Path>{
 	void setFileActions(SyncROPFileAction... fileActions) {
 		this.fileActions = fileActions;
 	}
-	void setDir(Account a,boolean removable,String baseDir) {
+	void setDir(Account a,boolean removable,SyncropItem baseDir) {
 		this.account=a;
 		this.removable=removable;
 		stack.clear();
-		this.baseDir=baseDir;
+		stack.add(baseDir);
 		//stack.add(getItem(baseDir,new File(ResourceManager.getAbsolutePath(baseDir, a.getName()))));
 	}
 	protected String getPath(Path dir) {
-		return stack.isEmpty()?
-				"":
-				stack.peek().getChildPath(dir.getFileName().toString());
+		return stack.peek().getChildPath(dir.getFileName().toString());
 	}
 	SyncropItem getItem(Path dir) {
 		return getItem(getPath(dir),dir.toFile());
@@ -49,7 +46,6 @@ public class FileChecker extends SimpleFileVisitor<Path>{
 	protected SyncropItem getItem(String path,File file) {
 		if(ResourceManager.isLocked(path,account.getName()))
 			return null;
-		
 		SyncropItem item=ResourceManager.getFile(path, account.getName());
 		if(item==null){
 			item=SyncropItem.getInstance(path, account.getName(),file);
@@ -60,6 +56,7 @@ public class FileChecker extends SimpleFileVisitor<Path>{
     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
 		//if(Settings.isLimitingCPU()&&Math.random()>.7)
 		//	Syncrop.sleepShort();
+		
 		SyncropItem item=getItem(dir);
 		if(item==null||!item.isEnabled()) 
 			return FileVisitResult.SKIP_SUBTREE;
@@ -74,7 +71,6 @@ public class FileChecker extends SimpleFileVisitor<Path>{
     	save(item);
     	if(watcher!=null)
     		watcher.register(dir,item.getPath(),account, removable);
-		
         return FileVisitResult.CONTINUE;
     }
 
@@ -82,6 +78,7 @@ public class FileChecker extends SimpleFileVisitor<Path>{
     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 
     	SyncropItem item=getItem(file);
+    	
 		if(item==null||!item.isEnabled())
 			return FileVisitResult.CONTINUE;
     	if(fileActions!=null&&item!=null){

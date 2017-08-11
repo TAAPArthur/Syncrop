@@ -103,6 +103,10 @@ public static SyncropItem getInstance(Object[] syncData){
 					Files.isSymbolicLink(file.toPath())?"":null, file.isDirectory(), file);
 		}
 	}
+	public static SyncropItem getInstance(String path,String accountName,boolean removable){
+		File file=new File(ResourceManager.getHome(accountName, removable),path);
+		return getInstance(path, accountName, file);
+	}
 	/**
 	 * Creates a SyncropItem isntance with a given file; teh file has to exist
 	 * @param path
@@ -321,6 +325,7 @@ public static SyncropItem getInstance(Object[] syncData){
 	public boolean isEnabled()
 	{
 		if(file.exists()&&!file.canRead())return false;
+		if(path.isEmpty())return true;
 		//TODO enabled; ie max size
 		return isFileEnabled(file)&&isPathEnabled(path,owner);
 	}

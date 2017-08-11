@@ -39,7 +39,8 @@ public class SyncropFile extends SyncropItem
 		if(getSize()!=lastRecordedSize)
 			setHasBeenUpdated();
 		if(exists()&&Files.isDirectory(file.toPath(),LinkOption.NOFOLLOW_LINKS)){
-			throw new IllegalArgumentException("path "+path+" denotes a directory so "
+			
+			throw new IllegalArgumentException("path "+file+" denotes a directory so "
 					+ "it cannot be a SyncROPFile");
 		}
 	}
