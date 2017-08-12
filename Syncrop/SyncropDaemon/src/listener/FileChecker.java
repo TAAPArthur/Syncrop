@@ -23,6 +23,8 @@ public class FileChecker extends SimpleFileVisitor<Path>{
 	private SyncROPFileAction[] fileActions;
 	protected Stack<SyncropItem>stack=new Stack<>();
 	private FileWatcher watcher;
+	private String startingFile;
+	
 	public void setFileWatcher(FileWatcher watcher) {
 		this.watcher=watcher;
 	}
@@ -34,6 +36,7 @@ public class FileChecker extends SimpleFileVisitor<Path>{
 		this.account=a;
 		this.removable=removable;
 		stack.clear();
+		startingFile=baseDir.getAbsPath();
 		stack.add(baseDir);
 		//stack.add(getItem(baseDir,new File(ResourceManager.getAbsolutePath(baseDir, a.getName()))));
 	}
@@ -57,11 +60,17 @@ public class FileChecker extends SimpleFileVisitor<Path>{
 		//if(Settings.isLimitingCPU()&&Math.random()>.7)
 		//	Syncrop.sleepShort();
 		
+		
 		SyncropItem item=getItem(dir);
+		
+		if(startingFile.equals(dir.toString()))
+			return FileVisitResult.CONTINUE;
+		
 		if(item==null||!item.isEnabled()) 
 			return FileVisitResult.SKIP_SUBTREE;
 		
-		stack.push(item);		
+		stack.push(item);
+		
         return FileVisitResult.CONTINUE;
     }
 

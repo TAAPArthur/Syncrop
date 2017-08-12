@@ -228,9 +228,7 @@ public abstract class SyncDaemon extends Syncrop{
 			logger.logTrace("Checking files");
 		if(Settings.allowScripts())
 			fileWatcher.loadCommandsToRunOnFileModification();
-		
 		fileWatcher.checkAllFiles(clean?new RemoveSyncropConflictsAction():null);
-		
 		
 	}
 	protected void startThreads()
@@ -363,6 +361,7 @@ public abstract class SyncDaemon extends Syncrop{
 				break;
 			case SKIP:
 			default:
+				logger.log(dateModified+" "+localFile.getDateModified());
 				fileTransferManager.cancelDownload(id, path, true);
 				break;
 			case CREATE_NEW_FILE:

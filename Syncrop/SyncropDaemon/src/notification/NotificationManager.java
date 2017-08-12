@@ -30,8 +30,6 @@ public class NotificationManager extends Thread {
 				notifyUser();
 				timeSinceFirstFileTransfered=0;
 			}
-			else 
-				logger.logTrace(daemon.getFileTransferManager().getOutstandingFiles()+" files in transit");
 		
 		}		
 	}
@@ -55,8 +53,7 @@ public class NotificationManager extends Thread {
 			else notification+=daemon.getFileTransferManager().getNameOfDownloadFile()+" and "+(daemon.getFileTransferManager().getDownloadCount()-1)+
 					" other file"+(daemon.getFileTransferManager().getDownloadCount()-1==1?"":"s")+" were downloaded from cloud";
 		}
-		logger.log(notification);
-		logger.log(daemon.haveAllFilesFinishedTranferring()+"");
+		
 		displayNotification(Logger.LOG_LEVEL_INFO,summary,notification);
 		if(daemon.haveAllFilesFinishedTranferring())
 		{
@@ -68,7 +65,5 @@ public class NotificationManager extends Thread {
 			}
 		}
 		daemon.getFileTransferManager().resetTransferRecord();			
-	}
-	
-	
+	}	
 }

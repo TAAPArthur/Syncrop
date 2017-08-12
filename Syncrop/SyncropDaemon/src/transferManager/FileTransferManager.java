@@ -354,6 +354,7 @@ public class FileTransferManager extends Thread{
 		if(!SyncDaemon.isInstanceOfCloud()&& fileSent instanceof SyncropFile){
 			
 			logger.log(fileSent.getPath()+" Changing key from "+fileSent.getKey()+" to "+o[INDEX_KEY]);
+			logger.logTrace("key "+fileSent.getKey()+" is being changed to "+o[INDEX_KEY]+" path="+fileSent.getPath());
 			((SyncropFile)fileSent).setKey((int) o[INDEX_KEY]);
 			if((long)o[INDEX_DATE_MODIFIED]!=fileSent.getDateModified())
 				fileSent.setModifiedSinceLastKeyUpdate(true);

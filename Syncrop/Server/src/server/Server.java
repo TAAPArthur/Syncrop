@@ -30,6 +30,7 @@ public abstract class Server
 	private int maxConnections=-1;
 	public static final int UNLIMITED_CONNECTIONS=-1;
 	static Logger logger;
+	boolean isClosed=false;
 	
 	static String username="SERVER";
 	private boolean ssl=false;
@@ -69,6 +70,10 @@ public abstract class Server
 		log("Shutting down Server Socket");
 		if(serverSocket!=null)
 			serverSocket.close();
+		isClosed=true;
+	}
+	public boolean isClosed() {
+		return isClosed;
 	}
 	private void start()
 	{

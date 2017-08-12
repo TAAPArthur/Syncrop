@@ -83,6 +83,7 @@ public class SyncropCommunication extends Thread
 							else 
 								out.println(STATE_SYNCING);
 							out.flush();
+							Syncrop.logger.log("echoing status");
 							break;
 						case CLEAN:
 							daemon.printMessage(

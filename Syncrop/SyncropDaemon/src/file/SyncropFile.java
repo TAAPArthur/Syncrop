@@ -99,7 +99,6 @@ public class SyncropFile extends SyncropItem
 	}
 	public void setKey(int key)
 	{		
-		logger.logTrace("key "+this.key+" is being changed to "+key+" path="+path);
 		modifiedSinceLastKeyUpdate=false;
 		this.key=key;
 		setHasBeenUpdated();

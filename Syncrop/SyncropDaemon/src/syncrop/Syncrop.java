@@ -29,7 +29,7 @@ public abstract class Syncrop {
 	 * is not compatible. Clearing the metadata directory is prone to cause conflicts
 	 * @see {@link ResourceManager#getMetadataDirectory()}
 	 */
-	static final private String METADATA_VERSION="5";
+	static final private String METADATA_VERSION="6";
 	
 	/**
 	 * 2^10 bytes

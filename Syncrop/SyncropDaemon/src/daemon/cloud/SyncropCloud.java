@@ -92,14 +92,17 @@ public final class SyncropCloud extends SyncDaemon
 			System.exit(0);
 		}
 		do{
-			if(!triedToConnectToServer)
-				logger.log("trying to connected to server:");
-			else sleep();
+			
 			try {
 				if(mainClient!=null){
 					logger.log("Closing server socket");
-					((Server) mainClient).close();
+					if(!((Server) mainClient).isClosed())
+						((Server) mainClient).close();
+					sleepLong();
 				}
+				if(!triedToConnectToServer)
+					logger.log("trying to connected to server:");
+				else sleep();
 				mainClient=new InternalServer(Server.UNLIMITED_CONNECTIONS, Settings.isSSLConnection()?Settings.getSSLPort():Settings.getPort(), logger,getUsername(),application,Settings.isSSLConnection());
 			} catch (IOException e) {
 				if(!triedToConnectToServer){
@@ -354,7 +357,7 @@ public final class SyncropCloud extends SyncDaemon
 		ArrayList<String>filesToAddToDownload=new ArrayList<String>();
 		
 		HashSet<String> listOfClientFiles=new HashSet<String>(1);
-		
+		int numberOfFilesUnmodified=0;
 		if(files==null){
 			logger.logWarning("synced files were null");
 			return null;
@@ -375,6 +378,7 @@ public final class SyncropCloud extends SyncDaemon
 			}
 			ResourceManager.lockFile(path, owner);
 			
+			
 			SyncropItem localFile=ResourceManager.getFile(path,owner);
 			try {
 				SyncropItem.SyncropPostCompare result= SyncropItem.compare(id,localFile, syncData);
@@ -390,6 +394,7 @@ public final class SyncropCloud extends SyncDaemon
 						localFile.save();
 						break;
 					case SKIP:
+						numberOfFilesUnmodified++;
 						break;
 					case SYNCED:
 						break;
@@ -416,7 +421,7 @@ public final class SyncropCloud extends SyncDaemon
 			mainClient.printMessage(filesToAddToDownload.toArray(new String[filesToAddToDownload.size()]),
 				FileTransferManager.HEADER_ADD_MANY_TO_SEND_QUEUE,id);
 		}
-	
+		logger.log(numberOfFilesUnmodified +" out of "+listOfClientFiles.size()+" were already synced");
 		return listOfClientFiles;
 	}
 

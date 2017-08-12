@@ -48,13 +48,8 @@ public class ResourceManager
 	 */
 	static File configFile;
 	
-	
-	
-	
 	static final String REMOVABLE_DIR_NAME="removable";
 	static final String REGULAR_DIR_NAME="regular";
-	
-	
 	
 	/**
 	 * The name of the directory that holds configuration files
@@ -90,11 +85,8 @@ public class ResourceManager
 	 */
 	public static long lastRecordedModificationDateOfConfigFile;
 	
-	
 	private volatile static String lockedPath;
 	private volatile static String lockedOwner;
-	
-	
 	
 	/**
 	 * Gets a single specified Account from a username.

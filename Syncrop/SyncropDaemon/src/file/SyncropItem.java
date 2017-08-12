@@ -172,9 +172,10 @@ public static SyncropItem getInstance(Object[] syncData){
 		
 		this.filePermissions=filePermissions;
 		
-		updateFilePermissions();
 		
 		if(Files.exists(file.toPath(), LinkOption.NOFOLLOW_LINKS)){
+			
+			updateFilePermissions();
 			updateDateModified();
 			if(!knownToExists)
 				setHasBeenUpdated();
@@ -379,7 +380,7 @@ public static SyncropItem getInstance(Object[] syncData){
 	 * of the file for the first owner is returned
 	 * @return the absolute path of this file
 	 */
-	public String getAbsPath(){return ResourceManager.getHome(getOwner(), isRemovable())+path;}
+	public String getAbsPath(){return file.getAbsolutePath();}
 	/**
 	 * Checks to see if the parent directory exists
 	 * @return true if and only if the parent directory exists, false otherwise
@@ -529,6 +530,7 @@ public static SyncropItem getInstance(Object[] syncData){
 		try {
 			if(exists()){
 				long currentDateMod=getLastModifiedTime()/1000*1000;
+				
 				if(hasSameDateModifiedAs(currentDateMod))
 					return false;
 				if(syncOnFileModification()){
@@ -697,8 +699,10 @@ public static SyncropItem getInstance(Object[] syncData){
 		boolean remoteDir=represetsDir(remoteKey);
 		if(localFile==null)
 			if(remoteFileExists)
-				if (linkTarget==null)
+				if (linkTarget==null && !remoteDir) {
+					logger.log("Downloading new file"+path);
 					return SyncropPostCompare.DOWNLOAD_REMOTE_FILE;
+				}
 				else 
 					return SyncropPostCompare.CREATE_NEW_FILE;
 			else 
@@ -721,7 +725,7 @@ public static SyncropItem getInstance(Object[] syncData){
 		}
 		
 		else if(localFile.isDir()!=remoteDir){
-			logger.logTrace("local and remote file are not of the same type: localFile "+localFile);
+			logger.log("local and remote file are not of the same type: localFile "+localFile);
 			if(localFile.exists()&&remoteFileExists)
 				if(remoteDir){//local file is non dir
 					((SyncropFile)localFile).makeConflict();
@@ -745,13 +749,15 @@ public static SyncropItem getInstance(Object[] syncData){
 					return SyncropPostCompare.SKIP;
 			else if(localFile.exists()&&!isLocalFileOlderVersion||!localFile.exists()&&!isLocalFileOlderVersion)
 				return SyncropPostCompare.SYNC_METADATA;
-			else
+			else {
+				logger.log("dis are in diffrent states of existance");
 				if (remoteFileExists)//local doesn't
 					return SyncropPostCompare.DOWNLOAD_REMOTE_FILE;
 				else {
 					localFile.delete(remoteDateMod);
 					return SyncropPostCompare.SYNCED;
 				}
+			}
 		else if(remoteFileExists&&localFile.exists())
 			if(localFile.isInConflictWith(remoteKey,remoteLength,remoteUpdatedSinceLastUpdate))
 				if(replaceLocalFileOnConflict(id,isLocalFileNewerVersion)){
@@ -767,13 +773,18 @@ public static SyncropItem getInstance(Object[] syncData){
 				}
 				else return SyncropPostCompare.SEND_LOCAL_FILE;
 			else
-				if(isLocalFileOlderVersion)//remote is "newer" copy
+				if(isLocalFileOlderVersion) {//remote is "newer" copy
+					logger.log("Remove file is newer");
 					return SyncropPostCompare.DOWNLOAD_REMOTE_FILE;
-				else if (isLocalFileNewerVersion)
+				}
+				else if (isLocalFileNewerVersion) {
+					logger.log("local file is newer"+(localFile.getDateModified()-remoteDateMod));
 					return SyncropPostCompare.SEND_LOCAL_FILE;
+				}
 				else return SyncropPostCompare.SKIP;				
 		
-		else //only one exists
+		else { //only one exists
+			logger.log("only one exists");
 			if(remoteFileExists)
 				if(!isLocalFileNewerVersion)//remote is "newer" copy
 					return SyncropPostCompare.DOWNLOAD_REMOTE_FILE;
@@ -785,6 +796,7 @@ public static SyncropItem getInstance(Object[] syncData){
 					localFile.delete(remoteDateMod);
 					return SyncropPostCompare.DOWNLOAD_REMOTE_FILE;
 				}
+		}
 	}
 	private static boolean replaceLocalFileOnConflict(String id,boolean isLocalFileNewerVersion){
 		if(Syncrop.isInstanceOfCloud()){

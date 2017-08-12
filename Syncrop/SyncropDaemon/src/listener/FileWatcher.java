@@ -11,12 +11,14 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.ClosedWatchServiceException;
 import java.nio.file.FileSystems;
+import java.nio.file.FileVisitOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -49,6 +51,7 @@ public class FileWatcher extends Thread{
     private final HashSet<Command>commands=new HashSet<>();
 
     private FileChecker checker;
+    EnumSet<FileVisitOption> opts = EnumSet.of(FileVisitOption.FOLLOW_LINKS);
     public FileWatcher(SyncDaemon daemon) throws IOException {
     	this(daemon, new FileChecker());
     }
@@ -136,10 +139,12 @@ public class FileWatcher extends Thread{
 	}
 	public synchronized void checkFiles(Account account, String path, boolean removable){
 		checker.setDir(account, removable, SyncropItem.getInstance(path,account.getName(),removable));
+		
+
 		try {
 			File startingFile=new File(ResourceManager.getAbsolutePath(path, account.getName()));
 			if(startingFile.exists())
-				Files.walkFileTree(startingFile.toPath(), checker);
+				Files.walkFileTree(startingFile.toPath(),opts,Integer.MAX_VALUE, checker);
 		} catch (IOException e) {
 			logger.logError(e);
 		}
@@ -251,12 +256,13 @@ public class FileWatcher extends Thread{
 			logger.logTrace(path+" is locked");
 			return;
 		}
+		
 		onFileChange(item,file.getAbsolutePath(),member.getKind());
 		 
 		if(item==null&&member.getKind()!=ENTRY_DELETE||item!=null&&item.hasBeenUpdated())
 			logger.logTrace("Detected change in file "+file+" event: "+member.getKind()+" "+item);
 		else if(member.getKind()!=ENTRY_DELETE)
-			logger.logTrace("Detected change in file "+file+" event: "+member.getKind()+" but no diff "+file);
+			logger.logTrace("Detected change in file "+file+" event: "+member.getKind()+" but no diff "+item);
 		
 		if(member.getKind()==ENTRY_CREATE)
 			onCreate(dir, path, file, item);
@@ -275,8 +281,9 @@ public class FileWatcher extends Thread{
 		if(item.hasBeenUpdated()){//item.getDateModified()!=item.getFile().lastModified()){
 			if(Syncrop.isInstanceOfCloud())
 				daemon.setPropperPermissions(item);
-			addToSendQueue(item);
 			item.save();
+			addToSendQueue(item);
+			
 		}
 		else logger.logTrace("File not modifed");
 	}
@@ -284,9 +291,8 @@ public class FileWatcher extends Thread{
 		String owner=dir.getAccountName();
 		if(item==null)
 			item=SyncropItem.getInstance(path, owner, file);
-	
-		addToSendQueue(item);
 		item.save();
+		addToSendQueue(item);
 		
 		if(file.isDirectory()){
 			logger.log("New dir detected "+path);
@@ -410,9 +416,4 @@ public class FileWatcher extends Thread{
 		if(daemon!=null)
 			daemon.addToSendQueue(item);
 	}
-	
-
-
-
 }
-

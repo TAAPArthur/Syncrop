@@ -27,9 +27,7 @@ public class SyncropCommunicationThread extends Thread{
 		super("Syncrop Status Monitor");
 		
 	}
-	private void connect() throws IOException{
-	
-		
+	private void connect() throws IOException{		
 		socket = new Socket((String)null, Settings.getSyncropCommunicationPort());
 		out = new PrintWriter(socket.getOutputStream());
 		out.flush();
@@ -50,6 +48,8 @@ public class SyncropCommunicationThread extends Thread{
 			out.flush();
 			if(s==SyncropCommunication.GET_ACCOUNT_SIZE)
 				SyncropGUI.updateAccountSize(Long.parseLong(in.nextLine()));
+			else if(s== STATUS)
+				setStatus(in.nextLine());
 		}
 	}
 	public void clean(){
@@ -69,7 +69,6 @@ public class SyncropCommunicationThread extends Thread{
 					connect();
 				else if(socket.isBound()){
 					print(STATUS);
-					setStatus(in.nextLine());
 				}
 			} 
 			catch (ConnectException e) {
@@ -102,6 +101,7 @@ public class SyncropCommunicationThread extends Thread{
 				!status.equals(SyncropCommunication.STATE_DISCONNECTED);
 	}
 	private void setStatus(String status){
+		System.out.println(status);
 		if(status.equals(this.status))return;
 		this.status=status;
 		SyncropGUI.updateStatus(status);
