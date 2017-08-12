@@ -700,7 +700,7 @@ public static SyncropItem getInstance(Object[] syncData){
 		if(localFile==null)
 			if(remoteFileExists)
 				if (linkTarget==null && !remoteDir) {
-					logger.log("Downloading new file"+path);
+					logger.logTrace("Downloading new file"+path);
 					return SyncropPostCompare.DOWNLOAD_REMOTE_FILE;
 				}
 				else 
@@ -725,7 +725,7 @@ public static SyncropItem getInstance(Object[] syncData){
 		}
 		
 		else if(localFile.isDir()!=remoteDir){
-			logger.log("local and remote file are not of the same type: localFile "+localFile);
+			logger.logTrace("local and remote file are not of the same type: localFile "+localFile);
 			if(localFile.exists()&&remoteFileExists)
 				if(remoteDir){//local file is non dir
 					((SyncropFile)localFile).makeConflict();
@@ -750,7 +750,7 @@ public static SyncropItem getInstance(Object[] syncData){
 			else if(localFile.exists()&&!isLocalFileOlderVersion||!localFile.exists()&&!isLocalFileOlderVersion)
 				return SyncropPostCompare.SYNC_METADATA;
 			else {
-				logger.log("dis are in diffrent states of existance");
+				logger.logTrace("dis are in diffrent states of existance");
 				if (remoteFileExists)//local doesn't
 					return SyncropPostCompare.DOWNLOAD_REMOTE_FILE;
 				else {
@@ -774,17 +774,17 @@ public static SyncropItem getInstance(Object[] syncData){
 				else return SyncropPostCompare.SEND_LOCAL_FILE;
 			else
 				if(isLocalFileOlderVersion) {//remote is "newer" copy
-					logger.log("Remove file is newer");
+					logger.logTrace("Remove file is newer");
 					return SyncropPostCompare.DOWNLOAD_REMOTE_FILE;
 				}
 				else if (isLocalFileNewerVersion) {
-					logger.log("local file is newer"+(localFile.getDateModified()-remoteDateMod));
+					logger.logTrace("local file is newer: "+localFile.getDateModified()+" > "+remoteDateMod);
 					return SyncropPostCompare.SEND_LOCAL_FILE;
 				}
 				else return SyncropPostCompare.SKIP;				
 		
 		else { //only one exists
-			logger.log("only one exists");
+			logger.logTrace("only one exists");
 			if(remoteFileExists)
 				if(!isLocalFileNewerVersion)//remote is "newer" copy
 					return SyncropPostCompare.DOWNLOAD_REMOTE_FILE;

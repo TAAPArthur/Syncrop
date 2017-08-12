@@ -26,7 +26,7 @@ public class NotificationManager extends Thread {
 			if(daemon.getFileTransferManager().getTransferedFiles()==0)continue;
 			timeSinceFirstFileTransfered++;
 			if(timeSinceFirstFileTransfered==60||daemon.haveAllFilesFinishedTranferring()
-				&&daemon.getFileTransferManager().getTimeFromLastCompletedFileTransfer()>2){
+				&&daemon.getFileTransferManager().getTimeFromLastCompletedFileTransfer()>2000){
 				notifyUser();
 				timeSinceFirstFileTransfered=0;
 			}
@@ -55,7 +55,7 @@ public class NotificationManager extends Thread {
 		}
 		
 		displayNotification(Logger.LOG_LEVEL_INFO,summary,notification);
-		if(daemon.haveAllFilesFinishedTranferring())
+		if(daemon.haveAllFilesFinishedTranferring()&&daemon.isConnectionAccepted())
 		{
 			
 			logger.log("All files finished transferring");

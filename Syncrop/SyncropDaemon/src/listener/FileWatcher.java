@@ -138,9 +138,8 @@ public class FileWatcher extends Thread{
 		logger.log("finshed checking files");
 	}
 	public synchronized void checkFiles(Account account, String path, boolean removable){
-		checker.setDir(account, removable, SyncropItem.getInstance(path,account.getName(),removable));
+		checker.setDir(account, removable,path);
 		
-
 		try {
 			File startingFile=new File(ResourceManager.getAbsolutePath(path, account.getName()));
 			if(startingFile.exists())

@@ -319,7 +319,6 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 */
 	public void syncFilesToCloud(String... pathsToSync) throws IOException{
 		
-		
 		mainClient.printMessage(pathsToSync, HEADER_SET_ENABLED_PATHS);
 		Iterable<SyncropItem>items=FileMetadataManager.iterateThroughAllFileMetadata(null);
 		final int maxTransferSize=1024;

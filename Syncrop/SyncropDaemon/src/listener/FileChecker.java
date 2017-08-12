@@ -15,7 +15,9 @@ import java.util.Stack;
 import account.Account;
 import file.SyncropItem;
 import listener.actions.SyncROPFileAction;
+import settings.Settings;
 import syncrop.ResourceManager;
+import syncrop.Syncrop;
 
 public class FileChecker extends SimpleFileVisitor<Path>{
 	private Account account;
@@ -32,10 +34,11 @@ public class FileChecker extends SimpleFileVisitor<Path>{
 	void setFileActions(SyncROPFileAction... fileActions) {
 		this.fileActions = fileActions;
 	}
-	void setDir(Account a,boolean removable,SyncropItem baseDir) {
+	void setDir(Account a,boolean removable,String basePath) {
 		this.account=a;
 		this.removable=removable;
 		stack.clear();
+		SyncropItem baseDir=getItem(basePath,new File(ResourceManager.getHome(a.getName(), removable),basePath));
 		startingFile=baseDir.getAbsPath();
 		stack.add(baseDir);
 		//stack.add(getItem(baseDir,new File(ResourceManager.getAbsolutePath(baseDir, a.getName()))));
@@ -49,16 +52,17 @@ public class FileChecker extends SimpleFileVisitor<Path>{
 	protected SyncropItem getItem(String path,File file) {
 		if(ResourceManager.isLocked(path,account.getName()))
 			return null;
-		SyncropItem item=SyncropItem.getInstance(path, account.getName(),file);
-		
+		SyncropItem item=ResourceManager.getFile(path, account.getName());
+		if(item==null){
+			item=SyncropItem.getInstance(path, account.getName(),file);
+		}
 		return item;
 	}
 	@Override
     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-		//if(Settings.isLimitingCPU()&&Math.random()>.7)
-		//	Syncrop.sleepShort();
-		
-		
+		if(Settings.isLimitingCPU()&&Math.random()>.99)
+			Syncrop.sleepShort();
+				
 		SyncropItem item=getItem(dir);
 		
 		if(startingFile.equals(dir.toString()))

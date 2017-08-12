@@ -4,6 +4,8 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.HashSet;
 
+import com.sun.istack.internal.NotNull;
+
 /**
  * This class is used to send information between two {@link Messenger}s. A Message is sent
  * from one Messenger to another a Server to another Messenger 
@@ -116,6 +118,7 @@ public class Message implements Serializable
 	public static final String HEADER_PONG="PONG";
 	
 	private Object message;
+	@NotNull
 	private String userID;
 	private String header=null;
 	private HashSet<String>targetsToInclude=new HashSet<String>(),

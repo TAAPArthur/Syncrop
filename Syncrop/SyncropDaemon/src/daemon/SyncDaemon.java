@@ -361,7 +361,6 @@ public abstract class SyncDaemon extends Syncrop{
 				break;
 			case SKIP:
 			default:
-				logger.log(dateModified+" "+localFile.getDateModified());
 				fileTransferManager.cancelDownload(id, path, true);
 				break;
 			case CREATE_NEW_FILE:
