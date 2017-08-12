@@ -352,6 +352,10 @@ public class Account
 	public boolean isAbsPathEnabled(final Path absPath)
 	{
 		String path=absPath.toString();
+		if(Syncrop.isInstanceOfCloud()) 
+			return absPath.toString().startsWith(ResourceManager.getHome(getName(), true))||
+				absPath.toString().startsWith(ResourceManager.getHome(getName(), false));
+		
 		if(!isPathContainedInDirectory(path,true)&&!isPathContainedInDirectory(path,false))
 			return false;
 		

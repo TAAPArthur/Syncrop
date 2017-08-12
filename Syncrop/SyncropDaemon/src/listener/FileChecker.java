@@ -49,10 +49,8 @@ public class FileChecker extends SimpleFileVisitor<Path>{
 	protected SyncropItem getItem(String path,File file) {
 		if(ResourceManager.isLocked(path,account.getName()))
 			return null;
-		SyncropItem item=ResourceManager.getFile(path, account.getName());
-		if(item==null){
-			item=SyncropItem.getInstance(path, account.getName(),file);
-		}
+		SyncropItem item=SyncropItem.getInstance(path, account.getName(),file);
+		
 		return item;
 	}
 	@Override
@@ -109,7 +107,6 @@ public class FileChecker extends SimpleFileVisitor<Path>{
 			if(watcher!=null) {
 				watcher.onFileChange(item,item.getAbsPath());
 				watcher.addToSendQueue(item);
-				
 				if(item.exists())
 					watcher.updateAccountSize(account, item.getFile(), item);
 			}
