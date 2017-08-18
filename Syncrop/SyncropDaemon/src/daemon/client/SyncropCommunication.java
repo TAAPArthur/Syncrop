@@ -1,6 +1,7 @@
 package daemon.client;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.BindException;
@@ -58,7 +59,7 @@ public class SyncropCommunication extends Thread
 				if(serverSocket.isClosed())
 					createSocket();
 				socket=serverSocket.accept();
-				out=new PrintWriter(socket.getOutputStream());
+				out=new PrintWriter(new BufferedOutputStream(socket.getOutputStream()),true);
 				sc=new Scanner(new BufferedInputStream(socket.getInputStream()));
 				
 				while(!socket.isClosed()){
@@ -119,8 +120,7 @@ public class SyncropCommunication extends Thread
 		if(out!=null){
 			out.flush();
 			out.close();
-		}
-		
+		}	
 	}
 	private void createSocket(){
 		try {

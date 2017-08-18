@@ -17,7 +17,7 @@ public class FileMetadataManager {
 	static final String TABLE_NAME= "FileInfo";
 	
 	private FileMetadataManager(){}
-	static Connection conn;
+	
 	/*
 	private static Connection getNewReadOnlyConnectionInstance() throws SQLException{
 		return getNewConnectionInstance(true);
@@ -30,21 +30,14 @@ public class FileMetadataManager {
 		return DriverManager.getConnection("jdbc:sqlite:"+getDatabasePath()+"?journal_mode=WAL",config);
 	}
 	*/
-	public static void startConnectionSession() throws SQLException{
+	public static Connection getConnectionInstance(boolean readOnly) throws SQLException{
 		logger.log("Connecting to: "+"jdbc:"+Settings.getDatabasePath());
-		conn=DriverManager.getConnection("jdbc:"+Settings.getDatabasePath()+"?autoReconnect=true",Settings.getDatabaseUsername(),Settings.getDatabasePassword());
+		Connection conn = DriverManager.getConnection("jdbc:"+Settings.getDatabasePath(),Settings.getDatabaseUsername(),Settings.getDatabasePassword());
+		conn.setReadOnly(readOnly);
+		return conn;
 		
 	}
-	public static void endConnectionSession(){
-		try {
-			if(conn!=null)
-				conn.close();
-		} catch (SQLException e) {logger.logError(e);}
-	}
-	public static void endSession(){
-		if(conn!=null)
-			try {conn.close();} catch (SQLException e) {}
-	}
+	
 	
 	
 	public static void recreateDatabase() throws SQLException{
@@ -53,14 +46,14 @@ public class FileMetadataManager {
 	}
 	private static void deleteDatabase() throws SQLException{
 		
-		//Connection conn=getNewReadOnlyConnectionInstance();
+		Connection conn = getConnectionInstance(false);
 		Statement stat = conn.createStatement();
 		stat.executeUpdate("DROP TABLE IF EXISTS "+TABLE_NAME);
-		//conn.close();
+		conn.close();
 	
 	}
 	static void createDatabase() throws SQLException{
-		//Connection conn=getNewReadOnlyConnectionInstance();
+		Connection conn = getConnectionInstance(false);
 		Statement stat = conn.createStatement();
 		
         stat.executeUpdate("CREATE TABLE IF NOT EXISTS "+TABLE_NAME+
@@ -71,7 +64,7 @@ public class FileMetadataManager {
         		+ " PRIMARY KEY (Path, Owner));");
         stat.close();
         
-        //conn.close();
+        conn.close();
 	
 	}
 	public static boolean deleteFileMetadata(SyncropItem item){
@@ -79,7 +72,7 @@ public class FileMetadataManager {
 	}
 	private static boolean deleteFileMetadata(String path,String owner){
 		try {
-			//Connection conn=getNewReadOnlyConnectionInstance();
+			Connection conn = getConnectionInstance(false);
 			PreparedStatement prep = conn.prepareStatement(
 			        "DELETE FROM "+TABLE_NAME+" WHERE Path=? AND Owner=? ;");
 			prep.setString(1,path);
@@ -87,7 +80,7 @@ public class FileMetadataManager {
 			prep.addBatch();
 			prep.executeBatch();
 			prep.close();
-			//conn.close();
+			conn.close();
 			return true;
 		} catch (SQLException e) {
 			logger.logError(e, "could not delete info on "+owner+"'s file "+path);
@@ -96,7 +89,7 @@ public class FileMetadataManager {
 	}
 	public static synchronized boolean updateFileMetadata(SyncropItem item){
 		try {					
-			//Connection conn=getNewConnectionInstance(false);
+			Connection conn = getConnectionInstance(false);
 			PreparedStatement prep = conn.prepareStatement(
 		            "REPLACE INTO "+TABLE_NAME+" (`Path`, `Owner`, `DateModified`, `SyncropKey`,"
 		            		+ " `ModifiedSinceLastKeyUpdate`, `LastRecordedSize`, "
@@ -114,7 +107,7 @@ public class FileMetadataManager {
 			prep.addBatch();
 			prep.executeBatch();
 			prep.close();
-			//conn.close();
+			conn.close();
 			return true;
 		} catch (SQLException e) {
 			logger.logError(e, "occured while trying to Update File Metadata");
@@ -128,20 +121,18 @@ public class FileMetadataManager {
 				(owner!=null&&Syncrop.isInstanceOfCloud()?"WHERE Owner='Owner'":"")
 				+"ORDER BY Path DESC;";
 		try {
-			//Connection conn=getNewReadOnlyConnectionInstance();
+			Connection conn = getConnectionInstance(true);
 			Statement statement = conn.createStatement();
 
 			ResultSet rs = statement.executeQuery(query);
 			
 			LinkedList<SyncropItem>items=new LinkedList<>();
-			int count=0;
-			while (rs.next()){
-				if(count++%100==0)Syncrop.sleepShort();
+			while (rs.next())
 				items.add(getFile(rs));
-			}
+			
 			
 			statement.close();
-			//conn.close();
+			conn.close();
 			return items;
 		} catch (SQLException e) {
 			logger.logError(e, "could not query database; query="+query);
@@ -156,20 +147,21 @@ public class FileMetadataManager {
 				+(Syncrop.isInstanceOfCloud()?"AND Owner=?":"")+
 				"ORDER BY PATH DESC;";
 		try {
-			//Connection conn=getNewReadOnlyConnectionInstance();
+			Connection conn = getConnectionInstance(true);
 			PreparedStatement preparedStatement=conn.prepareStatement(query);
 			preparedStatement.setString(1, relativePath+"%");
 			if(Syncrop.isInstanceOfCloud())
 				preparedStatement.setString(2, owner);
+			
 			rs = preparedStatement.executeQuery();
+			
 			LinkedList<SyncropItem>items=new LinkedList<>();
-			int count=0;
-			while (rs.next()){
-				if(count++%100==0)Syncrop.sleepShort();
+			
+			while (rs.next())
 				items.add(getFile(rs));
-			}
+			
 			preparedStatement.close();
-			//conn.close();
+			conn.close();
 			return items;
 		} catch (SQLException e) {
 			logger.logError(e, "could not read from database; query="+query);
@@ -178,34 +170,38 @@ public class FileMetadataManager {
 		
 	}
 	public static SyncropItem getFile(String relativePath,String owner) {
-		return getFile(relativePath, owner, conn);	
+		try {
+			Connection conn = getConnectionInstance(true);
+			SyncropItem file = getFile(relativePath, owner, conn);
+			conn.close();
+			return file;
+		} catch (SQLException e) {
+			logger.logFatalError(e, "could not read from database;");
+			System.exit(0);
+		}
+        return null;
+			
 	}
-	public static SyncropItem getFile(String relativePath,String owner,Connection conn) {
+	public static SyncropItem getFile(String relativePath,String owner,Connection conn) throws SQLException {
 		ResultSet rs=null;
 		
 		SyncropItem item=null;
 		String query="SELECT * FROM "+TABLE_NAME
 				+ " WHERE Path=? "
 				+(Syncrop.isInstanceOfCloud()?"AND Owner=?":"")+";";
-		try {
-			//conn=getNewReadOnlyConnectionInstance();
-			
-			PreparedStatement preparedStatement=conn.prepareStatement(query);
-			preparedStatement.setString(1, relativePath);
-			if(Syncrop.isInstanceOfCloud())
-				preparedStatement.setString(2, owner);
-			rs = preparedStatement.executeQuery();
-			
-			if(rs.next())
-				item= getFile(rs);
-			preparedStatement.close();
-			//conn.close();
-			return item;
-		} catch (SQLException e) {
-			logger.logFatalError(e, "could not read from database; query"+query);
-			System.exit(0);
-		}
-        return null;
+	
+		PreparedStatement preparedStatement=conn.prepareStatement(query);
+		preparedStatement.setString(1, relativePath);
+		if(Syncrop.isInstanceOfCloud())
+			preparedStatement.setString(2, owner);
+		rs = preparedStatement.executeQuery();
+		
+		if(rs.next())
+			item= getFile(rs);
+		preparedStatement.close();
+		//conn.close();
+		return item;
+		
 	}
 	
 	private static SyncropItem getFile(ResultSet rs) throws SQLException{

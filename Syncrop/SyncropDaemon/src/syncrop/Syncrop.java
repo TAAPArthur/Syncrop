@@ -2,7 +2,6 @@ package syncrop;
 
 import java.io.File;
 import java.io.IOException;
-import java.sql.SQLException;
 
 import daemon.cloud.SyncropCloud;
 import notification.Notification;
@@ -165,8 +164,7 @@ public abstract class Syncrop {
 			
 			//initilize Notification;
 			Notification.initilize();
-			FileMetadataManager.startConnectionSession();
-		} catch (IOException|SQLException e) {
+		} catch (IOException e) {
 			logger.logFatalError(e,"");
 			System.exit(1);
 		}
@@ -303,9 +301,17 @@ public abstract class Syncrop {
 	/**
 	 * Call to indicate that Syncrop is shutting down safely
 	 */
-	public void quit(){
+	public final  void quit(){
 		shuttingDown=true;
-		FileMetadataManager.endSession();
+		this.stopThreads();
+		this.releaseResources();
+		
+	}
+	protected void stopThreads() {}
+	protected void releaseResources() {
+		Notification.close();
+		logger.log("Shutting down");
+		ResourceManager.shutDown();
 	}
 	/**
 	 * The ClI is shutting down if shutDown is called; This method is called to let

@@ -127,10 +127,9 @@ public abstract class SyncDaemon extends Syncrop{
 	
 	
 	
-	public void quit(){
+	public void stopThreads(){
 
-    	super.quit();
-		
+    			
 		try {
 			logger.log("received kill signal");
 			//wakes all threads; they know to end since shuttingDown is true
@@ -181,15 +180,11 @@ public abstract class SyncDaemon extends Syncrop{
 			}
 			
 			displayNotification(APPLICATION_NAME+" is shutting down");
-			//closes the notification; only needed for Windows
-			FileMetadataManager.endConnectionSession();
-			Notification.close();
-			logger.log("Shutting down");
-			ResourceManager.shutDown();
 			
 		}
 	
 	}
+	
 	
 	/**
 	 * initializes the SyncropDaemon; This SyncropDaemon is connected to server and has its listeners

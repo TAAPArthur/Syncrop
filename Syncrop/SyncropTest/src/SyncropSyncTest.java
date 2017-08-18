@@ -50,7 +50,7 @@ public class SyncropSyncTest extends Syncrop{
 			runTest();
 		}
 		@Override
-		public void quit() {
+		public void stopThreads() {
 			super.quit();
 			cloudProcess.destroy();
 			daemon.quit();
@@ -211,7 +211,14 @@ public class SyncropSyncTest extends Syncrop{
 		    		
 		    		SyncropItem item=SyncropItem.getInstance(path, ResourceManager.getAccount().getName(), file.toFile());
 		    		SyncropItem localItem=map.get(path);
-		    		SyncropItem item2=FileMetadataManager.getFile(item.getPath(), ResourceManager.getAccount().getName(), conn);
+		    		SyncropItem item2 = null;
+					try {
+						item2 = FileMetadataManager.getFile(item.getPath(), ResourceManager.getAccount().getName(), conn);
+					} catch (SQLException e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+						assert(false);
+					}
 		    		try {
 		    			
 						assertEquals(SyncropItem.SyncropPostCompare.SKIP,localItem.compare(item));
