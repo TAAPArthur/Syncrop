@@ -163,7 +163,9 @@ public class SyncropHelper {
 			System.out.println("Could not connect to a running instane of syncrop");
 		}
 		catch (Exception e) {
+			System.out.println(e.toString());
 			displayHelpMessage();
+			System.exit(1);
 		}
 	}
 	private static void displayHelpMessage(){

@@ -14,7 +14,7 @@ function createJars {
 	jar cfm "$path/Syncrop.jar" "$mfHome/Syncrop_MANIFEST.MF" * 
 	
 	cd "$HOME/Documents/Syncrop/Syncrop/SyncropHelper/bin"
-	jar cfm "$path/SyncropHelper.jar" "$mfHome/Syncrop_HELPER_MANIFEST.MF" * 
+	jar cfm "$path/SyncropHelper.jar" "$mfHome/Syncrop_Helper_MANIFEST.MF" * 
 	
 	cd ../../Server/bin
 	jar cf "$path/Client.jar" client/* logger/* message/*
@@ -42,9 +42,7 @@ function generateUnstablePackage {
 }
 
 function commit {
-	git commit -a -m "$message"
-	echo "pushing changes to git"
-	git push
+	git commit -a -m "$message" && 	git push
 }
 
 createJars

@@ -1,4 +1,4 @@
 Manifest-Version: 1.0
 Main-Class: helper.SyncropHelper
-Class-Path: SyncropDaemon.jar
+Class-Path: Syncrop.jar
 

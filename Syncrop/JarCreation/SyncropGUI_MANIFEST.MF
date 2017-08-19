@@ -1,4 +1,4 @@
 Manifest-Version: 1.0
 Main-Class: gui.SyncropGUI
-Class-Path: SyncropDaemon.jar Client.jar
+Class-Path: Syncrop.jar Client.jar
 
