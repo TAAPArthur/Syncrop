@@ -55,13 +55,19 @@ public abstract class SyncropItem
 	public static final String CONFLICT_ENDING=".SYNCROPconflict";
 		
 	//String illegalCharsRegex="<|>|\\\\|/|:|\"|\\||\\?|\\*";
-	final String path;
-	final File file;
+	protected final String path;
+	protected final File file;
 	
-	final String owner;
-	final boolean removable;
-	volatile long dateModified=-2;
-	boolean modifiedSinceLastKeyUpdate;
+	protected final String owner;
+	protected final boolean removable;
+	protected volatile long dateModified=-2;
+	/**
+	 * the Key of the file; It is used to determine if a conflict should be made;
+	 * If this key and the key of another file do not match then the older file will be made 
+	 * into a conflict
+	 */
+	protected int key = 0;
+	protected boolean modifiedSinceLastKeyUpdate;
 	
 	private boolean knownToExists=false;
 	private boolean hasBeenUpdated=false;
@@ -554,7 +560,18 @@ public static SyncropItem getInstance(Object[] syncData){
 		return Files.getLastModifiedTime(file.toPath()).toMillis();
 	}
 	
-	public int getKey(){return 0;}
+	
+	public void setKey(int key)
+	{		
+		modifiedSinceLastKeyUpdate=false;
+		this.key=key;
+		setHasBeenUpdated();
+	}
+	
+	public int getKey()
+	{
+		return key;
+	}
 	
 	public long getSize(){
 		try {
@@ -665,6 +682,13 @@ public static SyncropItem getInstance(Object[] syncData){
 	public static enum SyncropPostCompare{
 		SKIP,SYNCED,DOWNLOAD_REMOTE_FILE,SEND_LOCAL_FILE,SYNC_METADATA,CREATE_NEW_FILE;
 	};
+	public void mergeMetadata(Object[] syncData) {
+		mergeMetadata((long)syncData[INDEX_DATE_MODIFIED],(int)syncData[INDEX_KEY]);
+	}
+	public void mergeMetadata(long remoteDateMod,int remoteKey) {
+		this.setDateModified(remoteDateMod);
+		this.setKey(remoteKey);
+	}
 	public SyncropPostCompare compare(SyncropItem remoteFile) throws IOException{
 		return compare(null,this,remoteFile.toSyncData());
 	}
@@ -672,8 +696,6 @@ public static SyncropItem getInstance(Object[] syncData){
 		
 		final String path=(String)syncData[INDEX_PATH];
 		//SyncropItem localFile=ResourceManager.getFile(path,owner);
-		
-		
 		
 		logger.log("Comparing "+path,SyncropLogger.LOG_LEVEL_ALL);
 		String owner=(String)syncData[INDEX_OWNER];

@@ -75,7 +75,7 @@ public class RemovableFileWatcher implements Runnable{
 		
 		logger.log("Syncing newly added removable dirs");
 		
-		((SyncropClientDaemon) fileWatcher.daemon).syncFilesToCloud(path, path);
+		((SyncropClientDaemon) fileWatcher.daemon).syncFilesToCloud(false,path, path);
 	
 	}
 }

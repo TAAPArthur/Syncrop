@@ -16,12 +16,7 @@ import syncrop.ResourceManager;
 public class SyncropFile extends SyncropItem 
 {	
 	
-	/**
-	 * the Key of the file; It is used to determine if a conflict should be made;
-	 * If this key and the key of another file do not match then the older file will be made 
-	 * into a conflict
-	 */
-	private int key;
+	
 	private long lastRecordedSize;
 	
 	public SyncropFile(String path,String owner){
@@ -97,19 +92,7 @@ public class SyncropFile extends SyncropItem
 	public void updateKey(int remoteKey){
 		setKey(Math.max(remoteKey, key)+1);//UPDATE KEY
 	}
-	public void setKey(int key)
-	{		
-		modifiedSinceLastKeyUpdate=false;
-		this.key=key;
-		setHasBeenUpdated();
-	}
 	
-	
-	@Override
-	public int getKey()
-	{
-		return key;
-	}
 		
 	/**
 	 * Handles conflicts. The name of the file is renamed to file.getName()+".SYNCROPconflict"+i
@@ -178,8 +161,5 @@ public class SyncropFile extends SyncropItem
 	public long getLastKnownSize(){
 		return lastRecordedSize;
 	}
-	void mergeMetadata(long remoteDateMod,int remoteKey){
-		setDateModified(remoteDateMod);
-		setKey(remoteKey);
-	}
+	
 }

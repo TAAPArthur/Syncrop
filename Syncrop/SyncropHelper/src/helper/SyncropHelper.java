@@ -1,5 +1,8 @@
 package helper;
+import java.io.IOException;
+
 import account.Account;
+import daemon.SyncropLocalClient;
 import listener.FileWatcher;
 import listener.actions.RemoveSyncropConflictsAction;
 import settings.SettingsManager;
@@ -16,7 +19,6 @@ public class SyncropHelper {
 		USERNAME("username","username",true),
 		EMAIL("email","email",true),
 		FORCE("force","use with sync",true),
-		HARD("hard","use with force to delte files not on client",true),
 		
 		
 		ENABLE("enable", "enable account by username"),
@@ -24,10 +26,14 @@ public class SyncropHelper {
 		ADD_DIR("add-dir","adds a dir relative to HOME or a removable dirs iff it starts with /"),
 		ADD_RESTRICTION("add-restriction","adds a restriction"),
 		ADD_ACCOUNT("add-account","adds an account"),
-		SYNC("sync","syncs client and remote"),
+				
 		REMOVE_CONFLICTS("remove-conflicts","remove conflicts locally"),
 		SET_SETTING("set-setting","name value"),
-		SAVE_SETTINGS("save-setting","saves currently loaded settings");
+		SAVE_SETTINGS("save-setting","saves currently loaded settings"),
+		
+		SYNC("sync","syncs client and remote");
+		
+		
 		;
 		private final boolean setting;
 		
@@ -60,8 +66,7 @@ public class SyncropHelper {
 		String username = null;
 		String email = null;
 		boolean force = false;
-		boolean hard = false;
-		
+		SyncropLocalClient daemon = new SyncropLocalClient();
 		try {
 			for(int i=0; i<args.length;i++) {
 				Commands c = getCommand(args[i]);
@@ -74,9 +79,6 @@ public class SyncropHelper {
 						continue;
 					case FORCE:
 						force = true;
-						continue;
-					case HARD:
-						hard =true;
 						continue;
 					case CLOUD:
 						Syncrop.setInstanceOfCloud(Boolean.parseBoolean(args[++i]));
@@ -100,7 +102,6 @@ public class SyncropHelper {
 					case USERNAME:
 					case EMAIL:
 					case FORCE:
-					case HARD:
 					case CLOUD:
 					case INSTANCE:
 						continue;
@@ -141,6 +142,7 @@ public class SyncropHelper {
 						SettingsManager.saveSettings(true);
 						output("saved setting");
 					case SYNC:
+						daemon.sync(force);
 						break;
 						
 					case REMOVE_CONFLICTS:
@@ -156,10 +158,13 @@ public class SyncropHelper {
 				return;
 			}
 			
-			
-			} catch (Exception e) {
-				displayHelpMessage();
-			}
+		}
+		catch (IOException e) {
+			System.out.println("Could not connect to a running instane of syncrop");
+		}
+		catch (Exception e) {
+			displayHelpMessage();
+		}
 	}
 	private static void displayHelpMessage(){
 		for(Commands c :Commands.values()) 

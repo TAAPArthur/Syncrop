@@ -36,7 +36,7 @@ case "$command" in
 	stop)
 		stop $1
 		;;
-	restart|reload)
+	restart)
 		stop $1
 		start $@
 		;;
@@ -53,7 +53,7 @@ case "$command" in
         start $command $@
         ;;
 	*)
-		echo $"Usage: $0 {start|stop|restart|reload|status}"
+		java -jar /usr/lib/syncrop/SyncropHelper.jar $command $@ || echo $"Usage: $0 {start|stop|restart|status}"
         exit 1
 esac
 

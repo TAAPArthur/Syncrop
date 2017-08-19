@@ -1,4 +1,6 @@
-package daemon.client;
+package daemon;
+
+import static daemon.SyncropLocalServer.STATUS;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -7,7 +9,8 @@ import java.net.BindException;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-import daemon.SyncDaemon;
+import daemon.client.SyncropClientDaemon;
+import gui.SyncropGUI;
 import settings.Settings;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
@@ -18,13 +21,17 @@ import syncrop.Syncrop;
  * Handles connection between the syncrop script on Windows and the Syncrop daemon
  *
  */
-public class SyncropCommunication extends Thread 
+public class SyncropLocalServer extends Thread 
 {
 
 	public static final int STATUS=0;
 	public static final int SHUTDOWN=1;
 	public static final int CLEAN=2;
 	public static final int GET_ACCOUNT_SIZE=3;
+	public static final int SYNC=4;
+	public static final int FORCE_SYNC=5;
+	public static final int FORCE_SYNC_HARD=6;
+	public static final int FORCE_SYNC_COMPLETE=7;
 	
 	public static final String STATE_OFFLINE="Offline";
 	public static final String STATE_INITIALIZING="Initializing";
@@ -41,7 +48,7 @@ public class SyncropCommunication extends Thread
 	Socket socket=null;
 	DataOutputStream out;
 	DataInputStream in=null;
-	public SyncropCommunication(SyncDaemon daemon)
+	public SyncropLocalServer(SyncDaemon daemon)
 	{
 		super("Syncrop communication thread");
 		this.daemon=daemon;
@@ -108,6 +115,10 @@ public class SyncropCommunication extends Thread
 					case GET_ACCOUNT_SIZE:
 						out.writeLong(ResourceManager.getAccount().getRecordedSize());
 						break;
+					case SYNC:
+						if(daemon instanceof SyncropClientDaemon)
+							((SyncropClientDaemon)daemon).syncAllFilesToCloud(false);
+						
 					default:
 						Syncrop.logger.logWarning("unkown option");
 						
@@ -139,4 +150,7 @@ public class SyncropCommunication extends Thread
 		}
 		
 	}
+	
+	
+	
 }

@@ -13,7 +13,6 @@ import java.nio.file.StandardOpenOption;
 
 import account.Account;
 import daemon.client.SyncropClientDaemon;
-import daemon.client.SyncropCommunication;
 import daemon.cloud.SyncropCloud;
 import file.SyncropDir;
 import file.SyncropFile;
@@ -23,10 +22,8 @@ import listener.FileWatcher;
 import listener.actions.RemoveSyncropConflictsAction;
 import message.Message;
 import message.Messenger;
-import notification.Notification;
 import notification.NotificationManager;
 import settings.Settings;
-import syncrop.FileMetadataManager;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
 import transferManager.FileTransferManager;
@@ -42,7 +39,7 @@ public abstract class SyncDaemon extends Syncrop{
 	public boolean isInitializing() {
 		return mainClient==null;
 	}
-	protected SyncropCommunication communication;
+	protected SyncropLocalServer communication;
 	protected NotificationManager notificationManager;
 
 	/**
@@ -83,6 +80,7 @@ public abstract class SyncDaemon extends Syncrop{
 	public final static String HEADER_REQUEST_FILE_RENAME="rename file";
 	
 	public final static String HEADER_SYNC_FILES="sync files to cloud";
+	public final static String HEADER_FORCE_SYNC_FILES="force sync files to cloud";
 	
 	/**
 	 * Uploads the meta data of all files to Cloud. Cloud compares the metadata 
@@ -196,7 +194,7 @@ public abstract class SyncDaemon extends Syncrop{
 		try 
 		{	
 			if(Settings.allowSyncropCommunication()) {
-				communication=new SyncropCommunication(this);
+				communication=new SyncropLocalServer(this);
 				communication.start();
 			}
 			notificationManager=new NotificationManager(this);

@@ -336,13 +336,13 @@ public final class SyncropCloud extends SyncDaemon
 		
 	}
 	
-	protected void syncFiles(Message message)
+	protected void syncFiles(Message message,boolean forced)
 	{
 		Object files[][]=(Object[][])message.getMessage();
 		String accountName=clients.get(message.getUserID()).getAccountName();
 		
 		
-		HashSet<String>syncedFiles=checkClientsfiles(files, accountName, message.getUserID());
+		HashSet<String>syncedFiles=checkClientsfiles(files, accountName, message.getUserID(),forced);
 		if(syncedFiles==null){
 			logger.log("No files synced");
 			return;
@@ -352,7 +352,7 @@ public final class SyncropCloud extends SyncDaemon
 		logger.log("total Synced file size="+this.syncedFiles.get(message.getUserID()).size(),SyncropLogger.LOG_LEVEL_ALL);
 	}
 	
-	private HashSet<String> checkClientsfiles(Object files[][],String owner,String id)
+	private HashSet<String> checkClientsfiles(Object files[][],String owner,String id,boolean forceSync)
 	{
 		ArrayList<String>filesToAddToDownload=new ArrayList<String>();
 		
@@ -402,7 +402,10 @@ public final class SyncropCloud extends SyncDaemon
 						filesToAddToDownload.add(path);
 						break;
 					case SEND_LOCAL_FILE:
-						fileTransferManager.addToSendQueue(localFile, id);
+						if(forceSync)
+							localFile.mergeMetadata(syncData);
+						else 
+							fileTransferManager.addToSendQueue(localFile, id);
 						break;
 				}
 				if(localFile!=null&&localFile.hasBeenUpdated()){
@@ -489,9 +492,11 @@ public final class SyncropCloud extends SyncDaemon
 			switch(message.getHeader())
 			{
 				case HEADER_SYNC_FILES:
-					syncFiles(message);
+					syncFiles(message,false);
 					break;
-				
+				case HEADER_FORCE_SYNC_FILES:
+					syncFiles(message,true);
+					break;
 				case HEADER_SYNC_GET_CLOUD_FILES:
 					try {
 						syncFilesWithClient(message);

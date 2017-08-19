@@ -11,8 +11,10 @@ function createJars {
 	jar cfm "$path/SyncropGUI.jar" "$mfHome/SyncropGUI_MANIFEST.MF" *
 	
 	cd "$HOME/Documents/Syncrop/Syncrop/SyncropDaemon/bin"
-	
 	jar cfm "$path/Syncrop.jar" "$mfHome/Syncrop_MANIFEST.MF" * 
+	
+	cd "$HOME/Documents/Syncrop/Syncrop/SyncropHelper/bin"
+	jar cfm "$path/SyncropHelper.jar" "$mfHome/Syncrop_HELPER_MANIFEST.MF" * 
 	
 	cd ../../Server/bin
 	jar cf "$path/Client.jar" client/* logger/* message/*

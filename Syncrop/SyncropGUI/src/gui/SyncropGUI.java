@@ -16,7 +16,7 @@ import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 
 import account.Account;
-import daemon.client.SyncropCommunication;
+import daemon.SyncropLocalServer;
 import gui.menu.SyncropMenuBar;
 import gui.sycrop.status.SyncropCommunicationThread;
 import gui.tabs.AccountTab;
@@ -85,7 +85,7 @@ public class SyncropGUI extends Syncrop implements ActionListener{
 		//frame.getContentPane().setLayout(new BorderLayout());
 		
 		loadHeaderPanel();
-		updateStatus(SyncropCommunication.STATE_OFFLINE);
+		updateStatus(SyncropLocalServer.STATE_OFFLINE);
 		syncropClientButton.addActionListener(this);
 		JTabbedPane tabbedPane= new JTabbedPane();
 		
@@ -144,7 +144,7 @@ public class SyncropGUI extends Syncrop implements ActionListener{
 	public static void updateStatus(String status) {
 		System.out.println(status);;
 		syncropClientButton.setText(
-				SyncropCommunication.STATE_OFFLINE.equals(status)?
+				SyncropLocalServer.STATE_OFFLINE.equals(status)?
 						START_SYNCROP:STOP_SYNCROP
 							);
 	

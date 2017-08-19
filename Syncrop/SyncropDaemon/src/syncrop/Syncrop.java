@@ -1,7 +1,5 @@
 package syncrop;
 
-import static syncrop.Syncrop.logger;
-
 import java.io.File;
 import java.io.IOException;
 

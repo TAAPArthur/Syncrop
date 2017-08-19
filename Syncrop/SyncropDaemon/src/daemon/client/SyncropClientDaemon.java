@@ -207,7 +207,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 			try {
 				if(authenticate()){
 					sendSettings();
-					syncAllFilesToCloud();//sync();
+					syncAllFilesToCloud(false);//sync();
 					
 				}
 				fileTransferManager.pause(false);
@@ -293,9 +293,8 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 * 
 	 * @see #syncFilesToCloud(String, String...)
 	 */
-	public void syncAllFilesToCloud() throws IOException
+	public void syncAllFilesToCloud(boolean force) throws IOException
 	{
-		
 		HashSet<String>set=new HashSet<String>();
 		Account a=ResourceManager.getAccount();
 		
@@ -304,7 +303,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 		for(String s:a.getRemovableDirectoriesThatExists())
 			set.add(isNotWindows()?s:SyncropItem.toLinuxPath(s));
 		logger.log("Starting sync: "+set);
-		syncFilesToCloud(set.toArray(new String[set.size()]));
+		syncFilesToCloud(force,set.toArray(new String[set.size()]));
 		
 	}
 
@@ -317,7 +316,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 * @param pathsToSync  only have the cloud sync files that are in this domain 
 	 * @throws IOException 
 	 */
-	public void syncFilesToCloud(String... pathsToSync) throws IOException{
+	public void syncFilesToCloud(boolean force,String... pathsToSync) throws IOException{
 		
 		mainClient.printMessage(pathsToSync, HEADER_SET_ENABLED_PATHS);
 		Iterable<SyncropItem>items=FileMetadataManager.iterateThroughAllFileMetadata(null);
@@ -331,20 +330,19 @@ public class SyncropClientDaemon extends SyncDaemon{
 			message[count++]=item.toSyncData();
 			
 			if(count==maxTransferSize){
-				mainClient.printMessage(message, HEADER_SYNC_FILES);
+				mainClient.printMessage(message, force?HEADER_FORCE_SYNC_FILES:HEADER_SYNC_FILES);
 				count=0;
 				message=new Object[maxTransferSize][];
 			}
 			totalCount++;
 		}
 		if(count!=0)
-			mainClient.printMessage(message, HEADER_SYNC_FILES);
+			mainClient.printMessage(message, force?HEADER_FORCE_SYNC_FILES:HEADER_SYNC_FILES);
 		logger.log("Syncing "+totalCount+" files");
 		//Tells Cloud to send any files that this client does not have
 		sleepShort();
 		mainClient.printMessage(
-			ResourceManager.getAccount().getRestrictionsList(), HEADER_SYNC_GET_CLOUD_FILES);
-		
+			ResourceManager.getAccount().getRestrictionsList(), HEADER_SYNC_GET_CLOUD_FILES);	
 	}
 
 	
