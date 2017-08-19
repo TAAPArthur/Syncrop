@@ -15,6 +15,7 @@ import account.Account;
 import daemon.client.SyncropClientDaemon;
 import daemon.client.SyncropCommunication;
 import daemon.cloud.SyncropCloud;
+import file.SyncropDir;
 import file.SyncropFile;
 import file.SyncropItem;
 import file.SyncropSymbolicLink;
@@ -198,8 +199,6 @@ public abstract class SyncDaemon extends Syncrop{
 				communication=new SyncropCommunication(this);
 				communication.start();
 			}
-			//TODO auto update option gui
-			//Updator.checkForUpdate();
 			notificationManager=new NotificationManager(this);
 			fileWatcher=new FileWatcher(this);
 			fileWatcher.start();
@@ -419,13 +418,13 @@ public abstract class SyncDaemon extends Syncrop{
 			localFile.delete(localFile.getDateModified());
 			return;
 		}
-		if(localFile instanceof SyncropSymbolicLink){
+		if(!localFile.exists())
 			localFile.createFile();
-			logger.log("Sybmolic link created");
+		if(localFile instanceof SyncropSymbolicLink || localFile instanceof SyncropDir){
+			logger.log(localFile.getClass().getSimpleName()+" created");
 		}
 		else{
-			if(!localFile.exists())
-				localFile.createFile();
+			
 			File file=localFile.getFile();
 			
 			if(copyFromFile){

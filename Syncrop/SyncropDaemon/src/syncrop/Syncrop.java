@@ -1,5 +1,7 @@
 package syncrop;
 
+import static syncrop.Syncrop.logger;
+
 import java.io.File;
 import java.io.IOException;
 
@@ -144,6 +146,9 @@ public abstract class Syncrop {
 	public static void setInstanceOfCloud(boolean runAsCloud){
 		Syncrop.instanceOfCloud=runAsCloud;
 	}
+	public static void setInstance(String instance){
+		Syncrop.instance=instance;
+	}
 	protected String getLogFileName(){
 		return "syncrop.log";
 	}
@@ -159,6 +164,7 @@ public abstract class Syncrop {
 			logger.log("Running instance of "+getClass().getName());
 			//Loads settings
 			SettingsManager.loadSettings();
+			logger.log("Connecting to: "+"jdbc:"+Settings.getDatabasePath());
 			
 			addShutdownHook();
 			

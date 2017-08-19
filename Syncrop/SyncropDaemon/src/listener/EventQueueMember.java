@@ -29,7 +29,7 @@ public class EventQueueMember implements Comparable<EventQueueMember>{
 	}
 	private int getBuffer(){
 		if(kind==ENTRY_CREATE)
-			return 10000;
+			return 1000;
 		else if(kind==ENTRY_MODIFY)
 			return 1000;
 		else if(kind==ENTRY_DELETE)

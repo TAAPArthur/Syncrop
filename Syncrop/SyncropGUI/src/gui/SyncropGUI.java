@@ -142,7 +142,7 @@ public class SyncropGUI extends Syncrop implements ActionListener{
 	}
 	
 	public static void updateStatus(String status) {
-		
+		System.out.println(status);;
 		syncropClientButton.setText(
 				SyncropCommunication.STATE_OFFLINE.equals(status)?
 						START_SYNCROP:STOP_SYNCROP

@@ -3,11 +3,11 @@ package gui.sycrop.status;
 import static daemon.client.SyncropCommunication.STATE_OFFLINE;
 import static daemon.client.SyncropCommunication.STATUS;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.net.ConnectException;
 import java.net.Socket;
-import java.util.Scanner;
 
 import daemon.client.SyncropCommunication;
 import gui.SyncropGUI;
@@ -21,18 +21,17 @@ public class SyncropCommunicationThread extends Thread{
 	
 	
 	volatile Socket socket;
-	PrintWriter out;
-	Scanner in;
+	DataOutputStream out;
+	DataInputStream in=null;
 	public SyncropCommunicationThread() throws IOException{
 		super("Syncrop Status Monitor");
 		
 	}
 	private void connect() throws IOException{		
 		socket = new Socket((String)null, Settings.getSyncropCommunicationPort());
-		out = new PrintWriter(socket.getOutputStream());
+		out = new DataOutputStream(socket.getOutputStream());
 		out.flush();
-		in = new Scanner(socket.getInputStream());
-		
+		in = new DataInputStream(socket.getInputStream());
 	}
 	public void close() throws IOException{
 		in.close();
@@ -42,15 +41,22 @@ public class SyncropCommunicationThread extends Thread{
 	public boolean isConnected(){
 		return socket!=null&&!socket.isClosed();
 	}
-	private synchronized void print(int... args){
+	private synchronized boolean print(int... args){
+		boolean success = true;
 		for(int s:args) {
-			out.print(s);
-			out.flush();
-			if(s==SyncropCommunication.GET_ACCOUNT_SIZE)
-				SyncropGUI.updateAccountSize(Long.parseLong(in.nextLine()));
-			else if(s== STATUS)
-				setStatus(in.nextLine());
+			try {
+				System.out.println(s);
+				out.writeInt(s);
+				out.flush();
+				if(s==SyncropCommunication.GET_ACCOUNT_SIZE)
+					SyncropGUI.updateAccountSize(in.readLong());
+				else if(s== STATUS)
+					setStatus(in.readUTF());
+			} catch (IOException e) {
+				success = false;
+			}
 		}
+		return success;
 	}
 	public void clean(){
 		print(SyncropCommunication.CLEAN);
@@ -69,11 +75,16 @@ public class SyncropCommunicationThread extends Thread{
 					connect();
 				else if(socket.isBound()){
 					print(STATUS);
+					if(count%120==0) {
+						print(SyncropCommunication.GET_ACCOUNT_SIZE);
+					}
 				}
 			} 
 			catch (ConnectException e) {
-				if(count%120==0)
+				if(count%120==0) {
 					calculateAccountSize();
+					System.out.println("manually updated account size");
+				}
 				setStatus(STATE_OFFLINE);
 			}
 			catch (IOException e) {

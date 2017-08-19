@@ -20,7 +20,7 @@ import notification.Notification;
 public class SyncropLogger implements logger.Logger{
     
     private int logLevel=LOG_LEVEL_INFO;
-    
+    private boolean logToConsole = false; 
     private FileHandler handler;
 	
 	/**
@@ -192,12 +192,15 @@ public class SyncropLogger implements logger.Logger{
         LogRecord record=new LogRecord(Level.parse(logLevel+""), logSting);
         
         record.setThrown(t);
-        
-        handler.publish(record);
-        if(isLogging(LOG_LEVEL_TRACE))
-        	handler.flush();
-        if(this.logLevel<LOG_LEVEL_ALL)
-			System.out.println(message);
+        if(logToConsole)
+        	System.out.println(message);
+        else {
+        	handler.publish(record);
+	        if(isLogging(LOG_LEVEL_TRACE))
+	        	handler.flush();
+	        if(this.logLevel<LOG_LEVEL_ALL)
+				System.out.println(message);
+        }
         if(t!=null){
         	t.printStackTrace(System.out);
         }
@@ -226,4 +229,12 @@ public class SyncropLogger implements logger.Logger{
 	
 	public SimpleDateFormat getDateTimeFormat(){return dateTimeFormat;}
 	public int getLogLevel(){return logLevel;}
+	public boolean isLogToConsole() {
+		return logToConsole;
+	}
+	public void setLogToConsole(boolean logToConsole) {
+		this.logToConsole = logToConsole;
+	}
+	
+	
 }

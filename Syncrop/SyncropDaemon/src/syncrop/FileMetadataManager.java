@@ -31,7 +31,6 @@ public class FileMetadataManager {
 	}
 	*/
 	public static Connection getConnectionInstance(boolean readOnly) throws SQLException{
-		logger.log("Connecting to: "+"jdbc:"+Settings.getDatabasePath());
 		Connection conn = DriverManager.getConnection("jdbc:"+Settings.getDatabasePath(),Settings.getDatabaseUsername(),Settings.getDatabasePassword());
 		conn.setReadOnly(readOnly);
 		return conn;

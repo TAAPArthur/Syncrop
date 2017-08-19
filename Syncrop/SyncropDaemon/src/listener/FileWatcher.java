@@ -171,11 +171,12 @@ public class FileWatcher extends Thread{
 			try {
 				listenForDirectoryChanges();
 				EventQueueMember member=eventQueue.peek();
-				
-				if(member!=null&&member.isStable()){
-					reactToDirectoryChanges(eventQueue.poll());
-					if(daemon!=null&&SyncDaemon.isConnectionActive())
-						Thread.sleep(daemon.getExpectedFileTransferTime());
+				if(member!=null) {
+					if(member.isStable()){
+						reactToDirectoryChanges(eventQueue.poll());
+						if(daemon!=null&&SyncDaemon.isConnectionActive())
+							Thread.sleep(daemon.getExpectedFileTransferTime());
+					}
 				}
 				else Thread.sleep(100);
 			} catch (InterruptedException x) {
@@ -255,7 +256,7 @@ public class FileWatcher extends Thread{
 			logger.logTrace(path+" is locked");
 			return;
 		}
-		
+		logger.log(member.toString());
 		onFileChange(item,file.getAbsolutePath(),member.getKind());
 		 
 		if(item==null&&member.getKind()!=ENTRY_DELETE||item!=null&&item.hasBeenUpdated())

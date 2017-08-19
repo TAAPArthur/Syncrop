@@ -223,6 +223,9 @@ public class SettingsManager {
 		return allLoadedSuccussfully;
 		
 	}
+	public static boolean dynamicallyLoadSetting(String name,String value) throws IllegalArgumentException, IOException {
+		return interpretSettings(name+"="+value);
+	}
 	/**
 	 * Translates the settings into code
 	 * @param line the line of settings to interpret

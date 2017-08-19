@@ -48,7 +48,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 					instance=s.substring(2).trim();
 				
 		SyncropClientDaemon  d=new SyncropClientDaemon(instance,false);
-		d.startConnection();
+		//d.startConnection();
 	}
 	
 	

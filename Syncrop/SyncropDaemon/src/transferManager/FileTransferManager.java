@@ -327,6 +327,10 @@ public class FileTransferManager extends Thread{
 	private void sendFile(QueueMember member){
 		
 		SyncropItem file=ResourceManager.getFile(member.getPath(),member.getOwner());
+		if(file == null) {
+			logger.logTrace("file no longer exists "+member.getPath());
+			return;
+		}
 		if(file.hasBeenUpdated()){
 			logger.logTrace("will not send file because file has recently been updated"+file.getPath());
 			return;

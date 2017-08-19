@@ -239,13 +239,18 @@ public class Account
 			else restrictions.add(new Restriction(dirsToAdd[i]));
 			
 	}
+	public void addGenericDir(String dirToAdd) {
+		if(dirToAdd.startsWith(File.separator))
+			addRemoveableDirs(dirToAdd);
+		else addDirs(dirToAdd);
+			
+	}
 	/**
 	 * Adds a non-removable directory.
 	 * @param dirsToAdd the directory to add
 	 */
 	public void addDirs(String... dirsToAdd)
 	{
-	 
 		for(int i=0;i<dirsToAdd.length;i++)
 			if(dirsToAdd[i]==null||dirsToAdd[i].isEmpty())
 				continue;
@@ -259,7 +264,6 @@ public class Account
 	 */
 	public void addRemoveableDirs(String... dirsToAdd)
 	{
-	
 		for(int i=0;i<dirsToAdd.length;i++)
 			if(dirsToAdd[i]==null||dirsToAdd[i].isEmpty())continue;
 			else if(Directory.containsMatchingChars(dirsToAdd[i]))
