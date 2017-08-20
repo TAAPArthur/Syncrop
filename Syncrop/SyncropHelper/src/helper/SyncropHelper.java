@@ -59,7 +59,7 @@ public class SyncropHelper {
 			return description;
 		}
 		public String getHelpMessage() {
-			return getLongName()+": "+getDescription();
+			return "--"+getLongName()+": "+getDescription();
 		}
 	}
 	public static void main(String[] args) {
@@ -174,11 +174,11 @@ public class SyncropHelper {
 		
 	}
 	private static Commands getCommand(String arg) {
+		
 		if(arg.startsWith("--"))
-			return Commands.valueOf(arg.substring(2));
-		else if(arg.startsWith("-"))
-			return Commands.valueOf(arg.substring(1));
-		else return Commands.valueOf(arg);
+			arg = arg.substring(2);
+		arg = arg.toUpperCase().replaceAll("-", "_");
+		return Commands.valueOf(arg);
 	}
 	private static void output(Object s) {
 		System.out.println(s);
