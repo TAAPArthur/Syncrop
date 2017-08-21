@@ -7,11 +7,12 @@ import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 import java.nio.file.WatchEvent;
 
 public class EventQueueMember implements Comparable<EventQueueMember>{
-	final String owner;
-	final WatchedDir dir;
-	final String path;
-	final WatchEvent.Kind<?>kind;
-	final long timeStamp;
+	private final String owner;
+	private final WatchedDir dir;
+	private final String path;
+	
+	private final WatchEvent.Kind<?>kind;
+	private final long timeStamp;
 	EventQueueMember(WatchedDir dir,String path, WatchEvent.Kind<?>kind){
 		this.owner=dir.getAccountName();
 		this.dir=dir;
@@ -52,12 +53,21 @@ public class EventQueueMember implements Comparable<EventQueueMember>{
 	 * are triggered
 	 * @return timestamp + buffer
 	 */
-	private long getAdjustedTimeStep(){
+	private long getAdjustedTimeStamp(){
 		return timeStamp+getBuffer();
+	}
+	public long getTimeStamp() {
+		return timeStamp;
 	}
 
 	@Override
 	public int compareTo(EventQueueMember o) {
-		return (int) (o.getAdjustedTimeStep()-getAdjustedTimeStep());
+		return (int) (o.getAdjustedTimeStamp()-getAdjustedTimeStamp());
+	}
+	public WatchedDir getDir() {
+		return dir;
+	}
+	public String getPath() {
+		return path;
 	}
 }

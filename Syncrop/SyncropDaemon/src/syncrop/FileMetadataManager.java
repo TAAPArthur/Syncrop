@@ -2,6 +2,7 @@ package syncrop;
 
 import static syncrop.Syncrop.logger;
 
+import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -138,7 +139,9 @@ public class FileMetadataManager {
 		}
 		return null;
 	}
-
+	public static LinkedList<SyncropItem> getChildFilesOf(String relativePath,String owner) {
+		return getFilesStartingWith(relativePath+File.separatorChar,owner);
+	}
 	public static LinkedList<SyncropItem> getFilesStartingWith(String relativePath,String owner) {
 		ResultSet rs=null;
 		String query="SELECT * FROM "+TABLE_NAME

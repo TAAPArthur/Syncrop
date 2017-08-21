@@ -30,6 +30,7 @@ public class SyncropHelper {
 		REMOVE_CONFLICTS("remove-conflicts","remove conflicts locally"),
 		SET_SETTING("set-setting","name value"),
 		SAVE_SETTINGS("save-setting","saves currently loaded settings"),
+		CLEAN_METADATA("clean-metadata","removes metadata for nonexisting files"),
 		
 		SYNC("sync","syncs client and remote");
 		
@@ -67,6 +68,8 @@ public class SyncropHelper {
 		String email = null;
 		boolean force = false;
 		SyncropLocalClient daemon = new SyncropLocalClient();
+		try {daemon.connect();} catch (IOException e1) {}
+		
 		try {
 			for(int i=0; i<args.length;i++) {
 				Commands c = getCommand(args[i]);
@@ -138,22 +141,28 @@ public class SyncropHelper {
 					case SET_SETTING:
 						boolean b=SettingsManager.dynamicallyLoadSetting(args[++i],args[++i]);
 						output(b?"successfully added setting":"failed to set setting");
+						break;
 					case SAVE_SETTINGS:
 						SettingsManager.saveSettings(true);
 						output("saved setting");
+						break;
 					case SYNC:
-						daemon.sync(force);
+						if(daemon.isConnected())
+							daemon.sync(force);
+						else output("Syncrop needs to be running for this command to work");
 						break;
 						
 					case REMOVE_CONFLICTS:
 						new FileWatcher(null).checkAllFiles(new RemoveSyncropConflictsAction());
+						break;
+					case CLEAN_METADATA:
+						FileWatcher.checkMetadataForAllFiles(false);
 						break;
 					case HELP:
 					default:
 						displayHelpMessage();
 						System.exit(1);
 						break;
-						
 				}
 				return;
 			}

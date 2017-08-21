@@ -617,10 +617,7 @@ public class FileTransferManager extends Thread{
 		boolean updatedSinceLastUpdate=(boolean)syncData[INDEX_MODIFIED_SINCE_LAST_KEY_UPDATE];
 		String target=(String)syncData[INDEX_SYMBOLIC_LINK_TARGET];
 		
-		
-		
 		long size=(long)syncData[INDEX_SIZE];
-		
 		
 		switch (message.getHeader()) 
 		{

@@ -650,11 +650,14 @@ public static SyncropItem getInstance(Object[] syncData){
 	}
 	public boolean modifiedSinceLastKeyUpdate(){return modifiedSinceLastKeyUpdate;}
 	public void setModifiedSinceLastKeyUpdate(boolean  b){modifiedSinceLastKeyUpdate=b;}
+	public static String formatModificationDate(long time) {
+		return logger.getDateTimeFormat().format(time);
+	}
 	@Override
 	public String toString()
 	{
-		String dateModified=logger.getDateTimeFormat().format(this.dateModified);
-		return getClass().getName()+" path:"+path+", owner:"+owner+" dateMod:"+dateModified+", key: "+getKey()+
+		return getClass().getName()+" path:"+path+", owner:"+owner+
+				" dateMod:"+formatModificationDate(dateModified)+", key: "+getKey()+
 				", modifiedSinceLastKeyUpdate: "+modifiedSinceLastKeyUpdate()+
 				" exits:"+file.exists()+" deletion recorded: "+!knownToExists()+
 				" removeable:"+isRemovable()+" isDir:"+file.isDirectory();

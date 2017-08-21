@@ -26,7 +26,7 @@ public class SyncropLocalClient extends Thread{
 	public boolean isConnected(){
 		return socket!=null&&!socket.isClosed();
 	}
-	protected void connect() throws IOException{		
+	public void connect() throws IOException{		
 		socket = new Socket((String)null, Settings.getSyncropCommunicationPort());
 		out = new DataOutputStream(socket.getOutputStream());
 		out.flush();

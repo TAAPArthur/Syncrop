@@ -323,9 +323,9 @@ public abstract class SyncDaemon extends Syncrop{
 	
 	public void downloadFile(String id,String path,String owner,long dateModified,int key,boolean modifiedSinceLastUpdate,int filePermissions,boolean exists,byte[] bytes,long length,String linkTarget,boolean copyFromFile,boolean echo){
 		if(exists)
-			logger.log("downloading file "+path);
+			logger.log("request to download file "+path);
 		else 
-			logger.log("deleting file "+path);
+			logger.log("request to delete file "+path);
 		ResourceManager.lockFile(path,owner);
 		
 		SyncropItem localFile=ResourceManager.getFile(path,owner);
@@ -335,7 +335,7 @@ public abstract class SyncDaemon extends Syncrop{
 		} catch (IOException e) {
 			logger.logError(e);
 		}
-		logger.logTrace("result of comparison"+result+" "+localFile+" remoteDatemod:"+dateModified);
+		logger.logTrace("result of comparison"+result+" "+localFile+" remoteDatemod:"+SyncropItem.formatModificationDate(dateModified));
 		if(localFile==null){
 			logger.logTrace("local file is null; reinit");
 			localFile=SyncropItem.getInstance(path, owner, dateModified, key, modifiedSinceLastUpdate, -1, filePermissions, false, linkTarget);
@@ -407,6 +407,7 @@ public abstract class SyncDaemon extends Syncrop{
 			if(echo)
 				updateAllClients(localFile, id);
 		}
+		Syncrop.sleepVeryShort();
 		logger.logTrace("unlocking file"+localFile);
 		ResourceManager.unlockFile(path, owner);	
 	}

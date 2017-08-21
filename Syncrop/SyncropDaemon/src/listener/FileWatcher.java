@@ -47,7 +47,7 @@ public class FileWatcher extends Thread{
     private final Map<Path,WatchKey> keyMap=new HashMap<>();
     private final RemovableFileWatcher removableFileWatcher;
     final SyncDaemon daemon;
-   
+    PriorityQueue<EventQueueMember>eventQueue=new PriorityQueue<>();
     private final HashSet<Command>commands=new HashSet<>();
 
     private FileChecker checker;
@@ -178,7 +178,6 @@ public class FileWatcher extends Thread{
 							Thread.sleep(daemon.getExpectedFileTransferTime());
 					}
 				}
-				else Thread.sleep(100);
 			} catch (InterruptedException x) {
 				continue;
 			}
@@ -205,7 +204,7 @@ public class FileWatcher extends Thread{
 		}
 		
 	}
-	PriorityQueue<EventQueueMember>eventQueue=new PriorityQueue<>();
+	
 	private void addEvent(WatchedDir dir,String path, WatchEvent.Kind<?>kind){
 		EventQueueMember queueMember=new EventQueueMember(dir, path, kind);
 		if(eventQueue.contains(queueMember))
@@ -232,13 +231,11 @@ public class FileWatcher extends Thread{
 			}
         // reset key and remove from set if directory no longer accessible
 		key.reset();
-	
-	
 	}
 	
 	void reactToDirectoryChanges(EventQueueMember member) throws IOException{
-		WatchedDir dir=member.dir;
-		String path=member.path;
+		WatchedDir dir=member.getDir();
+		String path=member.getPath();
 		
 		File file=new File(ResourceManager.getHome(dir.getAccountName(), dir.isRemovable()),path);
 		
@@ -256,6 +253,10 @@ public class FileWatcher extends Thread{
 			logger.logTrace(path+" is locked");
 			return;
 		}
+		if(!item.hasBeenUpdated()) {
+			logger.logTrace("File has not been updated; ignoring");
+			return;
+		}
 		logger.log(member.toString());
 		onFileChange(item,file.getAbsolutePath(),member.getKind());
 		 
@@ -269,7 +270,7 @@ public class FileWatcher extends Thread{
 		else if(member.getKind()==ENTRY_MODIFY)
 			onModify(dir, path, file, item);
 		else if(member.getKind()==ENTRY_DELETE)
-			onDelete(dir, path, file, item,member.timeStamp);
+			onDelete(dir, path, file, item,member.getTimeStamp());
 		else logger.logWarning("Unexpected kind: "+member.getKind());				
 	
 	}
@@ -318,32 +319,32 @@ public class FileWatcher extends Thread{
 		logger.log("dir deleted "+relativePath);
 		if(item.knownToExists()){
 			Iterable<SyncropItem>items=FileMetadataManager.getFilesStartingWith(relativePath, owner);
-			for(SyncropItem itemKids:items)
-				recordFileDeletion(itemKids, timestamp-1);
-			//recordFileDeletion(item, timestamp);
-			if(item instanceof SyncropDir)
-				if(keyMap.containsKey(item.getFile().toPath())){
-					logger.log("canceling key for "+item);
-					keys.remove(keyMap.get(item.getFile().toPath()));
-					keyMap.remove(item.getFile().toPath()).cancel();
-				}
+			for(SyncropItem deletedItems:items) {
+				recordFileDeletion(deletedItems, timestamp);
+				if(deletedItems instanceof SyncropDir)
+					if(keyMap.containsKey(item.getFile().toPath())){
+						logger.log("canceling key for "+item);
+						keys.remove(keyMap.get(item.getFile().toPath()));
+						keyMap.remove(item.getFile().toPath()).cancel();
+					}
+			}
 		}
 		//TODO rename
 	}
 	
 	
-	private void recordFileDeletion(SyncropItem item,final long timeOfDelete){
+	private void recordFileDeletion(SyncropItem item,final long timeOfDeletion){
 		if(item==null)return;
 		if(item.exists())
 			return;
 		if(item.knownToExists()){
 			logger.log("fileListerner deemed this file to not exists "
 					+item.getFile(),SyncropLogger.LOG_LEVEL_DEBUG);
-			item.setDateModified(timeOfDelete);	
+			item.setDateModified(timeOfDeletion);	
 		}
 		if(item.hasBeenUpdated()){
-			addToSendQueue(item);
 			item.save();
+			addToSendQueue(item);
 		}
 		
 	}
