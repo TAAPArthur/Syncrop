@@ -66,7 +66,9 @@ public class SettingsManager {
 		SYNC_HIDDEN_FILES("Sync Hidden Files",boolean.class,"canSyncHiddenFiles","setSyncHiddenFiles",TYPE_SIMPLE),
 		ALLOW_CONFLICTS("Allow Conflicts",boolean.class,"isConflictsAllowed","setConflictsAllowed",TYPE_ADVANCED),
 		CONFLICT_RESOLUTION("Conflict Resolution",int.class,"getConflictResolution","setConflictResolution",TYPE_ADVANCED),
-		DELETING_FILES_NOT_ON_CLIENT("Delete Files not on clinet",boolean.class,"isDeletingFilesNotOnClient","setDeletingFilesNotOnClient",TYPE_ADVANCED);
+		DELETING_FILES_NOT_ON_CLIENT("Delete Files not on clinet",boolean.class,"isDeletingFilesNotOnClient","setDeletingFilesNotOnClient",TYPE_ADVANCED),
+		FORCE_SYNC("Force sync metadata for files",boolean.class,"isForceSync","setForceSync",TYPE_ADVANCED)
+		;
 		
 		
 		int type;

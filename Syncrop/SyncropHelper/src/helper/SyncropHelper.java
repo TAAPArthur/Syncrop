@@ -3,8 +3,10 @@ import java.io.IOException;
 
 import account.Account;
 import daemon.SyncropLocalClient;
+import daemon.client.SyncropClientDaemon;
 import listener.FileWatcher;
 import listener.actions.RemoveSyncropConflictsAction;
+import settings.Settings;
 import settings.SettingsManager;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
@@ -94,6 +96,7 @@ public class SyncropHelper {
 				}
 			}
 			Syncrop.logger=new SyncropLogger("syncropHeler.log");
+			Syncrop.logger.setLogToConsole(true);
 			ResourceManager.initializeConfigurationFiles();
 			SettingsManager.loadSettings();
 			ResourceManager.readFromConfigFile();
@@ -149,7 +152,13 @@ public class SyncropHelper {
 					case SYNC:
 						if(daemon.isConnected())
 							daemon.sync(force);
-						else output("Syncrop needs to be running for this command to work");
+						else {
+							SyncropClientDaemon d = new SyncropClientDaemon(Syncrop.getInstance(), false);
+							Settings.setForceSync(true);
+							d.startConnection();
+							d.quit();
+							output("");
+						}
 						break;
 						
 					case REMOVE_CONFLICTS:

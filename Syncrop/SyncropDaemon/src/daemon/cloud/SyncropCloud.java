@@ -402,8 +402,10 @@ public final class SyncropCloud extends SyncDaemon
 						filesToAddToDownload.add(path);
 						break;
 					case SEND_LOCAL_FILE:
-						if(forceSync)
-							localFile.mergeMetadata(syncData);
+						if(forceSync) {
+							if(localFile.forceMergeMetadata(syncData))
+								filesToAddToDownload.add(path);
+						}
 						else 
 							fileTransferManager.addToSendQueue(localFile, id);
 						break;
@@ -492,8 +494,10 @@ public final class SyncropCloud extends SyncDaemon
 			switch(message.getHeader())
 			{
 				case HEADER_SYNC_FILES:
-					syncFiles(message,false);
-					break;
+					if(!Settings.isForceSync()) {
+						syncFiles(message,false);
+						break;
+					}
 				case HEADER_FORCE_SYNC_FILES:
 					syncFiles(message,true);
 					break;

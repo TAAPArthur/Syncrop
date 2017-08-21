@@ -48,7 +48,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 					instance=s.substring(2).trim();
 				
 		SyncropClientDaemon  d=new SyncropClientDaemon(instance,false);
-		//d.startConnection();
+		d.startConnection();
 	}
 	
 	
@@ -68,6 +68,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 	 * Attempts a connection to Cloud and waits until one is made, authenticated and
 	 *  files are synced
 	 */
+	@Override
 	protected void connectToServer(){	
 		if(isShuttingDown())
 			throw new SyncropCloseException();
@@ -207,7 +208,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 			try {
 				if(authenticate()){
 					sendSettings();
-					syncAllFilesToCloud(false);//sync();
+					syncAllFilesToCloud(Settings.isForceSync());//sync();
 					
 				}
 				fileTransferManager.pause(false);

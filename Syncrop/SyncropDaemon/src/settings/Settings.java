@@ -62,7 +62,7 @@ public class Settings {
 	private static String databasePassword;
 	private static String authenticationScript;
 	
-	
+	private static boolean forceSync = false;
 	
 	/**
 	 * Allows for hidden files to be synced
@@ -261,6 +261,12 @@ public class Settings {
 	}
 	public static void setAllowSyncropCommunication(boolean allowSyncropCommunication) {
 		Settings.allowSyncropCommunication = allowSyncropCommunication;
+	}
+	public static boolean isForceSync() {
+		return forceSync;
+	}
+	public static void setForceSync(boolean forceSync) {
+		Settings.forceSync = forceSync;
 	}
 	
 }

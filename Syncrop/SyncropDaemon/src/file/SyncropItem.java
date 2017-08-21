@@ -685,8 +685,18 @@ public static SyncropItem getInstance(Object[] syncData){
 	public static enum SyncropPostCompare{
 		SKIP,SYNCED,DOWNLOAD_REMOTE_FILE,SEND_LOCAL_FILE,SYNC_METADATA,CREATE_NEW_FILE;
 	};
-	public void mergeMetadata(Object[] syncData) {
-		mergeMetadata((long)syncData[INDEX_DATE_MODIFIED],(int)syncData[INDEX_KEY]);
+	public boolean forceMergeMetadata(Object[] syncData) {
+		if((boolean)syncData[INDEX_EXISTS] == exists())
+			mergeMetadata((long)syncData[INDEX_DATE_MODIFIED],(int)syncData[INDEX_KEY]);
+		else if(exists()) {
+			delete((long) syncData[INDEX_DATE_MODIFIED]);
+			this.setKey((int)syncData[INDEX_KEY]);
+		}
+		else {
+			deleteMetadata();
+			return false;
+		}
+		return true;
 	}
 	public void mergeMetadata(long remoteDateMod,int remoteKey) {
 		this.setDateModified(remoteDateMod);

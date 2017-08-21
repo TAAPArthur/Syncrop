@@ -21,7 +21,11 @@ public class SyncropLogger implements logger.Logger{
     
     private int logLevel=LOG_LEVEL_INFO;
     private boolean logToConsole = false; 
-    private FileHandler handler;
+    public void setLogFile(File logFile) {
+		this.logFile = logFile;
+	}
+
+	private FileHandler handler;
 	
 	/**
 	 * Keeps a record of various information for debugging purposes
@@ -66,7 +70,6 @@ public class SyncropLogger implements logger.Logger{
 		
 		setLogLevel(level);
 		logFile=new File(getConfigFilesHome(),logFileName);
-		System.out.println("logFile: "+logFile);
 		if(!logFile.exists()){
 			logFile.getParentFile().mkdirs();
 			logFile.createNewFile();
