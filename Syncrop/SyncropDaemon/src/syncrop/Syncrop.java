@@ -19,7 +19,7 @@ public abstract class Syncrop {
 	 * The version number of Syncrop.<br/>
 	 * This value is the value version of the Syncrop DEB.
 	 */
-	static final private String VERSION_ID="2.4.3";
+	static final private String VERSION_ID="2.4.4";
 	static final public String APPLICATION_NAME="Syncrop";
 	/**
 	 * The version of the metadata. This value is stored in the metadata dir.
@@ -29,6 +29,8 @@ public abstract class Syncrop {
 	 * @see {@link ResourceManager#getMetadataDirectory()}
 	 */
 	static final private String METADATA_VERSION="6";
+	
+	static private boolean slaveMode = false;
 	
 	/**
 	 * 2^10 bytes
@@ -155,44 +157,51 @@ public abstract class Syncrop {
 		//sets the start time 
 		startTime=System.currentTimeMillis();
 	
-		try {
-			//define the logger
-			ResourceManager.initializeConfigurationFiles();
-			logger=new SyncropLogger(getLogFileName());
-			logger.log("Running instance of "+getClass().getName());
-			//Loads settings
-			SettingsManager.loadSettings();
-			logger.log("Connecting to: "+"jdbc:"+Settings.getDatabasePath());
-			
-			addShutdownHook();
-			
-			//initilize Notification;
-			Notification.initilize();
-		} catch (IOException e) {
-			logger.logFatalError(e,"");
-			System.exit(1);
-		}
+		if(!slaveMode)
+			try {
+				//define the logger
+				ResourceManager.initializeConfigurationFiles();
+				logger=new SyncropLogger(getLogFileName());
+				logger.log("Running instance of "+getClass().getName());
+				//Loads settings
+				SettingsManager.loadSettings();
+				
+				//logs basic config info
+				logger.log("Version: "+VERSION_ID+":"+METADATA_VERSION+"; Encoding: "+System.getProperty("file.encoding")+
+						"; OS: "+System.getProperty("os.name")+
+						"; host"+(Settings.isSSLConnection()?" (SSL)":" ")+Settings.getHost()+":"+
+						(Settings.isSSLConnection()?Settings.getSSLPort():Settings.getPort())+
+						" log level "+logger.getLogLevel());
+				logger.log("Connecting to: "+"jdbc:"+Settings.getDatabasePath());
+				
+				addShutdownHook();
+				
+				
+				//if config files cannot be read, quit
+				if(!ResourceManager.canReadAndWriteSyncropConfigurationFiles()){			
+					logger.log("cannot read and write Syncrop Configuration files",SyncropLogger.LOG_LEVEL_FATAL);
+					System.exit(0);
+					return;
+				}
+				//file account config files (.ini file)
+				ResourceManager.readFromConfigFile();
+				
+				//initilize Notification;
+				
+			} catch (IOException e) {
+				logger.logFatalError(e,"");
+				System.exit(1);
+			}
 		
-		//logs basic config info
-		logger.log("Version: "+VERSION_ID+":"+METADATA_VERSION+"; Encoding: "+System.getProperty("file.encoding")+
-				"; OS: "+System.getProperty("os.name")+
-				"; host"+(Settings.isSSLConnection()?" (SSL)":" ")+Settings.getHost()+":"+
-				(Settings.isSSLConnection()?Settings.getSSLPort():Settings.getPort())+
-				" log level "+logger.getLogLevel());
+		
 		if(instanceOfCloud)
 			logger.log("HOME:"+Settings.getCloudHomeDir());
 		else 
 			logger.log("HOME:"+Settings.getHomeDir());
-		//if config files cannot be read, quit
-		if(!ResourceManager.canReadAndWriteSyncropConfigurationFiles()){			
-			logger.log("cannot read and write Syncrop Configuration files",SyncropLogger.LOG_LEVEL_FATAL);
-			System.exit(0);
-			return;
-		}
+		
 		ResourceManager.checkMetadataVersion();
 		
-		//file account config files (.ini file)
-		ResourceManager.readFromConfigFile();
+		
 		
 	}
 	
@@ -358,6 +367,10 @@ public abstract class Syncrop {
 		
 		
 	
+	}
+
+	public static void setSlavemode(boolean b) {
+		slaveMode =b;
 	}
 
 	

@@ -25,6 +25,7 @@ import java.util.regex.Pattern;
 import account.Account;
 import file.Directory;
 import file.SyncropItem;
+import notification.Notification;
 import settings.Settings;
 
 /** 
@@ -319,7 +320,12 @@ public class ResourceManager
 		generateID();
 	}
 	
-	
+	/**
+	 * Reads SyncropItem read form database
+	 * @param relativePath
+	 * @param owner
+	 * @return corrosponding Syncrop item or null if not found
+	 */
 	public static SyncropItem getFile(String relativePath,String owner){
 		return FileMetadataManager.getFile(relativePath, owner);
 	}	
@@ -363,6 +369,7 @@ public class ResourceManager
 			if(!temp.exists())temp.mkdir();
 			if(!configFile.exists())configFile.createNewFile();
 			deleteAllTemporaryFiles();
+			Notification.initilize();
 			
 		}
 		catch (IOException e) 

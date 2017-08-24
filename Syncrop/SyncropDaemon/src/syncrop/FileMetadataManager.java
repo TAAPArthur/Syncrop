@@ -171,6 +171,12 @@ public class FileMetadataManager {
         return null;
 		
 	}
+	/**
+	 * Gets SyncropItem instance stored in the database denoted by the parameters
+	 * @param relativePath
+	 * @param owner
+	 * @return
+	 */
 	public static SyncropItem getFile(String relativePath,String owner) {
 		try {
 			Connection conn = getConnectionInstance(true);

@@ -73,12 +73,7 @@ public final class SyncropCloud extends SyncDaemon
 	public String getUsername(){
 		return CLOUD_USERNAME;
 	}
-	@Override
-	protected void checkFiles(boolean clean) throws IOException{
-		
-		super.checkFiles(clean);
-		FileWatcher.checkMetadataForAllFiles(!clean);
-	}
+	
 	
 	@Override
 	protected void connectToServer()

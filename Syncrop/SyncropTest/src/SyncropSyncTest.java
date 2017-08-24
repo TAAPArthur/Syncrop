@@ -264,7 +264,6 @@ class ErrorConflictsAction implements SyncROPFileAction{
 		if(file.isFile()&&file.getName().matches(".*"+SyncropFile.CONFLICT_ENDING+"\\d+")){
 			logger.log("deleting file path="+file.getAbsolutePath());
 			file.delete();
-			item.deleteMetadata();
 			return true;
 		}
 		else return false;

@@ -221,6 +221,7 @@ public abstract class SyncDaemon extends Syncrop{
 		if(Settings.allowScripts())
 			fileWatcher.loadCommandsToRunOnFileModification();
 		fileWatcher.checkAllFiles(clean?new RemoveSyncropConflictsAction():null);
+		FileWatcher.checkMetadataForAllFiles(!clean);
 		
 	}
 	protected void startThreads()

@@ -367,8 +367,7 @@ public class FileTransferManager extends Thread{
 			//if(fileSent.getDateModified()!=dateMod)addToSendQueue(fileSent, userSendingTo);
 		}
 		if(fileSent==null);//metadata does not exists
-		else if(!Syncrop.isInstanceOfCloud()&&!fileSent.exists())
-			fileSent.deleteMetadata();
+		else if(!Syncrop.isInstanceOfCloud()&&!fileSent.exists());
 		else if(fileSent.getPath().equals(getPathOfLargeFileBeingSent(message.getUserID())))
 			unsetLargeFileTransferInfo(message.getUserID());
 		logger.log("fileSent "+o[INDEX_PATH]);

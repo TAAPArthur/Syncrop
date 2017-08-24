@@ -240,13 +240,11 @@ public class FileWatcher extends Thread{
 		File file=new File(ResourceManager.getHome(dir.getAccountName(), dir.isRemovable()),path);
 		
 		SyncropItem item=ResourceManager.getFile(path, dir.getAccountName());
-		//if(!(file.isDirectory()&&e.kind()==ENTRY_MODIFY)&&logger.isLogging(Logger.LOG_LEVEL_ALL))
-		//	logger.log("Detected change in file "+file+" "+e.kind(),Logger.LOG_LEVEL_ALL);
-		if(item==null&&!dir.getAccount().isPathEnabled(path)||item!=null&&!item.isEnabled()){
-			logger.logTrace(path+" is not enabled; skipping");
+		if(item == null && file.exists())
+			item = SyncropItem.getInstance(path, dir.getAccountName(), dir.isRemovable());
+		else if(item == null && !file.exists())
 			return;
-		}
-
+		
 		updateAccountSize(dir.getAccount(),file, item);
 		
 		if(ResourceManager.isLocked(path,dir.getAccountName())){

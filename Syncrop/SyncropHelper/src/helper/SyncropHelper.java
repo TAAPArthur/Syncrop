@@ -11,7 +11,6 @@ import settings.SettingsManager;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
 import syncrop.SyncropLogger;
-
 public class SyncropHelper {
 
 	enum Commands{
@@ -100,6 +99,7 @@ public class SyncropHelper {
 			ResourceManager.initializeConfigurationFiles();
 			SettingsManager.loadSettings();
 			ResourceManager.readFromConfigFile();
+			Syncrop.setSlavemode(true);
 			for(int i=0; i<args.length;i++) {
 				Commands c = getCommand(args[i]);
 				if(c.isSetting())
@@ -153,8 +153,9 @@ public class SyncropHelper {
 						if(daemon.isConnected())
 							daemon.sync(force);
 						else {
-							SyncropClientDaemon d = new SyncropClientDaemon(Syncrop.getInstance(), false);
 							Settings.setForceSync(true);
+							Settings.setLogLevel(4);
+							SyncropClientDaemon d = new SyncropClientDaemon(Syncrop.getInstance(), false);
 							d.startConnection();
 							d.quit();
 							output("");
@@ -170,7 +171,6 @@ public class SyncropHelper {
 					case HELP:
 					default:
 						displayHelpMessage();
-						System.exit(1);
 						break;
 				}
 				return;
