@@ -17,8 +17,10 @@ public class SyncropLocalClient extends Thread{
 	Socket socket=null;
 	DataOutputStream out;
 	DataInputStream in=null;
-	public SyncropLocalClient() {
+	private boolean singleUse;
+	public SyncropLocalClient(boolean singleUse) {
 		super("");
+		this.singleUse=singleUse;
 	}
 	public SyncropLocalClient(String string) {
 		super(string);
@@ -58,7 +60,12 @@ public class SyncropLocalClient extends Thread{
 	}
 	
 	private synchronized void write(int request) throws IOException {
+		if(singleUse)
+			connect();
 		out.writeInt(request);
 		out.flush();
+		if(singleUse)
+			socket.close();
+			
 	}
 }

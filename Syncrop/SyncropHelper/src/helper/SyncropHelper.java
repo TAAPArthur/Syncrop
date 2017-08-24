@@ -68,8 +68,8 @@ public class SyncropHelper {
 		String username = null;
 		String email = null;
 		boolean force = false;
-		SyncropLocalClient daemon = new SyncropLocalClient();
-		try {daemon.connect();} catch (IOException e1) {}
+		SyncropLocalClient daemon = new SyncropLocalClient(true);
+		
 		
 		try {
 			for(int i=0; i<args.length;i++) {
@@ -150,9 +150,10 @@ public class SyncropHelper {
 						output("saved setting");
 						break;
 					case SYNC:
-						if(daemon.isConnected())
+						try {
 							daemon.sync(force);
-						else {
+						} catch (IOException e1) {
+							output(e1.getMessage());
 							Settings.setForceSync(true);
 							Settings.setLogLevel(4);
 							SyncropClientDaemon d = new SyncropClientDaemon(Syncrop.getInstance(), false);
@@ -187,6 +188,7 @@ public class SyncropHelper {
 		}
 	}
 	private static void displayHelpMessage(){
+		output("Usage: $0 {start|stop|restart|status}");
 		for(Commands c :Commands.values()) 
 			output(c.getHelpMessage());
 		

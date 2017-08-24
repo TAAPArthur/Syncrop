@@ -1,7 +1,5 @@
 package daemon;
 
-import static daemon.SyncropLocalServer.STATUS;
-
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -10,7 +8,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 import daemon.client.SyncropClientDaemon;
-import gui.SyncropGUI;
 import settings.Settings;
 import syncrop.ResourceManager;
 import syncrop.Syncrop;
@@ -63,12 +60,12 @@ public class SyncropLocalServer extends Thread
 				if(serverSocket.isClosed())
 					createSocket();
 				socket=serverSocket.accept();
-				
+				Syncrop.logger.log("received local connection");
 				new Thread() {
 					public void run(){
 						communicate(socket);;
 					}
-				};
+				}.start();
 			}
 			catch (IOException e){
 				close();
@@ -81,10 +78,8 @@ public class SyncropLocalServer extends Thread
 			in=new DataInputStream(socket.getInputStream());
 			out.flush();
 			while(!Syncrop.isShuttingDown() && !socket.isClosed()){
-				System.out.println("waiting");
 				int statusCode=in.readInt();
-				System.out.println("received code "+statusCode);
-				Syncrop.logger.log(statusCode+"");
+				Syncrop.logger.log("received code "+statusCode);
 				switch (statusCode)
 				{
 					case SHUTDOWN:
@@ -116,9 +111,11 @@ public class SyncropLocalServer extends Thread
 						out.writeLong(ResourceManager.getAccount().getRecordedSize());
 						break;
 					case SYNC:
-						if(daemon instanceof SyncropClientDaemon)
-							((SyncropClientDaemon)daemon).syncAllFilesToCloud(false);
-						
+					case FORCE_SYNC:
+						if(daemon instanceof SyncropClientDaemon) {
+							((SyncropClientDaemon)daemon).syncAllFilesToCloud(statusCode==FORCE_SYNC);
+							break;
+						}
 					default:
 						Syncrop.logger.logWarning("unkown option");
 						
