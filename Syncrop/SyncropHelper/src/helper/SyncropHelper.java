@@ -188,7 +188,7 @@ public class SyncropHelper {
 		}
 	}
 	private static void displayHelpMessage(){
-		output("Usage: $0 {start|stop|restart|status}");
+		output("Usage: syncrop {start|stop|restart|status}");
 		for(Commands c :Commands.values()) 
 			output(c.getHelpMessage());
 		

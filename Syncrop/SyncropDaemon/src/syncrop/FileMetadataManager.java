@@ -117,21 +117,22 @@ public class FileMetadataManager {
 	
 	
 	public static Iterable<SyncropItem> iterateThroughAllFileMetadata(String owner){
-		String query="SELECT * FROM "+TABLE_NAME+" "+
-				(owner!=null&&Syncrop.isInstanceOfCloud()?"WHERE Owner='Owner'":"")
+		String query="SELECT * FROM "+TABLE_NAME+
+				(owner!=null&&Syncrop.isInstanceOfCloud()?" WHERE Owner=?":" ")
 				+"ORDER BY Path DESC;";
 		try {
 			Connection conn = getConnectionInstance(true);
-			Statement statement = conn.createStatement();
-
-			ResultSet rs = statement.executeQuery(query);
+			PreparedStatement preparedStatement=conn.prepareStatement(query);
+			if(Syncrop.isInstanceOfCloud())
+				preparedStatement.setString(1, owner);
 			
+			ResultSet rs = preparedStatement.executeQuery();
+						
 			LinkedList<SyncropItem>items=new LinkedList<>();
 			while (rs.next())
 				items.add(getFile(rs));
 			
-			
-			statement.close();
+			preparedStatement.close();
 			conn.close();
 			return items;
 		} catch (SQLException e) {
@@ -197,12 +198,19 @@ public class FileMetadataManager {
 		String query="SELECT * FROM "+TABLE_NAME
 				+ " WHERE Path=? "
 				+(Syncrop.isInstanceOfCloud()?"AND Owner=?":"")+";";
-	
-		PreparedStatement preparedStatement=conn.prepareStatement(query);
-		preparedStatement.setString(1, relativePath);
-		if(Syncrop.isInstanceOfCloud())
-			preparedStatement.setString(2, owner);
-		rs = preparedStatement.executeQuery();
+		PreparedStatement preparedStatement;
+		try {
+			preparedStatement=conn.prepareStatement(query);
+			preparedStatement.setString(1, relativePath);
+			if(Syncrop.isInstanceOfCloud())
+				preparedStatement.setString(2, owner);
+			rs = preparedStatement.executeQuery();
+		}
+		catch(SQLException e) {
+			logger.log("Failed to execute query: "+query);
+			logger.log("path:"+relativePath+" owner:"+owner);
+			throw e;
+		}
 		
 		if(rs.next())
 			item= getFile(rs);

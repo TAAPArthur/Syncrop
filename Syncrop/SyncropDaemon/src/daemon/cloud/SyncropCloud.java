@@ -282,24 +282,26 @@ public final class SyncropCloud extends SyncDaemon
 		logger.logTrace("client restrinction"+user.getRestrictions().toString());
 		final String accountName=user.getAccountName();
 		
-		boolean removable=false;
-		//change standards; metadata in home"
-		while(removable=!removable){//regular vs removable
-			Iterable<SyncropItem>items=FileMetadataManager.iterateThroughAllFileMetadata(user.getAccountName());
-			for (SyncropItem item:items)
-				if(item.isEnabled())
-					syncFilesToClient(message.getUserID(),user,item);
+		Iterable<SyncropItem>items=FileMetadataManager.iterateThroughAllFileMetadata(accountName);
+		int synced=0,totalEnabled=0,total=0;
+		for (SyncropItem item:items) {
+			total++;
+			if(item.isEnabled()) {
+				totalEnabled++;
+				if(syncFilesToClient(message.getUserID(),user,item))
+					synced++;
+			}
 		}
+		logger.log("Synced "+synced+ " out of "+total+"("+totalEnabled+")"+" files for "+accountName);
 		this.syncedFiles.get(message.getUserID()).clear();
 		logger.log("files from Cloud have been synced with "+message.getUserID()+"("+accountName+")");
 		
 	}
 		
-	void syncFilesToClient(final String id,SyncropUser user,SyncropItem file){
+	boolean syncFilesToClient(final String id,SyncropUser user,SyncropItem file){
 		
 		if(!file.exists()||syncedFiles.get(id).contains(file.getPath())){
 			logger.logTrace("File would have already been synced"+file.getPath());
-			return;
 		}
 		else if(!file.isEnabled()){
 			logger.logTrace(file.getPath()+" is not enabled");
@@ -314,7 +316,7 @@ public final class SyncropCloud extends SyncDaemon
 					File target=Files.readSymbolicLink(file.getFile().toPath()).toFile();
 					if(target.list()!=null&&target.length()>=0){
 						logger.logTrace("Sybmolic link of nonempty dir; not syncing");
-						return;
+						return false;
 					}
 				} catch (IOException e) {}
 			}
@@ -325,10 +327,10 @@ public final class SyncropCloud extends SyncDaemon
 						file.delete(user.getLogInTime());
 					}
 					else fileTransferManager.addToSendQueue(file, id);
-					return;
+					return true;
 				}
 		}
-		
+		return false;
 	}
 	
 	protected void syncFiles(Message message,boolean forced)

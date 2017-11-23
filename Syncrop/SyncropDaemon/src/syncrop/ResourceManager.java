@@ -308,7 +308,7 @@ public class ResourceManager
 					System.exit(0);
 				}
 			}
-			logger.logDebug("Accounts: "+accounts.toString());
+			logger.log("Accounts: "+accounts.toString());
 			in.close();
 			
 		}

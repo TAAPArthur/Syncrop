@@ -287,8 +287,8 @@ public static SyncropItem getInstance(Object[] syncData){
 	 * Tests whether the file denoted by this abstract pathname is a directory.
 	 * @return true if and only if the file denoted by this abstract pathname exists and is a directory; false otherwise
 	 */
-	public boolean isDir(){
-		return Files.isDirectory(file.toPath());
+	public final boolean isDir(){
+		return file.exists()?Files.isDirectory(file.toPath()):this instanceof SyncropDir;
 		//return file.isDirectory();
 	}
 	public static boolean represetsDir(int key){
@@ -540,9 +540,10 @@ public static SyncropItem getInstance(Object[] syncData){
 				if(hasSameDateModifiedAs(currentDateMod))
 					return false;
 				if(syncOnFileModification()){
+					/* log somewhere else
 					logger.log("Updating modification date of "+path+": "+
 						getDateModified()+" to "+currentDateMod,
-						SyncropLogger.LOG_LEVEL_TRACE);
+						SyncropLogger.LOG_LEVEL_TRACE);*/
 					setHasBeenUpdated();
 				}
 				dateModified=currentDateMod;

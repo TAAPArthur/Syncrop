@@ -18,10 +18,15 @@ public class SyncropApplication {
 			for(String s:args){
 				if(s.startsWith("-i"))
 					instance=s.substring(2).trim();
+				else if(s.startsWith("-vv")){
+					System.out.println("Version: "+Syncrop.getVersionID());
+					System.exit(0);
+				}
 				else if(s.startsWith("-v")){
 					System.out.println(Syncrop.getVersionID());
 					System.exit(0);
 				}
+				
 				else if (s.equals("clean")){
 					clean=true;					
 				}

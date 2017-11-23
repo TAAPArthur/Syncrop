@@ -351,6 +351,7 @@ public abstract class SyncDaemon extends Syncrop{
 				sendMetadata(localFile, id);
 				break;
 			case SYNCED:
+				localFile.save();
 				break;
 			case SKIP:
 			default:
