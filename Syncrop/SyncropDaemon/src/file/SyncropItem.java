@@ -726,12 +726,13 @@ public static SyncropItem getInstance(Object[] syncData){
 			bytes=(byte[])syncData[INDEX_BYTES];
 		
 		return SyncropItem.compare(id,localFile, path, owner, remoteDateMod, remoteKey, remoteUpdatedSinceLastUpdate, 
-				remoteFilePermissions, remoteFileExists, remoteLength,linkTarget,bytes);
+				remoteFilePermissions, remoteFileExists, remoteLength,linkTarget,bytes,false);
 				
 	}
 	
 	public static SyncropPostCompare compare(String id,SyncropItem localFile,String path,String owner,long remoteDateMod,int remoteKey,
-			boolean remoteUpdatedSinceLastUpdate,int remoteFilePermissions,boolean remoteFileExists,long remoteLength,String linkTarget,byte[]bytes) throws IOException{
+			boolean remoteUpdatedSinceLastUpdate,int remoteFilePermissions,boolean remoteFileExists,long remoteLength,String linkTarget,byte[]bytes
+			,boolean assertRemoteIsNewer) throws IOException{
 		boolean remoteDir=represetsDir(remoteKey);
 		if(localFile==null)
 			if(remoteFileExists)
@@ -744,8 +745,8 @@ public static SyncropItem getInstance(Object[] syncData){
 			else 
 				return SyncropPostCompare.SKIP;
 		
-		boolean isLocalFileOlderVersion=localFile.isOlderThan(remoteDateMod);
-		boolean isLocalFileNewerVersion=localFile.isNewerThan(remoteDateMod);
+		boolean isLocalFileOlderVersion=assertRemoteIsNewer?true:localFile.isOlderThan(remoteDateMod);
+		boolean isLocalFileNewerVersion=assertRemoteIsNewer?false:localFile.isNewerThan(remoteDateMod);
 		
 		if(!localFile.exists()&&!remoteFileExists	//both files don't exist
 				||localFile.exists()&&remoteFileExists&&localFile.isSymbolicLink()&&

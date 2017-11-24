@@ -227,7 +227,7 @@ public class SyncropClientDaemon extends SyncDaemon{
 	private void sendSettings(){
 		mainClient.printMessage(Settings.getConflictResolution(), HEADER_USER_SETTINGS_CONFLICT_RESOLUTION);
 		if(Settings.isDeletingFilesNotOnClient())
-			mainClient.printMessage(null, HEADER_USER_SETTINGS_DELETING_FILES_NOT_ON_CLIENT);
+			mainClient.printMessage(true, HEADER_USER_SETTINGS_DELETING_FILES_NOT_ON_CLIENT);
 	}
 	/**
 	 * This method handles authentication.<br/>

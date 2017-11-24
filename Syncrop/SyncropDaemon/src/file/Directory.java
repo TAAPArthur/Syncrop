@@ -14,6 +14,8 @@ public class Directory
 	protected boolean literal=true;
 	public Directory(String literalDir)
 	{
+		if(literalDir.endsWith("/"))
+			literalDir=literalDir.substring(0, literalDir.length()-1);
 		this.literalDir=literalDir;
 		literal=!containsMatchingChars(literalDir);
 		if(literal)

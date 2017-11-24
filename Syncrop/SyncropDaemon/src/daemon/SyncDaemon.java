@@ -332,7 +332,7 @@ public abstract class SyncDaemon extends Syncrop{
 		SyncropItem localFile=ResourceManager.getFile(path,owner);
 		SyncropItem.SyncropPostCompare result=null;
 		try {
-			result = SyncropItem.compare(id,localFile, path, owner, dateModified, key, modifiedSinceLastUpdate, filePermissions, exists, length,linkTarget,bytes);
+			result = SyncropItem.compare(id,localFile, path, owner, dateModified, key, modifiedSinceLastUpdate, filePermissions, exists, length,linkTarget,bytes,true);
 		} catch (IOException e) {
 			logger.logError(e);
 		}

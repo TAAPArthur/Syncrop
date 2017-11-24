@@ -69,8 +69,7 @@ public class SyncropHelper {
 		String email = null;
 		boolean force = false;
 		SyncropLocalClient daemon = new SyncropLocalClient(true);
-		
-		
+				
 		try {
 			for(int i=0; i<args.length;i++) {
 				Commands c = getCommand(args[i]);
