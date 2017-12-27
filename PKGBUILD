@@ -12,8 +12,8 @@ depends=('java-runtime-headless' 'trash-cli')
 optdepends=('python: tray-icon' 'javasqlite: local metadata storage' 'mysql-connector-java: MySQL support')
 md5sums=('SKIP')
 
-source=("https://github.com/TAAPArthur/Syncrop/releases/download/v$pkgver/syncrop.tar.gz")
-_srcDir="fakeroot"
+source=("git://github.com/TAAPArthur/Syncrop.git")
+_srcDir="Syncrop/fakeroot"
 
 package() {
   cd "$_srcDir"
