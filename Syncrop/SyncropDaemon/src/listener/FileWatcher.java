@@ -174,10 +174,13 @@ public class FileWatcher extends Thread{
 				if(member!=null) {
 					if(member.isStable()){
 						reactToDirectoryChanges(eventQueue.poll());
-						if(daemon!=null&&SyncDaemon.isConnectionActive())
+						if(daemon!=null&&SyncDaemon.isConnectionActive()) {
 							Thread.sleep(daemon.getExpectedFileTransferTime());
+							continue;
+						}
 					}
 				}
+				Syncrop.sleepShort();
 			} catch (InterruptedException x) {
 				continue;
 			}
