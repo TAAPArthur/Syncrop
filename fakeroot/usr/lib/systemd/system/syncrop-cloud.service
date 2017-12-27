@@ -1,0 +1,12 @@
+[Unit]
+Description=Syncrop
+Wants=mysqld.service
+After=mysqld.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/syncrop start --cloud
+User=syncrop
+Group=http
+[Install]
+WantedBy=multi-user.target

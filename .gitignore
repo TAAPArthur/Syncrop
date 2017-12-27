@@ -11,4 +11,4 @@ Jars/
 *.class
 *.classpath
 *.project
-
+*conflict*
